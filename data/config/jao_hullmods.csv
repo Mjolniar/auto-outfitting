@@ -1,0 +1,165 @@
+id,source,roles,combat,how,smodPenalty,incompatible,note
+advancedshieldemitter,vanilla,SHIELD,TRUE,stats,FALSE,,Low-moderate. Helps omni-shield ships block flanking hits; nearly useless on wide front shields that stay up. Cheap.
+adaptive_coils,vanilla,MOBILITY,TRUE,stats,FALSE,phase_anchor,Moderate on phase ships; alternative to Phase Anchor (mutually exclusive). 5/10/15/25 OP.
+advancedoptics,vanilla,RANGE,TRUE,stats,FALSE,high_scatter_amp,"Strong on beam boats (Paragon, Apogee, Aurora, Odyssey, Medusa with beams). Zero without beams. 5/10/15/25 OP."
+turretgyros,vanilla,PD SPECIAL,TRUE,stats,FALSE,,"Low as a normal mod. Strong as an S-mod (cheap, +25% vs missiles/fighters, size-class bonus). Useful on slow capitals/cruisers relying on large turrets."
+armoredweapons,vanilla,ARMOR SPECIAL,TRUE,stats,FALSE,,Modest. +10% armor is ~ +100-175 armor on heavy cruisers/capitals. Good S-mod on gunboats (+10% RoF). Skip on PD-heavy or turret-tracking-reliant ships.
+assault_package,vanilla,HULL ARMOR FLUX CIVILIAN,TRUE,stats,FALSE,other civ_package mods,Moderate for armed civilian hulls. no_drop/no_drop_salvage/hidden in codex: obtained via skill.
+autorepair,vanilla,SPECIAL,TRUE,stats,FALSE,,Low as a normal mod for most; decent on front-line brawlers whose weapons get knocked out. Good S-mod (overload -33%).
+auxiliarythrusters,vanilla,MOBILITY,TRUE,stats,FALSE,,Moderate on sluggish ships with hardpoints/front shields; low on frigates and fast destroyers.
+ballistic_rangefinder,vanilla,RANGE,TRUE,listener,FALSE,,"small non-PD ballistic base range +100 (+200 with a large ballistic slot), medium +100 with a large slot; base cap 800/900; hybrid mounts x2"
+blast_doors,vanilla,HULL,TRUE,stats,FALSE,,Low combat value per OP: half the hull of Reinforced Bulkheads for ~80% of its OP. Filler.
+converted_hangar,vanilla,FIGHTER,TRUE,stats,FALSE,converted_bay,Moderate on destroyers/cruisers/capitals with spare OP. 0/10/10/10 OP plus wing OP plus DP. Not for frigates (forbidden) or phase.
+converted_fighterbay,vanilla,LOGISTICS CIVILIAN,FALSE,context,FALSE,,Never for combat: deletes the fighters. Logistics only. Requires dock (req_spaceport).
+dedicated_targeting_core,vanilla,RANGE,TRUE,stats,FALSE,targetingunit distributed_fire_control advancedcore,"Core mod on gun cruisers/capitals when ITU is unknown. ITU (same OP on cruiser/capital, 15/25) gives more range, so ITU dominates. Useless on missile/carrier-only ships. Unlocked by default."
+defensive_targeting_array,vanilla,FIGHTER PD,TRUE,stats,FALSE,,Good on escort carriers with PD wings; bad for strike carriers. 2/4/6/10 OP.
+eccm,vanilla,MISSILE SENSOR,TRUE,stats,FALSE,,Good on missile boats with guided missiles. Low on gun ships. Not a range buff.
+ecm,vanilla,SENSOR,FALSE,context,FALSE,,Fleet support. Low per-ship value; 6/12/18/24 OP is expensive. Only worth it when building an ECM fleet or with spare OP.
+escort_package,vanilla,MOBILITY RANGE,FALSE,context,FALSE,,Good on escort destroyers/cruisers in fleets with capitals; 0 value solo. Cost 0/7/15/0 (only destroyer/cruiser).
+expanded_deck_crew,vanilla,FIGHTER,TRUE,stats,FALSE,,Good on dedicated carriers with 3+ bays; marginal on 1-bay ships. 5/10/15/25 OP.
+magazines,vanilla,SPECIAL,TRUE,stats,FALSE,,Niche: ships with charge-based energy weapons or ammo-limited ballistics. Better as S-mod (+50% regen).
+missleracks,vanilla,MISSILE,TRUE,stats,TRUE,,"Strong on missile-centric ships. Useless without missiles. Expensive (8/12/20/30). Its S-mod effect is a penalty, so do not build it in."
+extendedshieldemitter,vanilla,SHIELD,TRUE,stats,FALSE,,Moderate on narrow-arc shields (<=180). Useless on 360-degree shields.
+fluxcoil,vanilla,FLUX,TRUE,stats,FALSE,,Filler for burst-damage ships after capacitors are maxed. 150 flux/OP (vs 200/OP for capacitors).
+fluxdistributor,vanilla,FLUX,TRUE,stats,FALSE,,Filler for sustained-fire ships with maxed vents.
+shield_shunt,vanilla,ARMOR,TRUE,stats,FALSE,frontshield,"Niche: low-tech brawlers with bad shields (e.g. Enforcer, Dominator, Eradicator) in armor builds. Usually skipped by a general optimizer. 3/5/7/10 OP."
+frontshield,vanilla,SHIELD,TRUE,stats,FALSE,shield_shunt,Situational: turns armor-only ships into shield tanks badly. Usually skip on armor bricks with high armor (Onslaught-like); can help fragile shieldless ships. Not an autofit default.
+missile_autoloader,vanilla,MISSILE,TRUE,listener,TRUE,,reload capacity +6/9/15/24 for small finite missiles; 5 s cooldown after a reload
+hardenedshieldemitter,vanilla,SHIELD,TRUE,stats,FALSE,,Top-tier on shield-tanking ships (all high-tech and most midline). 1/0.8 = +25% effective shield HP. Less useful on armor tanks with shields as backup.
+hardened_subsystems,vanilla,CR,TRUE,stats,FALSE,,Strong on frigates/destroyers and any Safety Overrides build; filler otherwise. Unapplicable to automated/no-CR-loss hulls.
+heavyarmor,vanilla,ARMOR,TRUE,stats,TRUE,,"Strong on low-tech/midline armor tanks (Dominator, Enforcer, Hammerhead, Onslaught). Poor on high-tech shield ships with low armor and on fast frigates (expensive). Do not S-mod unless the maneuver pe"
+high_scatter_amp,vanilla,RANGE SPECIAL,TRUE,listener,FALSE,advancedoptics,beam damage +10%; beams put hard flux on shields; beam base range above 200 halved
+pointdefenseai,vanilla,PD,TRUE,stats,FALSE,,Strong on PD-heavy hulls and escorts; one of the best S-mods for ships with many small mounts. Useless on ships without PD.
+targetingunit,vanilla,RANGE,TRUE,stats,FALSE,dedicated_targeting_core distributed_fire_control advancedcore,Core mod for every gun ship cruiser+; good on destroyers (+20%); weak on frigates (+10% for 4 OP).
+nav_relay,vanilla,MOBILITY SPECIAL,FALSE,context,FALSE,,Low per-ship value; skip in single-ship optimization unless the fleet plan wants nav rating.
+neural_interface,vanilla,SPECIAL,FALSE,context,FALSE,,Player-flagship feature; no value in an automatic per-ship optimizer.
+neural_integrator,vanilla,SPECIAL,FALSE,context,FALSE,,Player feature; skip in optimizer.
+frontemitter,vanilla,SHIELD,TRUE,stats,FALSE,adaptiveshields,"Good on omni ships that fight head-on (narrow omni arcs). Bad on ships that rely on turning the shield (carriers, kiting ships)."
+adaptiveshields,vanilla,SHIELD,TRUE,stats,FALSE,frontemitter,Situational. Useful on front-shield carriers or broadside ships; usually negative on brawlers. Great when S-modded (no arc penalty).
+operations_center,vanilla,SPECIAL,FALSE,context,FALSE,,No value on non-flagships. Only consider when fitting the flagship and CP matter.
+phase_anchor,vanilla,FLUX SPECIAL,TRUE,listener,FALSE,adaptive_coils,phase cloak activation free; x2 dissipation and weapon recharge while phased; one emergency dive
+recovery_shuttles,vanilla,FIGHTER LOGISTICS,FALSE,none,FALSE,,No combat value. Only for crew-starved campaigns. 3/6/9/15 OP.
+reinforcedhull,vanilla,HULL,TRUE,stats,FALSE,,Decent filler for armor/hull tanks; very good for rare/irreplaceable hulls (recovery guarantee). Low combat value per OP on shield tanks.
+fluxbreakers,vanilla,FLUX,TRUE,stats,FALSE,,Moderate on high-tech/flux-hungry ships that vent often; good vs Remnant/ion-heavy enemies. Cheap (3/6/9/15).
+safetyoverrides,vanilla,MOBILITY FLUX,TRUE,stats,FALSE,fluxshunt,"Very strong on short-range frigates/destroyers/cruisers built to brawl (e.g. Hyperion, Tempest, Medusa, Wolf, Hammerhead, Aurora). Terrible for long-range fire-support, carriers, and ships needing to "
+stabilizedshieldemitter,vanilla,SHIELD FLUX,TRUE,stats,FALSE,,Good on ships with high shield upkeep relative to dissipation (many midline/low-tech shields). Low on high-tech with tiny upkeep. Cheap (3/6/9/15).
+unstable_injector,vanilla,MOBILITY,TRUE,stats,FALSE,,"Low-moderate. Fine on missile boats, flankers, or SO brawlers where range already capped (note SO threshold applies after this mult). Bad on long-range gun ships and carriers."
+additional_berthing,vanilla,LOGISTICS,FALSE,none,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
+augmentedengines,vanilla,LOGISTICS,FALSE,none,FALSE,,None in combat. Requires dock.
+auxiliary_fuel_tanks,vanilla,LOGISTICS,FALSE,none,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
+efficiency_overhaul,vanilla,LOGISTICS CR,TRUE,stats,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
+expanded_cargo_holds,vanilla,LOGISTICS,FALSE,none,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
+hiressensors,vanilla,LOGISTICS SENSOR,FALSE,none,FALSE,,"None in combat (S-mod: vision only). Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or"
+insulatedengine,vanilla,LOGISTICS SENSOR HULL,TRUE,stats,FALSE,,Campaign stealth mod; small combat value. Requires dock.
+militarized_subsystems,vanilla,CIVILIAN LOGISTICS,FALSE,none,FALSE,,"Only matters to arm civilian hulls. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or "
+solar_shielding,vanilla,LOGISTICS ARMOR SHIELD,TRUE,stats,FALSE,,Low-moderate combat value (generic 10% vs energy); cheap. Requires dock.
+surveying_equipment,vanilla,LOGISTICS,FALSE,none,FALSE,,None in combat. Requires dock.
+fragment_swarm,vanilla,SPECIAL PD,TRUE,stats,TRUE,shrouded_mantle shrouded_thunderhead shrouded_lens,Mandatory with fragment weapons; otherwise skip. 6/12/18/30 OP. Do not S-mod.
+secondary_fabricator,vanilla,SPECIAL,TRUE,stats,FALSE,,Add-on for fragment builds. 3/6/9/15 OP.
+fragment_coordinator,vanilla,SPECIAL,TRUE,stats,FALSE,,Add-on for fragment builds. 3/6/9/15 OP.
+shrouded_mantle,vanilla,MOBILITY SPECIAL,TRUE,stats,FALSE,fragment_swarm,"Low-moderate. Shrouded hullmods share HumanShipShroudedHullmod: +50% crew casualties, no Hungering Rift healing unless S-modded Mantle; not on phase ships; incompatible with Fragment Swarm (api/impl/c"
+shrouded_thunderhead,vanilla,SPECIAL,TRUE,stats,FALSE,fragment_swarm,"Strong on large gun ships with spare flux. 5/10/15/25 OP. Shrouded hullmods share HumanShipShroudedHullmod: +50% crew casualties, no Hungering Rift healing unless S-modded Mantle; not on phase ships; "
+shrouded_lens,vanilla,PD SPECIAL,TRUE,stats,FALSE,fragment_swarm,"Moderate for brawlers/capitals. 3/6/9/15 OP. Shrouded hullmods share HumanShipShroudedHullmod: +50% crew casualties, no Hungering Rift healing unless S-modded Mantle; not on phase ships; incompatible "
+A_S-F_anarchyBallistic,A_S-F,WEAPON,TRUE,stats,FALSE,,1 OP for +15% ballistic DPS/flux-use; costs +10% DP and supplies and -40% weapon turn rate. Very OP-efficient on ballistic gunboats with hardpoints or slow targets; S-mod is a strong pick.
+A_S-F_anarchyEnergy,A_S-F,WEAPON FLUX,TRUE,stats,FALSE,,"1 OP for +15% energy damage (also +15% damage per flux); -10% capacity, +20% overload, +10% DP/supplies. Strong on energy boats."
+A_S-F_anarchyFlux,A_S-F,FLUX,TRUE,stats,FALSE,,"1 OP for +15% dissipation (roughly 3-10 vents worth); -10% armor and +50% EMP taken. Excellent value on shielded/high-tech hulls, weaker on armor tanks."
+A_S-F_anarchyShields,A_S-F,SHIELD MOBILITY,TRUE,stats,FALSE,,1 OP Hardened-Shields-lite (-15% shield damage) at -20% speed/maneuver and much slower shield. Good for slow line ships; poor for fast frigates.
+A_S-F_anarchyTargeting,A_S-F,RANGE,TRUE,stats,FALSE,,1 OP for +15% non-PD range (stacks with ITU); -10% dissipation and -15% PPT. Top value for long-range gunlines; poor on frigates that rely on PPT.
+A_S-F_ElectroVent,A_S-F,FLUX SPECIAL,TRUE,stats,FALSE,,Halves overload duration for 3/6/9/16 OP; self-EMP on overload partly offsets. Situational defensive pick; S-mod flux capacity makes it decent on capitals.
+armaa_himac,armaa,MOBILITY SPECIAL,TRUE,stats,FALSE,,Expensive (8/12) dash + assault mode; strong on mech frigates/destroyers piloted aggressively; engines more fragile.
+armaa_serviceBays,armaa,FIGHTER LOGISTICS,TRUE,stats,FALSE,,Only for strikecraft support carriers; zero value otherwise.
+armaa_targetingDisruptor,armaa,SPECIAL,TRUE,stats,FALSE,,For strikecraft that dive capital ships; 5/10/15/20 OP is poor value on normal ships (only the accuracy debuff).
+armaa_sykoStims,armaa,SPECIAL WEAPON,TRUE,stats,FALSE,armaa_SilverSwordHM safetyoverrides,Pilot stims for an ace strikecraft; costly 6/12/20/40 OP.
+armaa_wingClipper2,armaa,PD FLUX WEAPON,TRUE,stats,FALSE,,Situational air-superiority buff (3/6/12/24 OP); good on anti-fighter escorts facing carrier-heavy factions.
+armaa_automatedCognitionShell,armaa,SPECIAL CR,TRUE,stats,FALSE,,Free AI officer for an uncaptained strikecraft at the cost of a gamma core.
+armaa_emergencyRecallDevice,armaa,HULL SPECIAL,TRUE,stats,FALSE,phase_anchor,Death insurance for valuable strikecraft; 8/15/30/24 OP.
+armaa_wingCommander,armaa,FIGHTER SPECIAL,TRUE,stats,FALSE,,Turns a carrier's crewed wing into a persistent elite squadron at a DP cost; worth it for long campaigns with good wings.
+armaa_skyMindAlpha,armaa,FIGHTER,TRUE,stats,FALSE,armaa_skyMindBeta armaa_skyMindGamma,0 OP but costs a alpha core; meaningful buff to drone wings (alpha best).
+armaa_skyMindBeta,armaa,FIGHTER,TRUE,stats,FALSE,armaa_skyMindAlpha armaa_skyMindGamma,0 OP but costs a beta core; meaningful buff to drone wings (alpha best).
+armaa_skyMindGamma,armaa,FIGHTER,TRUE,stats,FALSE,armaa_skyMindAlpha armaa_skyMindBeta,0 OP but costs a gamma core; meaningful buff to drone wings (alpha best).
+armaa_exclusive_hangar_assignment,armaa,FIGHTER LOGISTICS,TRUE,stats,FALSE,,Deployment convenience; no combat stats.
+armaa_spare_chassis_storage,armaa,FIGHTER LOGISTICS,TRUE,stats,FALSE,,0/2/4/6 OP; extra lives for spare-chassis strikecraft.
+adf_AttunedEngines,AttunedDriveField,LOGISTICS,FALSE,none,FALSE,augmentedengines,Campaign only: Augmented Drive Field clone without the profile/strength penalties (6/10/16/28 OP).
+orr_wo_anathema,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_giga orr_wo_har orr_wo_hmc orr_wo_nal orr_wo_tac orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_giga,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_har orr_wo_hmc orr_wo_nal orr_wo_tac orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_har,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_hmc orr_wo_nal orr_wo_tac orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_hmc,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_har orr_wo_nal orr_wo_tac orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_nal,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_har orr_wo_hmc orr_wo_tac orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_tac,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_har orr_wo_hmc orr_wo_nal orr_wo_tpc orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_tpc,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_har orr_wo_hmc orr_wo_nal orr_wo_tac orr_wo_tpl,0-OP marker; no combat effect until the conversion is executed.
+orr_wo_tpl,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,orr_wo_anathema orr_wo_giga orr_wo_har orr_wo_hmc orr_wo_nal orr_wo_tac orr_wo_tpc,0-OP marker; no combat effect until the conversion is executed.
+vice_advanced_terminator_core,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,,"Flat 10 OP on every hull size for a much stronger secondary drone wing; take it on every eligible hull, S-mod it if possible."
+vice_attuned_emitter_diodes,EmergentThreats_Vice,WEAPON FLUX,TRUE,stats,FALSE,advancedoptics high_scatter_amp ix_laser_collimator vice_adaptive_emitter_diodes,Turns beams into hard-flux weapons at -100 range/-20% damage; only for beam-centric coherer ships.
+vice_convert_shuttle,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,,One-shot installer for the Kite (LG) shuttle wing.
+vice_convert_shuttle_dem,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,,One-shot installer for the Kite (DEM) wing.
+vice_convert_shuttle_attack,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,vice_convert_shuttle_bomber,Converts the Thunderbox's hangar into two Kite attack gunship wings.
+vice_convert_shuttle_bomber,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,vice_convert_shuttle_attack,Two Kite bomber wings for 50 OP.
+vice_field_repair_nanites,EmergentThreats_Vice,HULL CR,TRUE,stats,FALSE,vice_adaptive_entropy_arrester ix_entropy_arrester,Strong in-combat hull sustain for armor/hull tanks; costs CR in long fights. Free of CR cost on Threat-infected relic hulls.
+vice_ground_attack_conversion,EmergentThreats_Vice,LOGISTICS CIVILIAN,FALSE,none,FALSE,,No combat value; raid support.
+vice_interdiction_array,EmergentThreats_Vice,SYSTEM,TRUE,stats,FALSE,,Offensive system swap that removes Paragon's Fortress Shield; situational.
+vice_laser_collimator,EmergentThreats_Vice,WEAPON FLUX,TRUE,stats,FALSE,advancedoptics high_scatter_amp vice_adaptive_emitter_diodes vice_attuned_emitter_diodes,Hard-flux HIL/tac-laser builds only; heavy dissipation cost otherwise.
+vice_modular_bolt_coherer,EmergentThreats_Vice,RANGE WEAPON,TRUE,stats,FALSE,coherer vice_adaptive_pulse_resonator,Cheap +100 range for pulse/bolt energy guns; worthless for beam or ballistic loadouts.
+vice_modular_fleet_override,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,vice_fleet_override,+10% fighter damage; decent on carriers with strike/gunship wings.
+vice_modular_seeker_lens,EmergentThreats_Vice,RANGE WEAPON,TRUE,stats,FALSE,vice_seeker_lens ix_seeker_lens tw_seeker_lens,Very high value with seeker weapons (+300 range for 3-10 OP); zero otherwise.
+vice_political_officer,EmergentThreats_Vice,SPECIAL CR,TRUE,stats,FALSE,,No effect in this modlist; never pick.
+vice_unified_targeting_core,EmergentThreats_Vice,RANGE FIGHTER,TRUE,stats,FALSE,dedicated_targeting_core targetingunit tahlan_centraltargeting advancedcore distributed_fire_control tw_optimized_targeting_core,Range mod between DTC (35/50%) and ITU; unique in also buffing fighter guns. Good on carriers/battlecarriers.
+vice_abomination_interface,EmergentThreats_Vice,SPECIAL,TRUE,stats,FALSE,ix_semi_automated,Enabler for exotic hulls; one per fleet.
+vice_ai_subsystem_integration,EmergentThreats_Vice,SPECIAL CR LOGISTICS,TRUE,stats,FALSE,expanded_deck_crew recovery_shuttles,"Costs an S-mod slot/story point, not OP; zero crew + unlocks one adaptive subsystem. Strong on non-carrier hulls."
+vice_adaptive_drive_field,EmergentThreats_Vice,LOGISTICS,FALSE,none,FALSE,augmentedengines all other vice_adaptive_*,Logistics only and it blocks every other adaptive subsystem; avoid on combat ships.
+vice_adaptive_drone_bay,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,converted_hangar converted_fighterbay roider_fighterClamps magellan_convertedbay other vice_adaptive_*,Free drone bay on a gunship; good value with strong drone wings.
+vice_adaptive_emitter_diodes,EmergentThreats_Vice,WEAPON,TRUE,stats,FALSE,advancedoptics high_scatter_amp ix_laser_collimator vice_attuned_emitter_diodes other vice_adaptive_*,Hard-flux beams on beam-heavy Remnant ships.
+vice_adaptive_flight_command,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,vice_adaptive_drone_bay other vice_adaptive_*,Strong only with gunship conversions; otherwise a net loss on most carriers.
+vice_adaptive_gravity_drive,EmergentThreats_Vice,SYSTEM MOBILITY,TRUE,stats,FALSE,,System swap; situational.
+vice_adaptive_neural_net,EmergentThreats_Vice,CR,TRUE,stats,FALSE,other vice_adaptive_*,Small CR buff; best with alpha/omega cores.
+vice_adaptive_phase_coils,EmergentThreats_Vice,PHASE SHIELD ARMOR HULL SENSOR,TRUE,stats,FALSE,phase_anchor adaptive_coils sotf_serenity sotf_fervor sotf_wispersong other vice_adaptive_*,Free Adaptive Phase Coils on phase ships; flat -10% damage taken on others (good default).
+vice_adaptive_pulse_resonator,EmergentThreats_Vice,RANGE WEAPON,TRUE,stats,FALSE,coherer vice_modular_bolt_coherer other vice_adaptive_*,+100 range for pulse/bolt energy loadouts at 0 OP.
+vice_adaptive_reactor_chamber,EmergentThreats_Vice,FLUX,TRUE,stats,FALSE,other vice_adaptive_*,Safe all-round +10% flux stats.
+vice_adaptive_tactical_core,EmergentThreats_Vice,SHIELD PHASE WEAPON,TRUE,stats,FALSE,rat_delta_assistant neural_interface neural_integrator other vice_adaptive_*,Strong on uncaptained ships only (acts like Field Modulation + Target Analysis).
+vice_adaptive_temporal_shell,EmergentThreats_Vice,SPECIAL SHIELD,TRUE,stats,FALSE,vice_temporal_shell other vice_adaptive_*,+10% timeflow (more DPS/mobility) for +25% shield damage taken.
+vice_adaptive_thruster_control,EmergentThreats_Vice,MOBILITY,TRUE,stats,FALSE,auxiliarythrusters unstable_injector other vice_adaptive_*,"Big free mobility, especially on capitals."
+vice_adaptive_trajectory_analyzer,EmergentThreats_Vice,RANGE MISSILE,TRUE,stats,FALSE,tw_modernized_rangefinder magellan_trajectory_analyzer other vice_adaptive_*,Very strong on relic hulls with archaic composites (+50% range).
+vice_adaptive_entropy_arrester,EmergentThreats_Vice,HULL CR,TRUE,stats,FALSE,autorepair vice_field_repair_nanites ix_entropy_arrester other vice_adaptive_*,0-OP regen + fast repairs; strong on hull-tanky ships.
+vice_adaptive_entropy_projector_abyssal,EmergentThreats_Vice,WEAPON SPECIAL,TRUE,stats,FALSE,other vice_adaptive_*,Free periodic arc damage (~60-120 dps-equivalent + EMP); decent default for brawlers.
+vice_adaptive_flux_dissipator,EmergentThreats_Vice,FLUX SHIELD,TRUE,stats,FALSE,other vice_adaptive_*,Likely near-zero effect (mult on a 0 stat) unless the captain has hard-flux-dissipation skills.
+vice_adaptive_metastatic_growth,EmergentThreats_Vice,HULL MISSILE,TRUE,stats,FALSE,other vice_adaptive_*,Good all-round pick for missile boats.
+expanded_deck_crew,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,automated vice_ai_subsystem_integration,Same numbers as vanilla.
+insulatedengine,EmergentThreats_Vice,ARMOR HULL SENSOR MOBILITY,TRUE,stats,FALSE,,Vanilla Insulated Engine Assembly; ET only adds Interdictor immunity.
+recovery_shuttles,EmergentThreats_Vice,FIGHTER CR,FALSE,none,FALSE,automated vice_ai_subsystem_integration,Same numbers as vanilla.
+solar_shielding,EmergentThreats_Vice,SHIELD ARMOR LOGISTICS,TRUE,stats,FALSE,,Same combat numbers as vanilla (-10% energy damage).
+vice_apotheosis_protocol,EmergentThreats_Vice,FIGHTER SHIELD,TRUE,stats,FALSE,hiressensors,One-shot upgrade for the Cabal Odyssey.
+tw_drone_control_node,EmergentThreats_IX_Revival,FIGHTER SHIELD,TRUE,stats,FALSE,hardenedshieldemitter tw_enhanced_control_node,Cheap (5/7/10 OP) free drone wing for TW destroyers+; worth it unless the ship relies on shield tanking.
+tw_modernized_rangefinder,EmergentThreats_IX_Revival,RANGE,TRUE,stats,FALSE,tw_optimized_targeting_core magellan_trajectory_analyzer vice_adaptive_trajectory_analyzer,Cheap (3/5/7/10) but only useful for archaic composite builds; as an S-mod it is a generic +200 missile/composite range buff.
+ix_antecedent,EmergentThreats_IX_Revival,MISSILE WEAPON,TRUE,stats,FALSE,,20 OP upgrade of the built-in torpedo; good if the ship is a striker.
+ix_carrier_gunships,EmergentThreats_IX_Revival,FIGHTER SYSTEM,TRUE,stats,FALSE,,Replaces normal fighters with two heavy gunship squadrons; strong but expensive in OP.
+ix_seeker_lens,EmergentThreats_IX_Revival,RANGE WEAPON,TRUE,stats,FALSE,vice_seeker_lens vice_modular_seeker_lens tw_seeker_lens,3/5/7/10 OP; take only when 2+ seeker weapons are fitted.
+ix_ground_invasion_conversion,EmergentThreats_IX_Revival,LOGISTICS CIVILIAN,FALSE,none,FALSE,vice_ground_attack_conversion,Campaign-only raid booster; no combat value.
+ix_reactive_combat_shields,EmergentThreats_IX_Revival,SHIELD,TRUE,stats,FALSE,hardenedshieldemitter,Excellent for poor-shield ships fighting at high flux (effectively halves shield damage late in fights); useless on 0.6-or-better shields.
+ix_system_reset,EmergentThreats_IX_Revival,SPECIAL,TRUE,stats,FALSE,,Utility: never part of an auto-fit.
+ix_terminus_relay,EmergentThreats_IX_Revival,FIGHTER PD,TRUE,stats,FALSE,,10 OP for a strong PD drone wing on the Odyssey (IX).
+ix_vampyr_retrofit,EmergentThreats_IX_Revival,MISSILE WEAPON,TRUE,stats,FALSE,,35 OP for a heavy strike missile; compare against a normal large composite in WS 004.
+IndEvo_augfield,IndEvo,LOGISTICS,FALSE,none,FALSE,,Campaign only (+1 burn).
+IndEvo_CamouflageFieldEmitter,IndEvo,SPECIAL,TRUE,stats,FALSE,,No combat value; 4/8/10/15 OP wasted for combat fits.
+ii_armor_package,Imperium,ARMOR SPECIAL,TRUE,stats,FALSE,ii_targeting_package ii_elite_package ii_core_upgrades ii_no_package swp_no_package diableavionics_mount,"Doubles armor pool (+150) but halves its damage reduction: great vs many small hits/frag/HE missiles and EMP, poorer vs big single hits. Mobility -33%. Solid pick for front-line Imperium cruisers/capi"
+ii_targeting_package,Imperium,RANGE WEAPON PD,TRUE,stats,FALSE,ii_armor_package ii_elite_package ii_core_upgrades ii_no_package swp_no_package diableavionics_mount unstable_injector swp_pdconversion,"Huge flat range for non-beam guns (+150..+300, more than ITU on frigates/destroyers) at -15 speed. Strong for kinetic/HE gunline Imperium ships; poor for beam boats."
+ii_elite_package,Imperium,WEAPON FLUX MOBILITY CR,TRUE,stats,FALSE,ii_armor_package ii_targeting_package ii_core_upgrades ii_no_package swp_no_package,"Aggressive DPS/speed package: +25% RoF, x1.5 flux stats, much faster, half overload; costs 20% range, half peak CR, +50% CR per deploy, weaker shields. 10/20/30/50 OP - expensive; strong for flankers/"
+ii_core_upgrades,Imperium,CR HULL SHIELD MOBILITY,TRUE,stats,FALSE,ii_armor_package ii_targeting_package ii_elite_package ii_no_package swp_no_package safetyoverrides,"Story-point-only upgrade: +15% CR, +33% PPT, 10% better shields, +20% hull, speed/maneuver. Worth an S-mod slot only if no package is wanted; never install unbuilt."
+sotf_serenity,secretsofthefrontier,PHASE MOBILITY,TRUE,stats,FALSE,,Keeps Concord Shift fast at higher flux; cheap and good on Sierra's ships.
+sotf_fervor,secretsofthefrontier,PHASE FLUX WEAPON SPECIAL,TRUE,stats,FALSE,,Expensive (10/20/30/50) but large uptime/survival boost for Sierra.
+sotf_wispersong,secretsofthefrontier,SPECIAL FIGHTER,TRUE,stats,FALSE,,Snowballing summons in big fights.
+sotf_soulbond,secretsofthefrontier,MOBILITY SPECIAL,TRUE,stats,FALSE,,Utility teleport; player-skill dependent.
+sotf_daydream_synthesizer,secretsofthefrontier,SPECIAL,TRUE,stats,FALSE,,Doubles/triples a ship's presence for 8/16/30/50 OP; very strong on efficient frigates/destroyers if DP budget allows.
+SKR_remote,SEEKER,FIGHTER CR,TRUE,stats,FALSE,,Campaign crew saver at a combat cost (+20% refit time); usually not worth OP for combat-optimised fits.
+swp_pdconversion,swp,WEAPON PD RANGE,TRUE,stats,FALSE,pointdefenseai ii_targeting_package,"Turns PD guns into anti-ship guns: +25% dmg, +50% hit strength, +25% range, but they no longer act as PD and cost more OP. Good on PD-heavy hulls fitted aggressively (vs carriers/frigates); bad if the"
+swp_extrememods,swp,SPECIAL,TRUE,stats,FALSE,efficiency_overhaul swp_extrememods2,"Free +1 S-mod slot for a 3% weapon malfunction chance and slower fighter refit; worth it for player S-modded ships, especially non-carriers."
+stardust_EnhancedEngines,stardustventures,LOGISTICS MOBILITY,TRUE,stats,FALSE,augmentedengines,"Augmented-Drive-Field upgrade that also gives +10% combat speed and +20/40% maneuver; 7/13/20/32 OP is pricey for combat use, mainly a logistics pick."
+stardust_EnvironmentalShielding,stardustventures,LOGISTICS CIVILIAN,FALSE,none,FALSE,,No combat effect.
+stardust_HarmonicStabilizers,stardustventures,LOGISTICS,FALSE,none,FALSE,stardust_HarmonicEnhancers stardust_HarmonicSilencers stardust_DriveFieldOvercharge,Campaign only.
+stardust_HarmonicEnhancers,stardustventures,LOGISTICS,FALSE,none,FALSE,stardust_HarmonicStabilizers stardust_HarmonicSilencers stardust_DriveFieldOvercharge,Campaign only.
+stardust_HarmonicSilencers,stardustventures,LOGISTICS SENSOR,FALSE,none,FALSE,stardust_HarmonicStabilizers stardust_HarmonicEnhancers stardust_DriveFieldOvercharge,Campaign only.
+stardust_DriveFieldOvercharge,stardustventures,LOGISTICS,FALSE,none,FALSE,stardust_HarmonicStabilizers stardust_HarmonicEnhancers stardust_HarmonicSilencers,"Campaign only, 20/40/60/80 OP."
+spinloki.TreasureHunt.data.hullmods.THTreasureHuntPackage,spinloki_treasurehunt,LOGISTICS,FALSE,none,FALSE,,Campaign only.
+valk_reconoptimization,valkyrian,SENSOR MOBILITY,TRUE,stats,FALSE,,Scout frigate mod: +15% speed and vision for -15% weapon damage. Low value for a combat fitter except interceptors/objective cappers.
+valk_skogulmodernization,valkyrian,SPECIAL FLUX ARMOR HULL MOBILITY WEAPON SHIELD,TRUE,stats,FALSE,,"Small across-the-board +3% (x1.03 damage, x0.97 damage taken) for +25% upkeep; 5/10/15/25 OP is poor value unless S-modded (+5%, no penalty)."
+valk_peakfire,valkyrian,WEAPON FLUX,TRUE,stats,FALSE,valk_fluxfog valk_redarmor,Up to +20% RoF and -20% flux cost on guns after sustained fire: strong for gunline Valkyrian ships (3/6/10/15 OP).
+valk_fluxfog,valkyrian,ARMOR HULL,TRUE,stats,FALSE,valk_peakfire valk_redarmor safetyoverrides,Effectively worthless in current code (0.2% damage reduction). Prefer Peakfire or Crimson Steel.
+valk_redarmor,valkyrian,FLUX ARMOR,TRUE,stats,FALSE,valk_peakfire valk_fluxfog safetyoverrides,"Big burst dissipation when taking armor hits; good on armored Valkyrian brawlers, situational otherwise."

@@ -1,0 +1,34 @@
+weaponId,shieldDamageMult,armorExtraPerHit,arcChancePerHullHit,arcsPerSecond,arcDamage,arcEmp,arcPiercesShields,targetShieldTakenMult,softFluxOnShields,ownedOnly,note
+# Scripted effects the plain weapon stats miss (research mechanics_report.md 6.2). Read by JAOWeapons when "Value special weapons" is on.
+# shieldDamageMult: x damage vs shields. armorExtraPerHit: armor damage per hit that ignores armor reduction (can't hurt hull).
+# arcChancePerHullHit / arcsPerSecond: EMP arcs (energy damage + EMP); arcPiercesShields TRUE when they can pierce at high target hard flux.
+# targetShieldTakenMult: debuff on the target's shield while hit. softFluxOnShields: payload beams. ownedOnly: restricted/no-drop, used only if already in the pool.
+ioncannon,,,0.25,,25,400,FALSE,,,FALSE,Ion Cannon: 25% arc on hull/armor hits
+ionpulser,,,0.25,,90,600,FALSE,,,FALSE,Ion Pulser: 25% arc on hull/armor hits
+ionbeam,,,,1.0,50,400,TRUE,,,FALSE,Ion Beam: arc every 0.25-1.75 s of contact; pierces at target hard flux - 0.1
+tachyonlance,,,,4.0,375,500,TRUE,,,FALSE,Tachyon Lance: arc every 0.2-0.3 s at full beam (about 4 per burst)
+gravitonbeam,,,,,,,,1.05,,FALSE,"Graviton Beam: target shield damage taken x1.05 / 1.08 / 1.10 with 1 / 2 / 3+ beams"
+breach,,250,,,,,,,,FALSE,Breach SRM: +250 armor damage per non-shield hit ignoring armor reduction
+breachpod,,250,,,,,,,,FALSE,Breach SRM Pod: as Breach SRM
+miningblaster,,100,,,,,,,,FALSE,Mining Blaster: +100 armor damage per non-shield hit
+squall,2.5,,,,,,,,,FALSE,Squall: shield hits +150 base damage (100 -> 250 kinetic)
+sabot,,,0.25,,0,,FALSE,,,FALSE,Sabot: MIRV 5 x 200 kinetic; 25% EMP-only arc per hull hit
+sabotpod,,,0.25,,0,,FALSE,,,FALSE,Sabot SRM Pod: as Sabot
+sabot_single,,,0.25,,0,,FALSE,,,FALSE,Sabot SRM (Double): as Sabot
+pilum,,,1.0,,0,,TRUE,,,FALSE,Pilum second stage: EMP-only arc on hull hit or pierced shield
+pilum_large,,,1.0,,0,,TRUE,,,FALSE,Pilum Catapult: as Pilum
+gorgon,,,,,,,,,TRUE,FALSE,Gorgon DEM: payload burst beam (soft flux; hit strength 0.5 x payload dps)
+gorgonpod,,,,,,,,,TRUE,FALSE,Gorgon Pod: as Gorgon
+gazer,,,,,,,,1.05,TRUE,FALSE,Gazer DEM: graviton payload beam
+gazerpod,,,,,,,,1.05,TRUE,FALSE,Gazer Pod: as Gazer
+dragon,,,,,,,,,TRUE,FALSE,Dragonfire DEM torpedo: payload beam
+dragonpod,,,,,,,,,TRUE,FALSE,Dragonfire Pod: as Dragonfire
+hydra,,,,,,,,,TRUE,FALSE,Hydra MDEM: MIRV of payload beams
+guardian,,,,,,,,,,FALSE,Paladin PD: 100 frag explosion (r 75) when beams converge; PD only
+disintegrator,,1000,,,,,,,,TRUE,Disintegrator (Omega): 1000 armor damage over ~10 s per hull hit ignoring reduction
+riftbeam,,,,2.0,200,,FALSE,,,TRUE,Rift Beam (Omega): rift (200 energy) every 0.4-0.6 s near the target
+riftcascade,,,,,1000,,FALSE,,,TRUE,Rift Cascade (Omega): up to 5 rifts of 1000 energy along unused beam length
+shockrepeater,,,,,,,,,,TRUE,Shock Repeater (Omega): each shot becomes an EMP arc carrying its damage
+vpdriver,,,,,,,,,,TRUE,Volatile Particle Driver (Omega): 4-shot salvos while fewer than 4 shots in flight
+abyssal_glare,,,,0.8,200,,FALSE,,,TRUE,Abyssal Glare (Dweller): rifts of 200 about every 1.25 s per beam
+rift_lightning,,,,,500,1000,FALSE,,,TRUE,Rift Lightning (Dweller): spawns 500 energy / 1000 EMP minelayer
