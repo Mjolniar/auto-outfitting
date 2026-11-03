@@ -125,6 +125,20 @@ class JAOOptimizer {
         JAORole role = JAOSettings.roles ? roleOf(hull) : null;
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role);
+        // the rest of the fleet: fighter roles already covered, and (Auto/Balanced) the damage it's short of
+        if (!module && JAOSettings.fleetBalance) {
+            try {
+                JAOFleetContext fc = JAOFleetContext.of(delegate.getFleetMember());
+                fc.wings(p);
+                if (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) fc.complement(p);
+                if (JAOSettings.debug) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: fleet context for " + shipName()
+                        + ": " + fc.ships + " other ships, kinetic " + Math.round(100 * fc.kineticShare()) + "%, armor-cracking "
+                        + Math.round(100 * fc.armorShare()) + "%, fighter bays " + java.util.Arrays.toString(fc.wingBays) + " -> weights "
+                        + p.wS + "/" + p.wA + "/" + p.wH);
+            } catch (Throwable t) {
+                Global.getLogger(JAOOptimizer.class).warn("Jonah's Auto Outfitting: couldn't read the fleet for balance", t);
+            }
+        }
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
@@ -236,6 +250,7 @@ class JAOOptimizer {
             current.setVariantDisplayName(JAOGoals.PREFIX + (what.isEmpty() ? "" : ": " + what) + (built > 0 ? " +" + built + " s-mod" + (built > 1 ? "s" : "") : "")
                     + (unused > 0 ? " (" + unused + " OP spare" + (!JAOSettings.allowDrawbacks && !world.drawbacks.isEmpty() ? ": drawbacks off)" : ")") : ""));
             delegate.syncUIWithVariant(current);
+            if (real) settleOp(hullOp, maxV, maxC);
         }
         if (smodNote != null && (real || JAOSettings.debug)) {
             Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " s-mods" + (real ? "" : " (preview)") + ": " + smodNote);
@@ -245,6 +260,35 @@ class JAOOptimizer {
             if (!world.drawbacks.isEmpty()) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName()
                     + " hullmods skipped for drawbacks: " + world.drawbacks);
         }
+    }
+
+    /**
+     * After Confirm the game rebuilds the ship around the new loadout, and hullmods whose effects depend on it (OP cost
+     * listeners, weapon-composition mods) can change what it costs. The user saw an Aquilon land at 220 of 250 OP with
+     * nothing logged. So the OP is read again from the rebuilt ship: spare points go to vents, then capacitors; an
+     * over-budget ship gives back capacitors, then vents. Logged whenever it changes anything.
+     */
+    private void settleOp(int hullOp, int maxV, int maxC) {
+        int left = hullOp - current.computeOPCost(plugin.stats());
+        if (left == 0) return;
+        int v = current.getNumFluxVents(), c = current.getNumFluxCapacitors(), v0 = v, c0 = c;
+        if (left > 0) {
+            int addV = Math.min(left, Math.max(0, maxV - v));
+            v += addV;
+            c += Math.min(left - addV, Math.max(0, maxC - c));
+        } else {
+            int over = -left;
+            int cutC = Math.min(over, c);
+            c -= cutC;
+            v -= Math.min(over - cutC, v);
+        }
+        if (v == v0 && c == c0) return;
+        current.setNumFluxVents(v);
+        current.setNumFluxCapacitors(c);
+        delegate.syncUIWithVariant(current);
+        Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " had " + left + " OP " + (left > 0 ? "spare" : "over")
+                + " once the game rebuilt it (hullmods that change costs); vents " + v0 + " -> " + v + ", capacitors " + c0 + " -> " + c
+                + ", now " + (hullOp - current.computeOPCost(plugin.stats())) + " OP left");
     }
 
     /** S-mods this fit may build in: the ship's limit left, story points above the reserve, the per-ship setting. */

@@ -1,37 +1,27 @@
 package data.scripts.jonahsautooutfitting;
 
 import com.fs.starfarer.api.Global;
-import com.fs.starfarer.api.campaign.CustomUIPanelPlugin;
-import com.fs.starfarer.api.input.InputEventAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
 import com.fs.starfarer.api.ui.CustomPanelAPI;
-import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.Color;
 import java.util.List;
 
 /**
  * The fleet production order (JAOFleetPlanner): summary, the item list (scrolls), Queue all / Close. Nothing is ordered
- * without Queue all. Game colors only. As an overlay (the refit screen button) it draws its own background over a
- * dimmed screen and takes the input like LunaLib's refit panels: Escape or a click outside closes it. Inside LunaLib's
- * refit panel (JAORefitButton) LunaLib does both.
+ * without Queue all. Drawn as an overlay from the refit screen button, or inside LunaLib's refit panel (JAORefitButton).
  */
-final class JAOOrderPanel implements CustomUIPanelPlugin {
+final class JAOOrderPanel extends JAOOverlayPanel {
     static final float W = 900f, H = 580f;
     final JAOFleetPlanner.Plan plan;   // null when planning failed
-    final Runnable close;
-    final boolean overlay;
     CustomPanelAPI inner;
     ButtonAPI queue;
     TooltipMakerAPI status;
-    PositionAPI pos;
 
-    JAOOrderPanel(JAOFleetPlanner.Plan plan, Runnable close, boolean overlay) { this.plan = plan; this.close = close; this.overlay = overlay; }
+    JAOOrderPanel(JAOFleetPlanner.Plan plan, Runnable close, boolean overlay) { super(close, overlay); this.plan = plan; }
 
     /** Plans the order now; null (logged) if that fails, which the panel shows as an error. */
     static JAOFleetPlanner.Plan planNow() {
@@ -127,60 +117,6 @@ final class JAOOrderPanel implements CustomUIPanelPlugin {
             }
             boolean failed = msg.contains("nothing was ordered");
             status.addPara(msg + (failed ? "." : ". See Colonies, Custom production."), 0f, failed ? Misc.getNegativeHighlightColor() : Misc.getPositiveHighlightColor());
-        }
-    }
-
-    @Override
-    public void positionChanged(PositionAPI position) { pos = position; }
-
-    /** Overlay only: the screen dimmed, the panel black with a border in the player's dark color. */
-    @Override
-    public void renderBelow(float alphaMult) {
-        if (!overlay || pos == null) return;
-        float x = pos.getX(), y = pos.getY(), w = pos.getWidth(), h = pos.getHeight();
-        Color edge = Misc.getDarkPlayerColor();
-        GL11.glPushMatrix();
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glColor4f(0f, 0f, 0f, 0.5f * alphaMult);
-        GL11.glRectf(0f, 0f, Global.getSettings().getScreenWidth(), Global.getSettings().getScreenHeight());
-        GL11.glColor4f(0f, 0f, 0f, 0.95f * alphaMult);
-        GL11.glRectf(x, y, x + w, y + h);
-        GL11.glColor4f(edge.getRed() / 255f, edge.getGreen() / 255f, edge.getBlue() / 255f, alphaMult);
-        GL11.glBegin(GL11.GL_LINE_LOOP);
-        GL11.glVertex2f(x, y);
-        GL11.glVertex2f(x + w, y);
-        GL11.glVertex2f(x + w, y + h);
-        GL11.glVertex2f(x, y + h);
-        GL11.glEnd();
-        GL11.glPopMatrix();
-    }
-
-    @Override
-    public void render(float alphaMult) { }
-
-    @Override
-    public void advance(float amount) { }
-
-    /** Overlay only (after its own buttons have had the events): Escape or a click outside closes it; nothing reaches the refit screen. */
-    @Override
-    public void processInput(List<InputEventAPI> events) {
-        if (!overlay || pos == null) return;
-        for (InputEventAPI e : events) {
-            if (e.isConsumed()) continue;
-            if (e.isKeyUpEvent() && e.getEventValue() == Keyboard.KEY_ESCAPE) {
-                e.consume();
-                close.run();
-                continue;
-            }
-            if (e.isKeyboardEvent()) e.consume();
-            if (e.isMouseDownEvent()) {
-                boolean in = e.getX() >= pos.getX() && e.getX() <= pos.getX() + pos.getWidth()
-                        && e.getY() >= pos.getY() && e.getY() <= pos.getY() + pos.getHeight();
-                if (!in) { e.consume(); close.run(); continue; }
-            }
-            if (e.isMouseMoveEvent() || e.isMouseDownEvent() || e.isMouseScrollEvent()) e.consume();
         }
     }
 }

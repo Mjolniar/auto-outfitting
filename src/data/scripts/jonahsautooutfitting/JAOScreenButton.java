@@ -36,7 +36,7 @@ import java.util.Locale;
  */
 public class JAOScreenButton implements EveryFrameScript {
     static final float W = 200f, H = 24f, GAP = 8f;
-    static final String OPEN = "jao_order_open";
+    static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis";
     static final Logger LOG = Global.getLogger(JAOScreenButton.class);
     static final String TAG = "Jonah's Auto Outfitting: refit screen button ";
 
@@ -88,14 +88,22 @@ public class JAOScreenButton implements EveryFrameScript {
         }
         // the same size as the game's own buttons when the Autofit button is there
         float w = autofit != null ? autofit[2] : W, h = autofit != null ? autofit[3] : H;
-        float[] at = spot(rect(refit), leaves, op, autofit, w, h);
+        // two buttons stacked in the free cells right of Autofit and right of Strip ("Order fleet weapons" over "Fleet
+        // analysis"), else the order button alone wherever there's room
+        boolean two = false;
+        float[] at = null;
+        if (autofit != null) {
+            float[] stack = {autofit[0] + autofit[2] + 3f, autofit[1] - h - 3f};
+            if (spot(rect(refit), leaves, null, null, w, 2f * h + 3f, stack) != null) { at = stack; two = true; }
+        }
+        if (at == null) at = spot(rect(refit), leaves, op, autofit, w, h);
         if (at == null) { report("no free spot", leaves, op, autofit); return; }
-        button = make(w, h);
+        button = make(w, h, two);
         PositionAPI rp = refit.getPosition();
         refit.addComponent(button).inBL(at[0] - rp.getX(), at[1] - rp.getY());
         if (placements < 4) {
             placements++;
-            LOG.info(TAG + "placed at " + box(new float[]{at[0], at[1], w, h}) + " in " + refit.getClass().getName() + " " + box(rect(refit))
+            LOG.info(TAG + (two ? "(with Fleet analysis) " : "") + "placed at " + box(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h}) + " in " + refit.getClass().getName() + " " + box(rect(refit))
                     + "; OP readout " + box(op) + ", Autofit button " + box(autofit) + ", screen " + Math.round(screen(true)) + "x"
                     + Math.round(screen(false)) + "; buttons " + buttons(leaves));
         }
@@ -138,6 +146,11 @@ public class JAOScreenButton implements EveryFrameScript {
 
     /** Bottom-left corner (screen coordinates) of the first free candidate spot for a w x h button, or null. */
     static float[] spot(float[] panel, List<UIComponentAPI> leaves, float[] op, float[] autofit, float w, float h) {
+        return spot(panel, leaves, op, autofit, w, h, null);
+    }
+
+    /** As above; with only set, that spot or null. */
+    static float[] spot(float[] panel, List<UIComponentAPI> leaves, float[] op, float[] autofit, float w, float h, float[] only) {
         List<float[]> taken = new ArrayList<>();
         float big = 0.15f * panel[2] * panel[3];   // backgrounds and the ship display don't count, what's drawn on them does
         for (UIComponentAPI c : leaves) {
@@ -146,7 +159,8 @@ public class JAOScreenButton implements EveryFrameScript {
             taken.add(r);
         }
         List<float[]> cands = new ArrayList<>();
-        if (autofit != null) {
+        if (only != null) cands.add(only);
+        else if (autofit != null) {
             // the game's button grid (Weapon groups, Autofit / Undo, Strip / Restore, Run simulation, Next w/ free OP,
             // 3 apart): the free cell right of Autofit, then right of the button under it
             cands.add(new float[]{autofit[0] + autofit[2] + 3f, autofit[1]});
@@ -155,12 +169,12 @@ public class JAOScreenButton implements EveryFrameScript {
             cands.add(new float[]{autofit[0] + autofit[2] - w, autofit[1] + autofit[3] + GAP});
             cands.add(new float[]{autofit[0] + autofit[2] - w, autofit[1] - GAP - h});
         }
-        if (op != null) {
+        if (only == null && op != null) {
             cands.add(new float[]{op[0] + op[2] - w, op[1] - GAP - h});
             cands.add(new float[]{op[0] - GAP - w, op[1] + op[3] - h});
             cands.add(new float[]{op[0] + op[2] - w, op[1] + op[3] + GAP});
         }
-        for (float x = panel[0] + panel[2] - w - 10f; x >= panel[0] + 10f; x -= w / 2f) {
+        for (float x = panel[0] + panel[2] - w - 10f; only == null && x >= panel[0] + 10f; x -= w / 2f) {
             cands.add(new float[]{x, panel[1] + panel[3] - h - 6f});
             cands.add(new float[]{x, panel[1] + 6f});
         }
@@ -175,11 +189,15 @@ public class JAOScreenButton implements EveryFrameScript {
         return null;
     }
 
-    CustomPanelAPI make(float w, float h) {
-        CustomPanelAPI p = Global.getSettings().createCustom(w, h, new BaseCustomUIPanelPlugin() {
-            @Override public void buttonPressed(Object id) { if (OPEN.equals(id)) openOrder(); }
+    CustomPanelAPI make(float w, float h, boolean two) {
+        float ph = two ? 2f * h + 3f : h;
+        CustomPanelAPI p = Global.getSettings().createCustom(w, ph, new BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object id) {
+                if (OPEN.equals(id)) openOrder();
+                else if (ANALYSE.equals(id)) openAnalysis();
+            }
         });
-        TooltipMakerAPI t = p.createUIElement(w, h, false);
+        TooltipMakerAPI t = p.createUIElement(w, ph, false);
         ButtonAPI b = t.addButton("Order fleet weapons", OPEN, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
         b.getPosition().inTL(0f, 0f);
         t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
@@ -193,6 +211,18 @@ public class JAOScreenButton implements EveryFrameScript {
                         Math.round(JAOSettings.productionBudget * 100f) + "%");
             }
         }, TooltipMakerAPI.TooltipLocation.BELOW);
+        if (two) {
+            ButtonAPI a = t.addButton("Fleet analysis", ANALYSE, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
+            a.getPosition().inTL(0f, h + 3f);
+            t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
+                public boolean isTooltipExpandable(Object o) { return false; }
+                public float getTooltipWidth(Object o) { return 420f; }
+                public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
+                    tt.addPara("What your fleet carries: firepower by damage type, fighter roles, point defense, range bands and "
+                            + "empty mounts, and which ships to re-fit with Optimal to balance it. Changes nothing.", 0f);
+                }
+            }, TooltipMakerAPI.TooltipLocation.BELOW);
+        }
         p.addUIElement(t).inTL(0f, 0f);
         return p;
     }
@@ -200,15 +230,26 @@ public class JAOScreenButton implements EveryFrameScript {
     /** Plans the order and shows it centred over the screen, in the core UI so it sits above the refit screen. */
     void openOrder() {
         if (overlay != null) return;
-        UIPanelAPI host = core != null ? core : refit;
-        if (host == null) return;
         JAOOrderPanel content = new JAOOrderPanel(JAOOrderPanel.planNow(), this::closeOrder, true);
-        overlay = Global.getSettings().createCustom(JAOOrderPanel.W, JAOOrderPanel.H, content);
+        if (show(content, JAOOrderPanel.W, JAOOrderPanel.H)) content.build(overlay);
+    }
+
+    /** The fleet analysis, centred over the screen like the order. */
+    void openAnalysis() {
+        if (overlay != null) return;
+        JAOAnalysisPanel content = new JAOAnalysisPanel(JAOAnalysisPanel.analyseNow(), this::closeOrder, true);
+        if (show(content, JAOAnalysisPanel.W, JAOAnalysisPanel.H)) content.build(overlay);
+    }
+
+    private boolean show(JAOOverlayPanel content, float w, float h) {
+        UIPanelAPI host = core != null ? core : refit;
+        if (host == null) return false;
+        overlay = Global.getSettings().createCustom(w, h, content);
         PositionAPI hp = host.getPosition();
         float sw = screen(true) > 0f ? screen(true) : hp.getWidth(), sh = screen(false) > 0f ? screen(false) : hp.getHeight();
-        host.addComponent(overlay).inBL((sw - JAOOrderPanel.W) / 2f - hp.getX(), (sh - JAOOrderPanel.H) / 2f - hp.getY());
+        host.addComponent(overlay).inBL((sw - w) / 2f - hp.getX(), (sh - h) / 2f - hp.getY());
         overlayHost = host;
-        content.build(overlay);
+        return true;
     }
 
     void closeOrder() {

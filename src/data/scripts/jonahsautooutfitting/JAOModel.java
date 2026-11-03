@@ -1,5 +1,6 @@
 package data.scripts.jonahsautooutfitting;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,70 @@ final class JAOModel {
      * flanked), the capacity spent on them and how long they last. Load over budget the AI won't fire even then.
      */
     static final float BURST_SHARE = 0.5f, BURST_CAP = 0.6f, BURST_SECONDS = 10f, FLUX_LIMIT = 1.75f, FLUX_SOFT = 1.4f, FLUX_SOFT_EXP = 0.3f;
+    /** Fighter wing roles. */
+    static final int W_FIGHTER = 0, W_BOMBER = 1, W_INTERCEPTOR = 2, W_SUPPORT = 3;
+    /**
+     * The mix of fighter bays a fleet aims for: fighters for sustained pressure, bombers to finish armor, interceptors
+     * against enemy fighters and missiles, some support. Fighters are multi-role, so no single role should fill every
+     * bay (the user's fleet had Gunheads in every carrier bay).
+     */
+    static final float[] WING_MIX = {0.40f, 0.25f, 0.25f, 0.10f};
+    /**
+     * Wing value. Paper numbers (fighter guns as if they always fired, a mining drill as constant fire, torpedoes spread
+     * over the refit cycle) were off by up to 100x: a 9-OP Gunhead scored 210 per OP, a Trident 2. So a wing is worth
+     * WING_VALUE_PER_OP times its OP (what the designers priced it at), times its quality against its role's reference
+     * wing on four axes (WING_AXES). User 11/03: the Broadsword is the S-tier all-rounder fighter (tough, cheap, quick to
+     * refit, guns that also shoot missiles and fighters), so it is the fighters' yardstick: a wing can match it on an
+     * axis but not beat it, and every axis it falls short on costs value. Specialists still win their own jobs through
+     * the role balance (wingRoleFactor) and the fleet's needs.
+     */
+    static final float WING_VALUE_PER_OP = 20f, WING_Q_MIN = 0.5f;
+    /** Axis weights: firepower per OP (bombers: armor damage), durability per OP, point defense, refit tempo. */
+    static final float[] WING_AXES = {0.40f, 0.30f, 0.20f, 0.10f};
+    /** Reference wing per role (fighter, bomber, interceptor, support); null = the role's 75th percentile. */
+    static final String[] WING_REF = {"broadsword_wing", "dagger_wing", null, null};
+
+    /** raw and ref: {firepower per OP, durability per OP, 0.4 + 0.6 x PD share, 1 / refit seconds}. */
+    static float wingQuality(float[] raw, float[] ref) {
+        float q = 1f;
+        for (int i = 0; i < WING_AXES.length; i++) {
+            if (ref == null || ref[i] <= 0f) continue;
+            float r = raw[i] > 0f ? Math.min(1f, raw[i] / ref[i]) : 0.5f;
+            q *= (float) Math.pow(r, WING_AXES[i]);
+        }
+        return clamp(q, WING_Q_MIN, 1f);
+    }
+
+    static float wingValue(float op, float[] raw, float[] ref) {
+        return WING_VALUE_PER_OP * Math.max(1f, op) * wingQuality(raw, ref);
+    }
+
+    /** Per column, the value at fraction p of the sorted rows; null when there are none. */
+    static float[] percentile(List<float[]> rows, float p) {
+        if (rows == null || rows.isEmpty()) return null;
+        int cols = rows.get(0).length;
+        float[] out = new float[cols];
+        float[] col = new float[rows.size()];
+        for (int c = 0; c < cols; c++) {
+            for (int i = 0; i < rows.size(); i++) col[i] = rows.get(i)[c];
+            Arrays.sort(col);
+            out[c] = col[Math.round(clamp(p, 0f, 1f) * (col.length - 1))];
+        }
+        return out;
+    }
+
+    /**
+     * How much a wing of this role is worth given the bays already filled by role (the rest of the fleet plus this
+     * ship, this wing included): roles past their share of WING_MIX lose value, missing ones gain (0.6-1.3).
+     */
+    static float wingRoleFactor(int role, float[] bays) {
+        float total = 0f;
+        for (float b : bays) total += b;
+        if (total <= 0f) return 1f;
+        float share = bays[Math.max(0, Math.min(3, role))] / total;
+        return clamp(1f + 0.8f * (WING_MIX[Math.max(0, Math.min(3, role))] - share), 0.6f, 1.3f);
+    }
+
     /** Per weapon group past Starsector's 7, and per distinct gun type past three. */
     static final float GROUP_OVER = 0.97f, GUN_VARIETY = 0.985f;
     /** Score lost at full gun damage outside +-200 of the main battery's range. */
@@ -40,6 +105,10 @@ final class JAOModel {
         String id, name;
         int size, cls, dmg = EN;
         boolean beam, soft, pd, pdOnly, pdAlso, strike, guided, guidedPoor, fireWhenInefficient, wing, interceptor, bomber;
+        /** Wings: W_FIGHTER / W_BOMBER / W_INTERCEPTOR / W_SUPPORT. */
+        int wingRole;
+        /** Wings: share of their firepower that can shoot missiles and fighters (Broadsword's machine guns), for PD. */
+        float wingPd;
         /** Sustained damage/s, flux/s, damage per hit, base range; pool = total damage of finite ammo (0 = unlimited). */
         float dps, flux, hit, range, pool, burst, emp;
         float projSpeed = 1000f, spread;
@@ -157,6 +226,9 @@ final class JAOModel {
         /** 0 auto, 1 long, 2 close. */
         int rangePref;
         Target[] targets;
+        /** The rest of the fleet (JAOFleetContext): fighter bays by role, and copies of each wing id. */
+        float[] fleetWingBays = new float[4];
+        Map<String, Integer> fleetWingIds = new HashMap<>();
     }
 
     // ------------------------------------------------------------------ per weapon
@@ -272,6 +344,11 @@ final class JAOModel {
         }
         float outrange = rw > 0f ? rs / rw : 1f;
 
+        // fighter bays by role across the fleet and this ship, for the role balance of each wing
+        float[] bays = p.fleetWingBays.clone();
+        Map<String, Integer> sameWing = new HashMap<>();
+        for (Fit f : fits) if (f.w.wing) bays[Math.max(0, Math.min(3, f.w.wingRole))] += 1f;
+
         // per-weapon effective dps and the shares that matter per phase: the shield phase is a flux war at the
         // sustained rate; armor and hull go down half in burst windows (shield down, overload, flanks)
         float[] eff = new float[n], effB = new float[n];
@@ -285,7 +362,15 @@ final class JAOModel {
             float inRange = w.wing ? 1f : (1f - close) * atFar + close * atNear;
             // off-axis mounts reach the main target only part of the time
             float bear = w.wing ? 1f : fits.get(i).bear;
-            float d = w.wing ? x.dps * p.wingMult : x.dps * uptime * inRange * reach * bear;
+            // wings: worth less in a role the fleet already has plenty of, and a little less per copy of the same wing
+            // elsewhere in the fleet or on this ship (fighters are multi-role; one wing in every bay isn't a fleet)
+            float wingBalance = 1f;
+            if (w.wing) {
+                int seen = sameWing.merge(w.id, 1, Integer::sum) - 1;
+                int elsewhere = Math.min(6, p.fleetWingIds.getOrDefault(w.id, 0));
+                wingBalance = wingRoleFactor(w.wingRole, bays) * (float) Math.pow(0.97, elsewhere) * (float) Math.pow(0.95, seen);
+            }
+            float d = w.wing ? x.dps * p.wingMult * wingBalance : x.dps * uptime * inRange * reach * bear;
             float db = w.wing ? d : x.dps * (BURST_SHARE * burstUp + (1f - BURST_SHARE) * uptime) * inRange * reach * bear;
             // PD weapons engage missiles and fighters first: plain PD hits ships a quarter of the time, dual-role guns
             // (PD_ALSO) most of it (research weapon_eval f.7)
@@ -298,6 +383,9 @@ final class JAOModel {
                 float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread));
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
                 pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd;
+            } else if (w.wing && w.wingPd > 0f) {
+                // multi-role fighters screen against missiles and fighters with their PD-capable guns, at half weight
+                pd += 0.5f * w.wingPd * x.dps * s.pdDmg;
             }
             if (x.pool > 0f && x.dps <= 0f) {
                 // finite missiles: unguided ones only count when they can face the target
