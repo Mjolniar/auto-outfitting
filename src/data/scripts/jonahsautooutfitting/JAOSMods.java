@@ -180,6 +180,7 @@ final class JAOSMods {
         List<JAOSearch.Slot> fixed = new ArrayList<>();
         for (JAOSearch.Slot sl : baseFit.slots) {
             JAOSearch.Slot c = new JAOSearch.Slot(sl.id, sl.size, sl.hardpoint, sl.cover, sl.front, sl.bay);
+            c.bear = sl.bear;
             c.fixed = sl.fixed;
             c.pick = sl.pick;
             fixed.add(c);
