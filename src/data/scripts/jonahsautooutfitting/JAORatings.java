@@ -9,7 +9,9 @@ import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.combat.WeaponAPI.AIHints;
 import com.fs.starfarer.api.combat.WeaponAPI.DerivedWeaponStatsAPI;
 import com.fs.starfarer.api.combat.WeaponAPI.WeaponType;
+import com.fs.starfarer.api.loading.BeamWeaponSpecAPI;
 import com.fs.starfarer.api.loading.FighterWingSpecAPI;
+import com.fs.starfarer.api.loading.MissileSpecAPI;
 import com.fs.starfarer.api.loading.ProjectileSpecAPI;
 import com.fs.starfarer.api.loading.WeaponSpecAPI;
 import com.fs.starfarer.api.loading.WingRole;
@@ -72,6 +74,7 @@ public class JAORatings {
         w.range = spec.getMaxRange();
         w.pd = spec.getAIHints().contains(AIHints.PD);
         w.pdOnly = spec.getAIHints().contains(AIHints.PD_ONLY);
+        w.pdAlso = spec.getAIHints().contains(AIHints.PD_ALSO);
         w.strike = spec.getAIHints().contains(AIHints.STRIKE);
         w.guided = spec.getAIHints().contains(AIHints.DO_NOT_AIM);
         w.guidedPoor = spec.getAIHints().contains(AIHints.GUIDED_POOR);
@@ -83,22 +86,83 @@ public class JAORatings {
         }
         DerivedWeaponStatsAPI d = spec.getDerivedStats();
         if (d != null) {
+            // corrections from the weapon evaluation (research weapon_eval/report.txt section d)
             boolean finite = spec.usesAmmo() && spec.getAmmoPerSecond() <= 0f;
-            w.dps = finite ? 0f : d.getSustainedDps();
-            w.flux = finite ? 0f : d.getSustainedFluxPerSecond();
+            float perShot = d.getDamagePerShot();
+            float sub = mirvDamage(spec), projDmg = projectileDamage(spec);
+            // linked / dual barrels: the game's damage per shot is the whole volley, armor sees each projectile
+            int barrels = sub <= 0f && projDmg > 0f && perShot > 1.5f * projDmg ? Math.max(1, Math.round(perShot / projDmg)) : 1;
+            if (finite && w.cls != JAOModel.MIS && d.getFluxPerDam() > 0f) {
+                // finite-ammo guns that cost flux (Antimatter Blaster): a gun at its one-minute average, flux paid,
+                // not a free missile pool (which made it 20% of all picks)
+                float pool = perShot * Math.max(1, spec.getMaxAmmo());
+                w.dps = Math.min(2f * d.getDamageOver30Sec(), pool) / 60f;
+                w.flux = w.dps * d.getFluxPerDam();
+            } else {
+                // never above the real fire rate (some guns regenerate ammo faster than they can shoot)
+                w.dps = finite ? 0f : d.getDps() > 0f ? Math.min(d.getSustainedDps(), d.getDps()) : d.getSustainedDps();
+                w.flux = finite ? 0f : w.dps * d.getFluxPerDam();
+                if (finite) w.pool = (barrels > 1 ? projDmg : perShot) * Math.max(1, spec.getMaxAmmo());
+            }
             w.burst = d.getBurstDamage();
             w.emp = d.getEmpPerSecond();
-            w.hit = w.beam ? 0.5f * d.getDps() : d.getDamagePerShot();
-            if (finite) w.pool = d.getDamagePerShot() * Math.max(1, spec.getMaxAmmo());
+            // beams: half the in-burst damage per second (burst beams' cycle average made Tachyon and Phase Lance look
+            // four times weaker against armor); MIRVs: each submunition; DEM missiles: their payload beam
+            if (spec instanceof BeamWeaponSpecAPI) w.hit = 0.5f * ((BeamWeaponSpecAPI) spec).getDamagePerSecond();
+            else w.hit = perShot / barrels;
+            if (sub > 0f) w.hit = sub;
+            float dem = demHit(spec);
+            if (dem > 0f) { w.hit = dem; w.soft = true; }
         }
-        // rarity score: drop weight, tier, rare tags (only used with Prefer rare weapons)
+        // rarity score: drop weight, tier, truly unobtainable tags (only used with Prefer rare weapons). Not rare_bp:
+        // mods tag most of their weapons with it, which gave 278 of 475 weapons the top score (weapon_eval b)
         float r = Math.max(0f, 1f - Math.min(1f, spec.getRarity())) ;
         r = Math.max(r, spec.getTier() / 3f);
-        for (String t : new String[]{"rare_bp", "restricted", "omega", "threat", "dweller"}) if (spec.hasTag(t)) r = 1f;
+        for (String t : new String[]{"restricted", "omega", "threat", "dweller"}) if (spec.hasTag(t)) r = 1f;
         w.rarity = Math.min(1f, r);
         w.interference = interference(w.id);
         applyEffects(w);
         return w;
+    }
+
+    /** The missile's behavior spec (MIRV, DEM ...), or null. */
+    private static JSONObject behavior(WeaponSpecAPI spec) {
+        try {
+            Object p = spec.getProjectileSpec();
+            return p instanceof MissileSpecAPI ? ((MissileSpecAPI) p).getBehaviorJSON() : null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** A MIRV's submunition damage (Sabot 200 of a 1000 salvo), or 0. */
+    static float mirvDamage(WeaponSpecAPI spec) {
+        JSONObject b = behavior(spec);
+        if (b == null || !"MIRV".equalsIgnoreCase(b.optString("behavior"))) return 0f;
+        return (float) b.optDouble("damage", 0);
+    }
+
+    /** A DEM missile's armor hit: half its payload beam's damage per second (beam rule), or 0. */
+    static float demHit(WeaponSpecAPI spec) {
+        JSONObject b = behavior(spec);
+        String payload = b == null ? "" : b.optString("payloadWeaponId", "");
+        if (payload.isEmpty()) return 0f;
+        try {
+            WeaponSpecAPI ps = Global.getSettings().getWeaponSpec(payload);
+            return ps instanceof BeamWeaponSpecAPI ? 0.5f * ((BeamWeaponSpecAPI) ps).getDamagePerSecond() : 0f;
+        } catch (Throwable t) {
+            return 0f;
+        }
+    }
+
+    /** Damage of one projectile or missile (before the barrel count), or 0. */
+    static float projectileDamage(WeaponSpecAPI spec) {
+        try {
+            Object p = spec.getProjectileSpec();
+            if (p instanceof MissileSpecAPI && ((MissileSpecAPI) p).getDamage() != null) return ((MissileSpecAPI) p).getDamage().getBaseDamage();
+            if (p instanceof ProjectileSpecAPI && ((ProjectileSpecAPI) p).getDamage() != null) return ((ProjectileSpecAPI) p).getDamage().getBaseDamage();
+        } catch (Throwable ignored) { }
+        return 0f;
     }
 
     /** Scripted effects from jao_weapon_effects.csv (when "Value special weapons" is on). */

@@ -57,6 +57,8 @@ final class JAOSearch {
         /** Kept as it is (not stripped, or owned by mod code). */
         Cand fixed;
         Cand pick;
+        /** Share of its fire reaching the main target (JAOModel.bearing), set by the caller. */
+        float bear = 1f;
 
         Slot(String id, int size, boolean hardpoint, float cover, boolean front, boolean bay) {
             this.id = id; this.size = size; this.hardpoint = hardpoint; this.cover = cover; this.front = front; this.bay = bay;
@@ -109,7 +111,7 @@ final class JAOSearch {
         List<JAOModel.Fit> f = new ArrayList<>();
         for (Slot s : slots) {
             Cand c = s.fixed != null ? s.fixed : s.pick;
-            if (c != null) f.add(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front));
+            if (c != null) f.add(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear));
         }
         return f;
     }
@@ -140,22 +142,34 @@ final class JAOSearch {
     }
 
     /**
-     * A mount left empty although something in stock could go there loses what the duel model can't see (flank
-     * coverage, second targets, fighters, soaking hits), so it costs this share of the score at full emptiness.
+     * A mount left empty or under-used although something in stock could fill it loses what the duel model can't
+     * see (flank coverage, second targets, fighters, soaking hits), so it costs this share of the score at full
+     * emptiness.
      */
-    static final float EMPTY_COST = 0.3f;
+    static final float EMPTY_COST = 0.5f;
+    /** OP a weapon needs to count as using a small / medium / large mount fully (a 1-OP flare in a small mount is a quarter). */
+    static final float[] MOUNT_OP = {4f, 8f, 16f};
 
-    /** Slot-size-weighted share (small 1, medium 2, large 4) of choosable mounts left empty. */
+    /**
+     * Slot-size-weighted share (small 1, medium 2, large 4) of choosable mounts left empty or under-used: a weapon
+     * uses its mount by its OP against MOUNT_OP (a small machine gun in a medium mount, or a mining laser in a small
+     * one, leaves most of it unused). Players see those as empty, and so do fights.
+     */
     float emptyShare() {
         float all = 0f, empty = 0f;
         for (Slot s : slots) {
             if (s.fixed != null || s.bay || s.cands.isEmpty()) continue;
-            float w = s.size == 0 ? 1f : s.size == 1 ? 2f : 4f;
+            int sz = Math.max(0, Math.min(2, s.size));
+            float w = sz == 0 ? 1f : sz == 1 ? 2f : 4f;
             all += w;
             if (s.pick == null) empty += w;
+            else empty += w * (1f - Math.min(1f, world.op(s.pick, mods) / MOUNT_OP[sz]));
         }
         return all <= 0f ? 0f : empty / all;
     }
+
+    /** True once the mounts are nearly all used: padding hullmods (Bulkheads, Blast Doors) come only after that. */
+    boolean mountsUsed() { return emptyShare() <= 0.1f; }
 
     // ------------------------------------------------------------------ search
 
@@ -293,7 +307,7 @@ final class JAOSearch {
             float bestV = base * 1.002f;
             JAOModel.Ship sh = ship();
             int[] vc = flux();
-            boolean surplus = vc[0] >= sh.maxVents && vc[1] >= sh.maxCaps;
+            boolean surplus = vc[0] >= sh.maxVents && vc[1] >= sh.maxCaps && mountsUsed();
             for (String m : modCands) {
                 if (mods.contains(m) || (!surplus && world.filler(m)) || !world.canAdd(m, mods)) continue;
                 mods.add(m);
@@ -329,27 +343,34 @@ final class JAOSearch {
     void give(Cand c) { stock.merge(c.stockKey, 1, Integer::sum); }
 
     /**
-     * Keeps the best few weapons per slot and damage role, by what each adds to an empty build. Every source of a kept
-     * weapon stays (cargo, storage, market, blueprint), owned before bought, so duplicates don't crowd others out.
+     * Keeps the best few weapons per slot and damage role, by what each adds to an empty build: the strongest four
+     * outright and the best four for their OP (value per OP alone kept only cheap guns, so the big rare ones never got
+     * a look). Every source of a kept weapon stays (cargo, storage, market, blueprint), owned before bought, so
+     * duplicates don't crowd others out.
      */
     void prune() {
         for (Slot s : slots) {
             Set<String> distinct = new HashSet<>();
             for (Cand c : s.cands) distinct.add(c.w.id);
             if (distinct.size() <= 24) continue;
-            Map<Cand, Float> v = new HashMap<>();
+            Map<Cand, Float> v = new HashMap<>(), vOp = new HashMap<>();
             for (Cand c : s.cands) {
                 float op = Math.max(1f, world.op(c, mods));
-                v.put(c, objectiveOneWeapon(s, c) / (float) Math.sqrt(op));
+                float one = objectiveOneWeapon(s, c);
+                v.put(c, one);
+                vOp.put(c, one / (float) Math.sqrt(op));
             }
             Map<String, List<Cand>> byRole = new HashMap<>();
             for (Cand c : s.cands) byRole.computeIfAbsent(role(c.w), k -> new ArrayList<>()).add(c);
-            List<Cand> kept = new ArrayList<>();
+            Set<Cand> keep = new HashSet<>();
             for (List<Cand> l : byRole.values()) {
-                l.sort((a, b) -> Float.compare(v.get(b), v.get(a)) != 0 ? Float.compare(v.get(b), v.get(a)) : a.w.id.compareTo(b.w.id));
-                Set<String> ids = new HashSet<>();
-                for (Cand c : l) if (ids.size() < 6 || ids.contains(c.w.id)) { ids.add(c.w.id); kept.add(c); }
+                for (Map<Cand, Float> by : List.of(v, vOp)) {
+                    l.sort((a, b) -> Float.compare(by.get(b), by.get(a)) != 0 ? Float.compare(by.get(b), by.get(a)) : a.w.id.compareTo(b.w.id));
+                    Set<String> ids = new HashSet<>();
+                    for (Cand c : l) if (ids.size() < 4 || ids.contains(c.w.id)) { ids.add(c.w.id); keep.add(c); }
+                }
             }
+            List<Cand> kept = new ArrayList<>(keep);
             kept.sort(CANON);
             s.cands.clear();
             s.cands.addAll(kept);
@@ -357,7 +378,7 @@ final class JAOSearch {
     }
 
     private float objectiveOneWeapon(Slot s, Cand c) {
-        List<JAOModel.Fit> f = Collections.singletonList(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front));
+        List<JAOModel.Fit> f = Collections.singletonList(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear));
         return JAOModel.score(ship(), f, params);
     }
 

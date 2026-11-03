@@ -431,6 +431,71 @@ Freighters, tankers, liners, salvage and survey ships never fight. Setting `jao_
 
 Variant name "Optimal: Logistics". Not testable offline; check in game.
 
+## 7i. Scoring rework 0.3.0 (user, 11/02: "lots of empty slots", rare weapons unused, "a weird statistical spread")
+
+**Evidence.**
+- `research/fleet_diag` (the user's save): only 2% of combat-ship mount weight was truly empty, but the fits looked empty:
+  - point defense held 39% of mount weight (73% on the flagship);
+  - 27 of 52 medium ballistic mounts carried small machine guns;
+  - 41 small mounts held a 1-OP flare launcher;
+  - capitals spent about 38% of their OP on weapons, against 30–35% on hullmods (one Overslaught: 89 weapons, 180 hullmods);
+  - 32 HVD, 24 Heavy Mauler and 22 Heavy Needler sat in storage, never mounted;
+  - 42 of 99 mounted weapon types appeared exactly once.
+- `research/weapon_eval` (484 mountable weapons, 2003 stock variants) found weapon numbers wrong for whole classes. Under the same flux-bound model, rare weapons are not stronger per OP or per flux; their edge is size, range, hit strength and scripts.
+
+**Benchmark.** `jtbuild/ao_bench.ps1` (JAOBench) fits the user's 19 combat hulls from their real 276-weapon pool offline and reproduces the in-game numbers.
+
+| | Before | After |
+|---|---|---|
+| Weapon OP | 43% | 53% |
+| Plain-PD share | 39% | 28% |
+| Mount use (OP) | 75% | 93% |
+| Empty mounts | 1% | 0% |
+| Flux ratio | 1.05 | 1.21 (most capitals 1.3–1.4) |
+
+**Root causes and changes:**
+1. **Flux wall.**
+   - Old: uptime limited by budget, plus a squared penalty past 1.3x. Once a ship was flux-bound, extra guns were worthless, so OP went to defensive hullmods and near-zero-flux PD or filler. The ratio pinned at exactly 1.30.
+   - Now: burst windows (`BURST_SHARE` 0.5, `BURST_CAP` 0.6 of capacity over `BURST_SECONDS` 10). The AI opens every group up to 2x while its flux is hard (mechanics 3.4).
+     - All three kill phases use the mix of sustained and burst rate. Putting only armor and hull at the burst rate made fits all-HE.
+     - Gentle pressure from 1.4x (exponent 0.3), and a linear cut past `FLUX_LIMIT` 1.75x.
+     - A sharper 1.25 / 0.6 pull snapped every ship back to 1.25 and filled the rest with PD again.
+2. **Filled/empty credit.** Empty-mount credit was binary, so a 1-OP flare fully "filled" a mount. Now a mount counts as used by its weapon's OP against `MOUNT_OP` 4/8/16, with `EMPTY_COST` 0.5. A small gun in a medium mount is half used. Padding hullmods (Bulkheads, Blast Doors) only come once mounts are 90% used (`mountsUsed()`).
+3. **PD.**
+   - PD flux counted at 0.5 and damage at 0.5, plus a 25% PD bonus, so dual-role heavy guns (Devastator, SEEKER minigun) and PD spam were nearly free.
+   - Now plain PD hits ships at 0.25 and pays 0.5 of its flux. PD + PD_ALSO hits at 0.6 and pays full flux. The PD bonus is 0.9–1.0.
+   - The PD need is about 1, 2, 3 or 4.5 Burst PD by hull size (35/65/100/150; it was 3.6x that).
+4. **Weapon groups and coherence.**
+   - Distinct weapons are groups, and all PD counts as one (PD merging with PD is harmless): x0.97 per group past 7, x0.985 per distinct gun past 3.
+   - x(1 − 0.25 × gun damage share outside ±200 of the main battery range). This restores range coherence for Line and Anchor ships with modded pools.
+   - A flat variety penalty alone caused empty mounts (an empty mount was cheaper than a new group); it only works together with (2).
+5. **Arcs.** `JAOModel.bearing`:
+   - 1.0 if the mount can face the bow, 0.8 within 30°, 0.35 beyond; flux is still paid.
+   - Broadside mode applies when side-only mounts carry over 40% of mount weight.
+6. **Weapon numbers (JAORatings).**
+   - Burst beams hit at 0.5 × in-burst DPS (Tachyon 750, was 173).
+   - MIRV hit is the submunition (behavior "damage"); DEM hit is half the payload beam's DPS, soft flux.
+   - Linked barrels: hit per projectile, and finite-ammo pool per projectile.
+   - Finite-ammo guns that cost flux (Antimatter Blaster) are guns at their one-minute average with flux paid. They had been a free pool: 20% of picks in the vanilla re-run.
+   - Sustained DPS is capped at the fire rate.
+   - GUIDED_POOR missiles get about 0.85 accuracy against frigates.
+   - Spread over 10° costs accuracy by the cone the target fills at 80% range (Devastator).
+   - Rarity for Prefer rare uses drop weight and tier, no longer `rare_bp`.
+7. **Pruning.** Value per √OP alone kept only cheap guns, so big rare ones were never tried. Now the four best outright plus the four best per OP are kept, per damage role.
+
+**Tests.**
+- JAOFitCheck has 509 checks. New ones, for each vanilla hull and style:
+  - mount use ≥ 0.85 (Balanced) or 0.75;
+  - plain PD ≤ 55% (Balanced) or 65%;
+  - groups ≤ 8;
+  - at most 2 Antimatter Blasters.
+- The flux check now allows up to `FLUX_LIMIT`.
+- With `-DallMods=true`, 11 of 511 fail. These are modded-stat oddities: frag guns with inflated raw damage per flux, kinetic damage carried by missiles, and the PD-heavy side mounts of the Onslaught.
+
+**Not yet:**
+- An ammo-magazine burst value for regenerating guns (weapon_eval d.6).
+- The 225 modded scripted weapons that have no effects row (d.10).
+
 ## 8. Hullmods
 
 R: `hullmods_vanilla.json` (129 vanilla, effect numbers with file:line), `hullmods_work\report_preview.txt` (the report; a hook stopped the agent writing the .md), `hullmods_mods.json` + `modded_report.txt`.

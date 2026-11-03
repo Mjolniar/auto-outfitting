@@ -307,6 +307,8 @@ class JAOOptimizer {
                                             List<AvailableWeapon> weapons, List<AvailableFighter> fighters) {
         boolean fragments = current.hasHullMod("fragment_swarm");
         List<JAOSearch.Slot> slots = new ArrayList<>();
+        // degrees from the bow to each weapon mount's arc, for how much of its fire reaches the main target
+        Map<JAOSearch.Slot, Float> offs = new java.util.IdentityHashMap<>();
         // built-in weapons fire too: they set the engagement range and share the flux budget (fixed, no OP)
         for (WeaponSlotAPI slot : hull.getAllWeaponSlotsCopy()) {
             if (mountable(slot) || slot.isDecorative() || slot.isStationModule()) continue;
@@ -316,6 +318,7 @@ class JAOOptimizer {
                     Math.max(0.05f, Math.min(360f, slot.getArc()) / 360f), Misc.isInArc(slot.getAngle(), slot.getArc(), 0f), false);
             js.fixed = new JAOSearch.Cand(JAORatings.weapon(spec), null, "builtin", 0f);
             slots.add(js);
+            offs.put(js, Misc.getDistanceFromArc(slot.getAngle(), slot.getArc(), 0f));
         }
         for (WeaponSlotAPI slot : hull.getAllWeaponSlotsCopy()) {
             if (!mountable(slot)) continue;
@@ -328,6 +331,7 @@ class JAOOptimizer {
                     JAOSearch.Slot js = new JAOSearch.Slot(s.getId(), s.getSlotSize().ordinal(), s.isHardpoint(), Math.max(0.05f, Math.min(360f, s.getArc()) / 360f), Misc.isInArc(s.getAngle(), s.getArc(), 0f), false);
                     js.fixed = new JAOSearch.Cand(JAORatings.weapon(owned), null, "owned", 0f);
                     slots.add(js);
+                    offs.put(js, Misc.getDistanceFromArc(s.getAngle(), s.getArc(), 0f));
                 }
                 continue;
             }
@@ -356,7 +360,9 @@ class JAOOptimizer {
                 }
             }
             slots.add(js);
+            offs.put(js, Misc.getDistanceFromArc(s.getAngle(), s.getArc(), 0f));
         }
+        applyBearing(slots, offs);
         for (int b = builtInWings; b < bays; b++) {
             JAOSearch.Slot js = new JAOSearch.Slot("bay" + b, 1, false, 1f, true, true);
             String kept = current.getWingId(b);
@@ -372,6 +378,20 @@ class JAOOptimizer {
             slots.add(js);
         }
         return slots;
+    }
+
+    /** Sets each weapon slot's bearing (JAOModel.bearing) from its degrees off the bow, weighted by size 1/2/4. */
+    static void applyBearing(List<JAOSearch.Slot> slots, Map<JAOSearch.Slot, Float> offs) {
+        List<JAOSearch.Slot> ws = new ArrayList<>();
+        for (JAOSearch.Slot s : slots) if (!s.bay && offs.containsKey(s)) ws.add(s);
+        float[] off = new float[ws.size()], wt = new float[ws.size()];
+        for (int i = 0; i < ws.size(); i++) {
+            off[i] = offs.get(ws.get(i));
+            int sz = Math.max(0, Math.min(2, ws.get(i).size));
+            wt[i] = sz == 0 ? 1f : sz == 1 ? 2f : 4f;
+        }
+        float[] b = JAOModel.bearing(off, wt);
+        for (int i = 0; i < ws.size(); i++) ws.get(i).bear = b[i];
     }
 
     /** Each module's own slots with the same style; modules get no hullmods (the game's autofit does the same). */

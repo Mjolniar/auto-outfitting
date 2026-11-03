@@ -9,6 +9,8 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 
 - Weapons are scored on real combat numbers: damage against shields, armor and hull, flux cost, range, hit strength against armor, ammo, and scripted special effects. OP cost and the game's autofit tiers aren't used to rank weapons.
 - The loadout is balanced to finish a kill: break the shield, strip the armor, kill the hull. Build styles can lean on one layer instead.
+- Guns past the ship's sustained flux still count: they fire in burst windows (overloads, flanks) paid from flux capacity, so mounts get real weapons, not 1-OP fillers or small guns in big mounts.
+- Loadouts stay coherent: matched sets of the same weapon, one range band, within the game's 7 weapon groups. Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
 - Hullmods are chosen for the ship and its weapons (range mods only with guns that use them, missile mods only with missiles, and so on), then the remaining OP goes into vents and capacitors.
 - Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
 - Every other goal keeps the game's own autofit.
