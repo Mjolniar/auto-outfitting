@@ -30,6 +30,11 @@ final class JAOSearch {
         /** OP of a candidate with these hullmods on (some hullmods change weapon OP). */
         float op(Cand c, Set<String> mods);
         /**
+         * Its list OP before any discount, for how much of a mount it uses (a 2-OP IR-PD Cannon costs 0 on a Bryncore
+         * hull but still fills its mount).
+         */
+        default float baseOp(Cand c) { return op(c, Collections.emptySet()); }
+        /**
          * Filler hullmods (hull-only mods like Reinforced Bulkheads and Blast Doors, Flux Distributor/Coil) are only
          * tried once vents and capacitors are maxed: every combat use of OP comes first (research meta_report.md 10.8-9).
          */
@@ -163,7 +168,7 @@ final class JAOSearch {
             float w = sz == 0 ? 1f : sz == 1 ? 2f : 4f;
             all += w;
             if (s.pick == null) empty += w;
-            else empty += w * (1f - Math.min(1f, world.op(s.pick, mods) / MOUNT_OP[sz]));
+            else empty += w * (1f - Math.min(1f, world.baseOp(s.pick) / MOUNT_OP[sz]));
         }
         return all <= 0f ? 0f : empty / all;
     }
@@ -178,8 +183,12 @@ final class JAOSearch {
         List<Slot> order = new ArrayList<>(slots);
         order.sort(Comparator.comparingInt((Slot s) -> s.bay ? 1 : 0).thenComparing((Slot s) -> -s.size)
                 .thenComparing(s -> s.front ? 0 : 1).thenComparing(s -> s.id));
-        // 1. greedy weapons and wings
+        // 1. greedy weapons and wings. Per-ship coverage judges whole loadouts only: a half-filled ship has no missiles
+        // yet, so it would chase armor-crackers in the big mounts and run out of OP for the small ones
+        boolean cover = params.coverage;
+        params.coverage = false;
         for (Slot s : order) if (s.fixed == null) pickBest(s, false);
+        params.coverage = cover;
         // 2. hullmods, 3. swaps, repeated while anything improves
         for (int round = 0; round < 4; round++) {
             boolean changed = addMods();

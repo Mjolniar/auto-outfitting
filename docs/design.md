@@ -537,7 +537,36 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 - **Live OP prices.** Weapon OP is priced on the scratch member's live stats (`JAOShip.op`). Cost modifiers from hullmods and listeners now count, such as Valkyrian Bryncore's ballistic discount. The old variant-only price thought the front ballistics didn't fit.
 - **`settleOp` after Confirm.** It re-reads the real OP: spare OP goes into vents, then capacitors; overage cuts capacitors, then vents. Each change is logged.
 
-**Not yet:** a per-ship "all-rounder" coverage term. The fleet carries the all-round mix and ships may specialise.
+**Not yet:** a per-ship "all-rounder" coverage term. The fleet carries the all-round mix and ships may specialise. (Added in 0.4.1, below.)
+
+### 7j-2. 0.4.1: community build research (`research/build_philosophy/report.txt`)
+
+**Sources.** Community tier lists, carrier guides, the wiki's fighter AI notes, and the Valkyrians jar.
+
+**Fighters.**
+- **Reference wings.** First loaded wins: Broadsword; Dagger; Spark, then Wasp; Xyphos, then Sarissa. If none is loaded, the reference is the 75th percentile of the role's priced wings (not OP ≥ 100, not restricted + no_sell).
+- **Role from tags.** Tagged `support` or `stay_in_front_of_ship` counts as support (Sarissa, ARMAA Gunhed).
+- **Bomber firepower.** Max(armor damage, shield breaking = damage × shield multiplier × 0.5), × payload reliability: guided 1.0, GUIDED_POOR 0.8, unguided 0.55, bombs 0.35. The Longbow now ties the Dagger (community A+); the Trident is 0.73 and the Khopesh 0.63.
+- **EMP and tempo.** EMP counts half. Tempo = 1 / (refit + 4000 / speed) for wings that leave the carrier.
+- **Axis weights** are now 0.40 / 0.25 / 0.20 / 0.15. The Gunhed lands at about 0.77 in the support pool.
+- **WING_MIX** is 35 fighters / 35 bombers / 10 interceptors / 20 support. Low confidence: no source gives fleet percentages.
+- **Per carrier.** Interceptors on a ship with any bomber, or on a NO_AUTO_ESCORT hull, ×0.4 on both value and PD: the game never escorts there. A lone bomber on a one-bay ship ×0.7.
+- **Value stays linear in OP.** The research suggested OP^0.8, but the user wants strong, high-OP fighters on carriers.
+
+**Ships.**
+- **Coverage** (Auto/Balanced; Skirmisher, Flanker, Line, Anchor, Battle carrier, or no role; 3+ main weapons; not SO): ×(0.85 + 0.15 × min(1, kinetic / 20%)) × (0.85 + 0.15 × min(1, cracking / 15%)).
+  - Plain PD is left out of the shares.
+  - Coverage is judged in the swap passes only. During the greedy fill it chased crackers in the big mounts and left the small missile mounts empty (the no-kinetic Eagle check).
+- **Fleet kinetic target** is 50%, and wings count in the fleet mix (interceptors excepted).
+- **Flux.** The research proposed pressure from 1.30 and a limit of 1.60. On the user's fleet bench that raised plain-PD share on the Overslaughts from 46% to 54%, cut mount use, and left 18% of the Invictus's mounts empty. That is the 0.3.0 regression the user reported, so 1.40 / 1.75 stay. Valhalla Core hulls start pressure at 1.45; SO and Valhalla keep the 1.75 limit.
+- **settleOp** puts capacitors first on Carrier, Phase, Support and Missile boat roles.
+
+**Valkyrians** (checked in the jar):
+- Bryncore and Micro Bryncore add +100 base range to `valk*` weapons. This is `Ship.valkRange`, applied before percentage bonuses.
+- Mount-use credit uses list OP (`World.baseOp`), so a 0-OP IR-PD Cannon still fills its mount.
+- Discounts: 2/4/6 OP for Valkyrian weapons, 1/3/5 for other guns, 1/2/3 for missiles.
+
+**Fleet analysis.** It flags carriers that mix interceptors with bombers.
 
 ## 8. Hullmods
 

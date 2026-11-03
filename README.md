@@ -12,9 +12,18 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 - Guns past the ship's sustained flux still count: they fire in burst windows (overloads, flanks) paid from flux capacity, so mounts get real weapons, not 1-OP fillers or small guns in big mounts.
 - Loadouts stay coherent: matched sets of the same weapon, one range band, within the game's 7 weapon groups. Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
 - Hullmods are chosen for the ship and its weapons (range mods only with guns that use them, missile mods only with missiles, and so on), then the remaining OP goes into vents and capacitors.
-- Fighters are rated against a reference wing for their role: the Broadsword for fighters, the Dagger for bombers. Each wing is compared on firepower per OP, toughness per OP, point defense and refit time. It can match the reference on each but not beat it, so no cheap wing takes every bay.
+- Fighters are rated against the community's top pick for their role: Broadsword (fighters), Dagger (bombers), Spark or Wasp (interceptors), Xyphos or Sarissa (support). Each wing is compared on:
+  - firepower per OP (for bombers, armor damage or shield breaking, times how reliably the payload hits);
+  - toughness per OP;
+  - point defense;
+  - sortie time (refit plus the trip out and back).
+
+  A wing can match the reference on each but not beat it, so no cheap wing takes every bay. Wings that stay by their carrier (Sarissa, ARMAA Gunhed) count as support.
+- Carriers that carry bombers don't get interceptors: the game never sends a bomber carrier's fighters to escort, so the interceptors couldn't screen it.
+- Line ships on the Auto or Balanced style carry both kinetic and an armor-cracker.
 - The fleet is treated as one team. Fighter roles the fleet already has plenty of, and wings already flying elsewhere, count for less. With the Auto or Balanced style, each ship leans toward the damage the fleet is short of (anti-shield or anti-armor).
-- Weapon OP costs are read from the ship's live stats, so hullmod discounts count (Valkyrian Bryncore, for example). After Confirm, any spare OP goes into vents and capacitors.
+- Weapon OP costs are read from the ship's live stats, so hullmod discounts count (Valkyrian Bryncore, for example). The Bryncore's +100 range on Valkyrian weapons is counted too.
+- After Confirm, any spare OP goes into vents and capacitors: capacitors first on carriers, phase ships, support ships and missile boats.
 - Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
 - Every other goal keeps the game's own autofit.
 

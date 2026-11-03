@@ -250,7 +250,7 @@ class JAOOptimizer {
             current.setVariantDisplayName(JAOGoals.PREFIX + (what.isEmpty() ? "" : ": " + what) + (built > 0 ? " +" + built + " s-mod" + (built > 1 ? "s" : "") : "")
                     + (unused > 0 ? " (" + unused + " OP spare" + (!JAOSettings.allowDrawbacks && !world.drawbacks.isEmpty() ? ": drawbacks off)" : ")") : ""));
             delegate.syncUIWithVariant(current);
-            if (real) settleOp(hullOp, maxV, maxC);
+            if (real) settleOp(hullOp, maxV, maxC, role == JAORole.CARRIER || role == JAORole.PHASE || role == JAORole.MISSILE_BOAT || role == JAORole.SUPPORT);
         }
         if (smodNote != null && (real || JAOSettings.debug)) {
             Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " s-mods" + (real ? "" : " (preview)") + ": " + smodNote);
@@ -265,22 +265,36 @@ class JAOOptimizer {
     /**
      * After Confirm the game rebuilds the ship around the new loadout, and hullmods whose effects depend on it (OP cost
      * listeners, weapon-composition mods) can change what it costs. The user saw an Aquilon land at 220 of 250 OP with
-     * nothing logged. So the OP is read again from the rebuilt ship: spare points go to vents, then capacitors; an
-     * over-budget ship gives back capacitors, then vents. Logged whenever it changes anything.
+     * nothing logged. So the OP is read again from the rebuilt ship: spare points go to vents, then capacitors (gun
+     * ships), or capacitors first on carriers, phase ships, support and missile boats, which fire little and need the
+     * buffer (research build_philosophy R2.6); an over-budget ship gives back the other kind first. Logged whenever it
+     * changes anything.
      */
-    private void settleOp(int hullOp, int maxV, int maxC) {
+    private void settleOp(int hullOp, int maxV, int maxC, boolean capsFirst) {
         int left = hullOp - current.computeOPCost(plugin.stats());
         if (left == 0) return;
         int v = current.getNumFluxVents(), c = current.getNumFluxCapacitors(), v0 = v, c0 = c;
         if (left > 0) {
-            int addV = Math.min(left, Math.max(0, maxV - v));
-            v += addV;
-            c += Math.min(left - addV, Math.max(0, maxC - c));
+            if (capsFirst) {
+                int addC = Math.min(left, Math.max(0, maxC - c));
+                c += addC;
+                v += Math.min(left - addC, Math.max(0, maxV - v));
+            } else {
+                int addV = Math.min(left, Math.max(0, maxV - v));
+                v += addV;
+                c += Math.min(left - addV, Math.max(0, maxC - c));
+            }
         } else {
             int over = -left;
-            int cutC = Math.min(over, c);
-            c -= cutC;
-            v -= Math.min(over - cutC, v);
+            if (capsFirst) {
+                int cutV = Math.min(over, v);
+                v -= cutV;
+                c -= Math.min(over - cutV, c);
+            } else {
+                int cutC = Math.min(over, c);
+                c -= cutC;
+                v -= Math.min(over - cutC, v);
+            }
         }
         if (v == v0 && c == c0) return;
         current.setNumFluxVents(v);

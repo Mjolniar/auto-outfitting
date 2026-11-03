@@ -34,11 +34,18 @@ final class JAOModel {
     /** Fighter wing roles. */
     static final int W_FIGHTER = 0, W_BOMBER = 1, W_INTERCEPTOR = 2, W_SUPPORT = 3;
     /**
-     * The mix of fighter bays a fleet aims for: fighters for sustained pressure, bombers to finish armor, interceptors
-     * against enemy fighters and missiles, some support. Fighters are multi-role, so no single role should fill every
-     * bay (the user's fleet had Gunheads in every carrier bay).
+     * The mix of fighter bays a fleet aims for: fighters for sustained pressure, bombers to finish armor, support for
+     * battlecarriers, a few interceptors (players rarely put them on carriers; they do better on gunships). Fighters are
+     * multi-role, so no single role should fill every bay (the user's fleet had Gunheads in every carrier bay).
+     * Research build_philosophy R1.7: the average of the carrier loadouts players post.
      */
-    static final float[] WING_MIX = {0.40f, 0.25f, 0.25f, 0.10f};
+    static final float[] WING_MIX = {0.35f, 0.35f, 0.10f, 0.20f};
+    /**
+     * A carrier with any bomber never sends its fighters to escort (the game's fighter AI; also hulls with
+     * NO_AUTO_ESCORT, like the Legion), so interceptors there lose their point defense job. A lone bomber wing on a
+     * one-bay ship has no escort. Research R1.8.
+     */
+    static final float INTERCEPTOR_NO_ESCORT = 0.4f, LONE_BOMBER = 0.7f;
     /**
      * Wing value. Paper numbers (fighter guns as if they always fired, a mining drill as constant fire, torpedoes spread
      * over the refit cycle) were off by up to 100x: a 9-OP Gunhead scored 210 per OP, a Trident 2. So a wing is worth
@@ -49,12 +56,30 @@ final class JAOModel {
      * the role balance (wingRoleFactor) and the fleet's needs.
      */
     static final float WING_VALUE_PER_OP = 20f, WING_Q_MIN = 0.5f;
-    /** Axis weights: firepower per OP (bombers: armor damage), durability per OP, point defense, refit tempo. */
-    static final float[] WING_AXES = {0.40f, 0.30f, 0.20f, 0.10f};
-    /** Reference wing per role (fighter, bomber, interceptor, support); null = the role's 75th percentile. */
-    static final String[] WING_REF = {"broadsword_wing", "dagger_wing", null, null};
+    /**
+     * Axis weights: firepower per OP (bombers: armor damage or shield breaking, whichever is larger), durability per OP,
+     * point defense, sortie tempo (refit plus the trip out and back: players rate slow wings down).
+     */
+    static final float[] WING_AXES = {0.40f, 0.25f, 0.20f, 0.15f};
+    /**
+     * Reference wings per role (fighter, bomber, interceptor, support), first one loaded wins; none loaded = the role's
+     * 75th percentile. The community's top picks (research build_philosophy 1.3): Broadsword (the user's S-tier
+     * all-rounder), Dagger, Spark or Wasp, Xyphos or Sarissa.
+     */
+    static final String[][] WING_REF = {{"broadsword_wing"}, {"dagger_wing"}, {"spark_wing", "wasp_wing"}, {"xyphos_wing", "sarissa_wing"}};
 
-    /** raw and ref: {firepower per OP, durability per OP, 0.4 + 0.6 x PD share, 1 / refit seconds}. */
+    /**
+     * Share of a wing's finite payload that lands: guided 1.0, poorly guided (Atropos, Sabot) 0.8, unguided torpedoes
+     * and rockets 0.55, drifting bombs 0.35 (research R1.3).
+     */
+    static float payloadReliability(boolean bomb, boolean guided, boolean guidedPoor, float projSpeed) {
+        if (guided) return 1f;
+        if (guidedPoor) return 0.8f;
+        if (bomb || projSpeed < 200f) return 0.35f;
+        return 0.55f;
+    }
+
+    /** raw and ref: {firepower per OP, durability per OP, 0.4 + 0.6 x PD share, 1 / sortie seconds}. */
     static float wingQuality(float[] raw, float[] ref) {
         float q = 1f;
         for (int i = 0; i < WING_AXES.length; i++) {
@@ -153,6 +178,12 @@ final class JAOModel {
         boolean noVent;
         /** 0 steady, 1 aggressive/reckless, 2 cautious/timid. */
         int personality;
+        /** The hull never sends fighters to escort (NO_AUTO_ESCORT, e.g. the Legion). */
+        boolean noAutoEscort;
+        /** Base range added to weapons whose id starts with "valk" (Valkyrian Bryncore: a combat-only listener). */
+        float valkRange;
+        /** Where flux pressure starts and where extra guns sit switched off (JAOShip: SO and Valhalla Core run hot). */
+        float fluxSoft = FLUX_SOFT, fluxLimit = FLUX_LIMIT;
 
         Ship copy() {
             Ship s = new Ship();
@@ -165,6 +196,7 @@ final class JAOModel {
             s.pdDmg = pdDmg; s.armorTaken = armorTaken; s.hullTaken = hullTaken; s.shieldTaken = shieldTaken; s.bfSmall = bfSmall;
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
             s.interferenceMult = interferenceMult; s.noVent = noVent;
+            s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
             return s;
         }
     }
@@ -222,6 +254,9 @@ final class JAOModel {
             else { JAOStyle s = st == JAOStyle.AUTO ? JAOStyle.BALANCED : st; wS = s.shield; wA = s.armor; wH = s.hull; }
             if (r != null) { offenseW = r.offense; mobilityW = r.mobility; pdMult = r.pd; wingMult = r.wings; }
             rangePref = rangeSetting != 0 ? rangeSetting : r != null ? r.range : 0;
+            // specialists (carriers, support, phase, missile boats) may lean one way; line ships may not
+            coverage = (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) && (r == null || r == JAORole.SKIRMISHER || r == JAORole.FLANKER
+                    || r == JAORole.LINE || r == JAORole.ANCHOR || r == JAORole.BATTLE_CARRIER);
         }
         /** 0 auto, 1 long, 2 close. */
         int rangePref;
@@ -229,13 +264,27 @@ final class JAOModel {
         /** The rest of the fleet (JAOFleetContext): fighter bays by role, and copies of each wing id. */
         float[] fleetWingBays = new float[4];
         Map<String, Integer> fleetWingIds = new HashMap<>();
+        /** Line ships on Auto/Balanced carry both kinetic and armor-cracking damage (COVERAGE). */
+        boolean coverage;
+    }
+
+    /**
+     * Per-ship coverage (research build_philosophy R2.1): the AI doesn't pick targets by damage type and ships don't
+     * coordinate, so a line ship with almost no kinetic spends its time on shields, and one with no armor-cracker can't
+     * finish anything. Up to x0.85 each when kinetic is under 20% of its damage or armor-cracking under 15%.
+     */
+    static final float COVERAGE = 0.85f, COVER_KINETIC = 0.20f, COVER_CRACK = 0.15f;
+
+    static float coverage(float kineticShare, float crackShare) {
+        return (COVERAGE + (1f - COVERAGE) * Math.min(1f, kineticShare / COVER_KINETIC))
+                * (COVERAGE + (1f - COVERAGE) * Math.min(1f, crackShare / COVER_CRACK));
     }
 
     // ------------------------------------------------------------------ per weapon
 
     static float range(W w, Ship s) {
         if (w.wing) return w.range;
-        float base = w.range;
+        float base = w.range + (s.valkRange != 0f && w.id != null && w.id.startsWith("valk") ? s.valkRange : 0f);
         if (w.cls == BAL && !w.pd) {
             float add = w.size == 0 ? s.bfSmall : w.size == 1 ? s.bfMedium : 0f;
             if (add > 0f) base = Math.max(base, Math.min(base + add, s.bfCap));
@@ -347,7 +396,16 @@ final class JAOModel {
         // fighter bays by role across the fleet and this ship, for the role balance of each wing
         float[] bays = p.fleetWingBays.clone();
         Map<String, Integer> sameWing = new HashMap<>();
-        for (Fit f : fits) if (f.w.wing) bays[Math.max(0, Math.min(3, f.w.wingRole))] += 1f;
+        int shipWings = 0;
+        boolean shipBomber = false;
+        for (Fit f : fits) {
+            if (!f.w.wing) continue;
+            bays[Math.max(0, Math.min(3, f.w.wingRole))] += 1f;
+            shipWings++;
+            shipBomber |= f.w.wingRole == W_BOMBER;
+        }
+        // interceptors only escort (their point defense job) when the carrier has no bomber and may auto-escort
+        float escort = shipBomber || s.noAutoEscort ? INTERCEPTOR_NO_ESCORT : 1f;
 
         // per-weapon effective dps and the shares that matter per phase: the shield phase is a flux war at the
         // sustained rate; armor and hull go down half in burst windows (shield down, overload, flanks)
@@ -369,6 +427,8 @@ final class JAOModel {
                 int seen = sameWing.merge(w.id, 1, Integer::sum) - 1;
                 int elsewhere = Math.min(6, p.fleetWingIds.getOrDefault(w.id, 0));
                 wingBalance = wingRoleFactor(w.wingRole, bays) * (float) Math.pow(0.97, elsewhere) * (float) Math.pow(0.95, seen);
+                if (w.wingRole == W_INTERCEPTOR) wingBalance *= escort;
+                if (w.wingRole == W_BOMBER && shipWings == 1) wingBalance *= LONE_BOMBER;
             }
             float d = w.wing ? x.dps * p.wingMult * wingBalance : x.dps * uptime * inRange * reach * bear;
             float db = w.wing ? d : x.dps * (BURST_SHARE * burstUp + (1f - BURST_SHARE) * uptime) * inRange * reach * bear;
@@ -382,7 +442,7 @@ final class JAOModel {
             if (w.pd || w.pdOnly || w.interceptor) {
                 float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread));
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
-                pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd;
+                pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f);
             } else if (w.wing && w.wingPd > 0f) {
                 // multi-role fighters screen against missiles and fighters with their PD-capable guns, at half weight
                 pd += 0.5f * w.wingPd * x.dps * s.pdDmg;
@@ -445,8 +505,8 @@ final class JAOModel {
         // research meta R91: 2x is the workable limit), so guns past that waste OP
         // gentle pressure from 1.25x (community target about 1x for AI ships, 1.5x hard cap), so a ship only goes past
         // it for a gun clearly worth it; past FLUX_LIMIT the extra guns sit switched off
-        float fluxFactor = overflux <= FLUX_SOFT ? 1f : (float) Math.pow(FLUX_SOFT / Math.min(overflux, FLUX_LIMIT), FLUX_SOFT_EXP);
-        if (overflux > FLUX_LIMIT) fluxFactor *= FLUX_LIMIT / overflux;
+        float fluxFactor = overflux <= s.fluxSoft ? 1f : (float) Math.pow(s.fluxSoft / Math.min(overflux, s.fluxLimit), FLUX_SOFT_EXP);
+        if (overflux > s.fluxLimit) fluxFactor *= s.fluxLimit / overflux;
 
         // weapon groups: every distinct weapon is its own group and Starsector has 7; past that the closest groups
         // merge (mechanics 3.1). Point defense merging with point defense is harmless, so all PD counts as one group;
@@ -470,6 +530,24 @@ final class JAOModel {
         }
         if (gunDps > 0f) groupFactor *= 1f - OFF_BAND * offBand / gunDps;
 
+        // line ships carry both kinetic and an armor-cracker (finite missiles counted over the fight)
+        float cover = 1f;
+        if (p.coverage && !s.noVent) {
+            float all = 0f, kin = 0f, crack = 0f;
+            int mains = 0;
+            for (int i = 0; i < n; i++) {
+                W w = fits.get(i).w;
+                if (w.pdOnly || (w.pd && !w.pdAlso)) continue; // plain PD shoots missiles; dual-role guns count
+                float d = eff[i] + (e[i].pool > 0f && e[i].dps <= 0f ? e[i].pool / Math.max(30f, p.fightSeconds) : 0f);
+                if (d <= 0f) continue;
+                if (!w.wing && !w.pd) mains++;
+                all += d;
+                if (w.dmg == KIN) kin += d;
+                if (w.hit * ARMOR_MULT[w.dmg] >= 300f) crack += d;
+            }
+            if (mains >= 3 && all > 0f) cover = coverage(kin / all, crack / all);
+        }
+
         // offense weighs more than survival: more firepower also ends fights sooner, covers more targets and
         // flanks, and the AI fights in fleets, not duels (community rule: weapons first, research meta_report 10)
         // speed and handling against the hull's own: every ship has to reach the fight and turn its guns (big ships
@@ -477,12 +555,13 @@ final class JAOModel {
         float mw = Math.max(MIN_MOBILITY, p.mobilityW);
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(Math.max(0.2f, s.speed / s.baseSpeed), mw) : 1f)
                 * (float) Math.pow(Math.max(0.2f, s.maneuver), 0.5f * mw + 0.04f);
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * (1f + s.extra);
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * (1f + s.extra);
         if (out != null) {
             out.put("score", score); out.put("ttk", ttk); out.put("t1", t1s / wsum); out.put("t2", t2s / wsum); out.put("t3", t3s / wsum);
             out.put("ehp", ehp); out.put("uptime", uptime); out.put("load", load); out.put("budget", budget); out.put("reng", reng);
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
             out.put("burstUp", burstUp); out.put("groups", (float) groupIds.size()); out.put("guns", (float) gunIds.size());
+            out.put("cover", cover);
         }
         return score;
     }
