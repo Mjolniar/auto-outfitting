@@ -1,0 +1,43 @@
+kind,id,value,note
+# Mod content the optimizer must respect (research modded_report.txt section 2). Read by JAOOptimizer.
+# kind: skip_slots (hull id -> slot ids filled by mod code; never fill or clear), never_add / never_remove (hullmod id or id prefix ending in *),
+#       one_per_ship (weapon tag), interference (weapon id -> WEAK/MILD/STRONG, MagicLib dissipation penalty when 2+ fitted),
+#       plague (weapon/wing tag -> max CR cost per item), needs_hullmod (weapon tag -> hullmod that must be on the ship),
+#       never_use (weapon id or pattern the Optimal fit never picks; the setting "Never use these weapons" adds to it),
+#       role (hull id or pattern -> Skirmisher, Flanker, Line, Anchor, Carrier, Battle carrier, Support, Phase, Missile boat, Civilian)
+skip_slots,odyssey_ix,WS TORP,ET-IX: code-placed torpedo (slot is BUILT_IN; guard only)
+skip_slots,paragon_ix_elite,WS TORP;WS 001;WS 002,ET-IX: torpedo slot; WS 001/002 cleared on every refit by ix_missile_autoforge
+skip_slots,tigershark_ix,WS 004,ET-IX: Vampyr / Antecedent slot (real SYNERGY LARGE slot)
+skip_slots,tigershark_tw,WS 004,TW: Abolisher / Stormwall slot (real SYNERGY LARGE slot)
+skip_slots,iconoclast_ix,WS ARR,ET-IX (slot is DECORATIVE; guard only)
+skip_slots,intrepid_ix,WS DEM;WS SBE,ET-IX (WS DEM is BUILT_IN; guard only)
+skip_slots,radiant_ix,WS DEM;WS SBE,ET-IX (WS SBE is BUILT_IN; guard only)
+never_add,orr_wo_*,,ET work orders (item + story point)
+never_add,ix_system_reset,,
+never_add,vice_political_officer,,
+never_add,rat_*,,RAT alterations and conversions (item + refit button)
+never_add,*_handler,,helper hullmods
+never_add,*_error,,helper hullmods
+never_add,*_checker,,helper hullmods
+never_add,*_discount_*,,OP refund helpers attached by mod code
+never_add,armaa_selector_*,,Arma Armatura weapon-swap selectors
+never_remove,sun_sl_*,,Starship Legends reputation (carries the ship's traits)
+never_remove,rat_controller,,
+never_remove,rat_artifact_controller,,
+never_remove,rat_exceptional_construction,,+OP from RAT's Assembly Station; clearing hullmods would lose it
+never_remove,aotd_nidavelir_hullmod,,
+never_remove,aotd_elysian_hullmod_enfrocer,,
+never_remove,armaa_selector_*,,
+never_remove,A_S-F_PhantasmagoriaHullmod,,
+never_remove,SKR_siegfriedLoadout,,
+one_per_ship,feedback_weapon,1,More than one makes vice_feedback_error damage the own ship
+interference,SKR_gatlingLance,STRONG,(n-1) x 80 dissipation each when 2+ interference weapons are fitted (x0.5 with Resistant Flux Conduits)
+interference,SKR_blackout,STRONG,
+interference,SKR_glare,STRONG,
+interference,SKR_ravager,STRONG,
+interference,armaa_curvyLaser,MILD,(n-1) x 40
+interference,SKR_targetPainterSmall,WEAK,(n-1) x 20
+interference,SKR_targetPainterMedium,WEAK,
+interference,SKR_kaleidoscope,WEAK,
+plague,SKR_plague,WEAK=3;MILD=6;STRONG=12,% max CR per plague weapon/wing on normal hulls (x0.666 with Hardened Subsystems; cap 70%)
+needs_hullmod,fragment,fragment_swarm,Fragment weapons do nothing without the Fragment Swarm hullmod
