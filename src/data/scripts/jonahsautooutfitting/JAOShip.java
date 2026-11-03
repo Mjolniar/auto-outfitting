@@ -164,6 +164,13 @@ final class JAOShip implements JAOSearch.World {
         // as an s-mod the Autoloader waits 10 s after a reload instead of 5 (its s-mod penalty)
         if (work.hasHullMod("missile_autoloader")) s.ammoMult *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
         if (work.hasHullMod("phase_anchor") && s.phase) s.extra += 0.12f;
+        // Valkyrian Brunhild Cyclonic Core (and Micro): +100 base range to "valk" weapons through a combat-only
+        // WeaponBaseRangeModifier (checked in Valkyrians.jar). Valhalla Core (Elegy) gives +20% damage above 66% flux,
+        // so it runs hot; Safety Overrides ships can't vent anyway (research build_philosophy R2.5, R3.1, R3.3)
+        if (work.hasHullMod("valk_bryncore") || work.hasHullMod("valk_microbryncore")) s.valkRange = 100f;
+        if (work.hasHullMod("valk_valhallacore")) { s.fluxSoft = Math.max(s.fluxSoft, 1.45f); s.fluxLimit = Math.max(s.fluxLimit, 1.75f); }
+        if (s.noVent) s.fluxLimit = Math.max(s.fluxLimit, 1.75f);
+        s.noAutoEscort = hull.getHints().contains(ShipHullSpecAPI.ShipTypeHints.NO_AUTO_ESCORT);
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
@@ -192,7 +199,8 @@ final class JAOShip implements JAOSearch.World {
         if (v != null) return v;
         setMods(mods);
         // priced on the scratch member's live stats: hullmods that cut weapon OP through a WeaponOPCostModifier listener
-        // (Valkyrian Brunhild Cyclonic Core, 1-3 OP off every weapon) only exist there; the cloned variant's own
+        // (Valkyrian Brunhild Cyclonic Core: 2/4/6 OP off Valkyrian weapons by size, 1/3/5 off other guns, 1/2/3 off
+        // missiles) only exist there; the cloned variant's own
         // stats-for-OP never have them, which left Valkyrian mounts empty and the savings in vents
         MutableShipStatsAPI opStats;
         try {
@@ -210,11 +218,20 @@ final class JAOShip implements JAOSearch.World {
     }
 
     @Override
+    public float baseOp(JAOSearch.Cand c) {
+        try {
+            if (c.entry instanceof AvailableWeapon) return ((AvailableWeapon) c.entry).getSpec().getOrdnancePointCost(null);
+            if (c.entry instanceof AvailableFighter) return ((AvailableFighter) c.entry).getWingSpec().getOpCost(null);
+        } catch (Throwable ignored) { }
+        return op(c, java.util.Collections.emptySet());
+    }
+
+    @Override
     public void setSMods(Set<String> s) { smods = new java.util.LinkedHashSet<>(s); }
 
     /** Listener hullmods the model has its own numbers for (see ship()). */
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(
-            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor"));
+            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
 
     /** Hull-only hullmods (roles HULL or CR in jao_hullmods.csv, or the vanilla padding mods) and Flux Distributor/Coil. */
     @Override

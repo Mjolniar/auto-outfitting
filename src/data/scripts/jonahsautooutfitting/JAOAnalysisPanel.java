@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * "Fleet analysis" (user 11/03: "analyze what a fleet composition currently has ... and recommend a build"): what the
  * fleet carries, from the same numbers the Optimal fit balances against (JAOFleetContext), and which ships to re-fit.
- *  - firepower by damage type and the armor-cracking share, against the targets (about 45% kinetic, 30% armor);
+ *  - firepower by damage type and the armor-cracking share, against the targets (about half kinetic, 30% armor);
  *  - fighter bays by role against JAOModel.WING_MIX, and the most common wings;
  *  - ships short of point defense, with guns spread over two range bands, or with empty mounts;
  *  - one line per combat ship.
@@ -125,12 +125,15 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
                         + "). Re-fit the carriers with Optimal to mix roles: " + join(carriers, 6) + ".");
             }
         }
-        List<String> pd = new ArrayList<>(), mixed = new ArrayList<>(), empty = new ArrayList<>();
+        List<String> pd = new ArrayList<>(), mixed = new ArrayList<>(), empty = new ArrayList<>(), noEscort = new ArrayList<>();
         for (JAOFleetContext.Ship s : f.perShip) {
             if (pdShort(s)) pd.add(name(s));
+            if (s.wingBays[JAOModel.W_INTERCEPTOR] > 0f && s.wingBays[JAOModel.W_BOMBER] > 0f) noEscort.add(name(s));
             if (s.maxRange - s.minRange > 400f && s.minRange < Float.MAX_VALUE) mixed.add(name(s) + " (" + Math.round(s.minRange) + "-" + Math.round(s.maxRange) + ")");
             if (s.emptyMounts > 0) empty.add(name(s) + " (" + s.emptyMounts + ")");
         }
+        if (!noEscort.isEmpty()) out.add("Interceptors next to bombers (a carrier with any bomber never sends fighters to escort, so the interceptors don't screen it): "
+                + join(noEscort, 6) + ".");
         if (!pd.isEmpty()) out.add("Point defense below need: " + join(pd, 6) + ".");
         if (!mixed.isEmpty()) out.add("Guns spread over two range bands (the AI fights at the shortest, so long guns idle or the ship gets dragged in): " + join(mixed, 6) + ".");
         if (!empty.isEmpty()) out.add("Empty mounts: " + join(empty, 6) + ". Re-fit with Optimal, or the stock may be out of weapons that fit.");

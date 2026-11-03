@@ -16,15 +16,20 @@ import java.util.Map;
 /**
  * What the player's fleet already carries, so one ship's Optimal fit can complement the rest (user 11/03: every
  * carrier had Gunheads, and "is this whole fleet primed for one damage type?"):
- *  - firepower by damage type (guns at sustained dps, missiles at their load over 90 s; PD left out), and how much of it
+ *  - firepower by damage type (guns at sustained dps, missiles at their load over 90 s, wings at their value except
+ *    interceptors; PD left out), and how much of it
  *    can crack armor (hit >= 300 after the armor multiplier: HE guns, burst beams, torpedoes);
  *  - fighter bays by role (JAOModel.W_*) and copies of each wing.
  * The ship being fitted is left out (its own loadout is what's being chosen). Read from the ships' current variants
  * and modules; civilian hulls count for nothing.
  */
 final class JAOFleetContext {
-    /** Firepower targets the fleet aims for: about 45% kinetic (shields), 30% armor-cracking (research meta 4.2). */
-    static final float KINETIC_TARGET = 0.45f, ARMOR_TARGET = 0.30f;
+    /**
+     * Firepower targets the fleet aims for: about half kinetic (shields; players run 2 kinetic to 1 HE, biased
+     * anti-shield) and 30% armor-cracking (research meta 4.2, build_philosophy R2.2). Fighters count: Longbows and
+     * Broadswords as kinetic, Daggers as armor-cracking.
+     */
+    static final float KINETIC_TARGET = 0.50f, ARMOR_TARGET = 0.30f;
 
     final float[] dmg = new float[4];
     float armorDps, total;
@@ -91,10 +96,16 @@ final class JAOFleetContext {
             if (id == null) continue;
             FighterWingSpecAPI spec = Global.getSettings().getFighterWingSpec(id);
             if (spec == null) continue;
-            int role = JAORatings.wing(spec).wingRole;
+            JAOModel.W w = JAORatings.wing(spec);
+            int role = w.wingRole;
             c.wingBays[role] += 1f;
             s.wingBays[role] += 1f;
             c.wingIds.merge(id, 1, Integer::sum);
+            if (w.interceptor || w.dps <= 0f) continue;
+            int d = Math.max(0, Math.min(3, w.dmg));
+            c.dmg[d] += w.dps; s.dmg[d] += w.dps;
+            c.total += w.dps; s.total += w.dps;
+            if (w.hit * JAOModel.ARMOR_MULT[d] >= 300f) { c.armorDps += w.dps; s.armorDps += w.dps; }
         }
     }
 
