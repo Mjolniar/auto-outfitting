@@ -40,11 +40,14 @@ public class JAORatings {
     private static List<String[]> rules;
     /** Reference targets per size class: [size][0 shielded, 1 not]. */
     private static JAOModel.Target[][] refs;
+    /** Reference wing axes per role (wingRefs). */
+    private static float[][] wingRefs;
 
     /** Drops the cache (after a load or a settings change); the next fit rebuilds it. */
     static void reset() {
         weapons.clear();
         wings.clear();
+        wingRefs = null;
         effects = null;
         hullmods = null;
         rules = null;
@@ -200,21 +203,55 @@ public class JAORatings {
     }
 
     /**
-     * A wing as one "weapon": its fighters' guns at 60% sortie uptime, their finite missiles once per refit cycle,
-     * always in range (it flies to the target), no flux. Interceptors also count as point defense.
+     * A wing as one "weapon", always in range (it flies to the target), no flux, worth JAOModel.wingValue: its OP times
+     * its quality against the role's reference wing (the Broadsword for fighters, the Dagger for bombers). Interceptors
+     * count as point defense, and other wings' PD-capable guns as half; the role drives the fleet's fighter balance
+     * (JAOModel.wingRoleFactor).
      */
     private static JAOModel.W makeWing(FighterWingSpecAPI spec) {
+        WingRaw r = wingRaw(spec);
         JAOModel.W w = new JAOModel.W();
         w.id = spec.getId();
         w.wing = true;
+        w.name = r.name;
         w.range = Math.max(1000f, spec.getRange());
-        w.interceptor = spec.getRole() == WingRole.INTERCEPTOR;
-        w.bomber = spec.getRole() == WingRole.BOMBER;
+        w.wingRole = r.role;
+        w.interceptor = r.role == JAOModel.W_INTERCEPTOR;
+        w.bomber = r.role == JAOModel.W_BOMBER;
+        w.dmg = r.dmg;
+        w.hit = r.hit;
+        w.dps = JAOModel.wingValue(r.op, r.axes, wingRefs()[r.role]);
+        w.pd = w.interceptor;
+        w.wingPd = w.interceptor ? 0f : r.pdShare;
+        w.rarity = Math.min(1f, Math.max(Math.max(0f, 1f - Math.min(1f, spec.getRarity())), spec.getTier() / 3f));
+        return w;
+    }
+
+    /** A wing's numbers before the role reference: JAOModel.wingQuality's axes, damage per hit, main damage type. */
+    private static final class WingRaw {
+        final float[] axes = new float[4];
+        float hit, pdShare, op = 10f;
+        int dmg = JAOModel.EN, role;
+        String name;
+    }
+
+    /**
+     * Fighters spend most of a fight flying to and from the target and losing craft, so their guns count at ENGAGE of
+     * their paper rate (melee weapons, like the ARMAA Gunhead's mining drill, at a third of that again) and finite
+     * missiles land once per sortie (refit + 25 s). Bombers are rated on armor damage: damage-type multiplier times
+     * hit / (hit + 500). Durability is hull + 2x armor per craft (x1.25 with a shield) per OP.
+     */
+    private static WingRaw wingRaw(FighterWingSpecAPI spec) {
+        final float ENGAGE = 0.35f, MELEE = 0.35f;
+        WingRaw r = new WingRaw();
+        WingRole role = spec.getRole();
+        r.role = role == WingRole.BOMBER ? JAOModel.W_BOMBER : role == WingRole.INTERCEPTOR ? JAOModel.W_INTERCEPTOR
+                : role == WingRole.SUPPORT ? JAOModel.W_SUPPORT : JAOModel.W_FIGHTER;
+        r.name = spec.getId();
         int n = Math.max(1, spec.getNumFighters());
-        float cycle = Math.max(10f, spec.getRefitTime()) + 20f;
-        // share of the fight the wing is out fighting: quick-refit wings come back sooner (mechanics 7.2)
-        float sortie = 0.75f - 0.25f * JAOModel.clamp((spec.getRefitTime() - 10f) / 20f, 0f, 1f);
-        float dps = 0f, hitSum = 0f, best = -1f;
+        float refit = Math.max(5f, spec.getRefitTime());
+        float cycle = Math.max(10f, refit) + 25f;
+        float dps = 0f, hitSum = 0f, best = -1f, armorDps = 0f, pdDps = 0f, hp = 0f, shield = 1f;
         ShipVariantAPI v = spec.getVariant();
         if (v != null) {
             for (String slot : v.getFittedWeaponSlots()) {
@@ -222,24 +259,55 @@ public class JAORatings {
                 if (ws == null || ws.getDerivedStats() == null) continue;
                 DerivedWeaponStatsAPI d = ws.getDerivedStats();
                 boolean finite = ws.usesAmmo() && ws.getAmmoPerSecond() <= 0f;
-                float wd = finite ? d.getDamagePerShot() * Math.max(1, ws.getMaxAmmo()) / cycle : d.getSustainedDps() * sortie;
+                float wd = finite ? d.getDamagePerShot() * Math.max(1, ws.getMaxAmmo()) / cycle
+                        : d.getSustainedDps() * ENGAGE * (ws.getMaxRange() < 150f ? MELEE : 1f);
                 dps += wd;
-                hitSum += wd * (ws.isBeam() ? 0.5f * d.getDps() : d.getDamagePerShot());
-                if (wd > best) { best = wd; w.dmg = dmg(ws.getDamageType() == null ? null : ws.getDamageType().name()); }
+                float hit = ws instanceof BeamWeaponSpecAPI ? 0.5f * ((BeamWeaponSpecAPI) ws).getDamagePerSecond() : d.getDamagePerShot();
+                float sub = mirvDamage(ws);
+                if (sub > 0f) hit = sub;
+                hitSum += wd * hit;
+                int type = dmg(ws.getDamageType() == null ? null : ws.getDamageType().name());
+                armorDps += wd * JAOModel.ARMOR_MULT[type] * hit / (hit + 500f);
+                Set<AIHints> h = ws.getAIHints();
+                if (h.contains(AIHints.PD) || h.contains(AIHints.PD_ALSO) || h.contains(AIHints.PD_ONLY) || h.contains(AIHints.ANTI_FTR)) pdDps += wd;
+                if (wd > best) { best = wd; r.dmg = type; }
             }
-            w.name = v.getHullSpec() == null ? spec.getId() : v.getHullSpec().getHullName();
+            if (v.getHullSpec() != null) {
+                r.name = v.getHullSpec().getHullName();
+                hp = v.getHullSpec().getHitpoints() + 2f * v.getHullSpec().getArmorRating();
+                ShieldType st = v.getHullSpec().getShieldType();
+                if (st != null && st != ShieldType.NONE && st != ShieldType.PHASE) shield = 1.25f;
+            }
         }
-        // tougher fighters live longer and keep shooting; flimsy ones die on the way in
-        float tough = 0.8f;
-        if (v != null && v.getHullSpec() != null) {
-            float hp = v.getHullSpec().getHitpoints() + 2f * v.getHullSpec().getArmorRating();
-            tough = JAOModel.clamp(0.6f + 0.4f * hp / 600f, 0.6f, 1.2f);
+        try { float o = spec.getOpCost(null); if (o > 0f) r.op = o; } catch (Throwable ignored) { }
+        r.hit = dps > 0f ? hitSum / dps : 0f;
+        r.pdShare = dps > 0f ? pdDps / dps : 0f;
+        r.axes[0] = (r.role == JAOModel.W_BOMBER ? armorDps : dps) * n / r.op;
+        r.axes[1] = n * hp * shield / r.op;
+        r.axes[2] = 0.4f + 0.6f * r.pdShare;
+        r.axes[3] = 1f / refit;
+        return r;
+    }
+
+    /** Each role's reference axes (JAOModel.WING_REF, or the 75th percentile of the role's priced wings). */
+    static float[][] wingRefs() {
+        if (wingRefs != null) return wingRefs;
+        float[][] out = new float[4][];
+        List<List<float[]>> byRole = new ArrayList<>();
+        for (int i = 0; i < 4; i++) byRole.add(new ArrayList<>());
+        List<FighterWingSpecAPI> all = Global.getSettings().getAllFighterWingSpecs();
+        for (FighterWingSpecAPI spec : all) {
+            try {
+                if (spec.getOpCost(null) <= 0f) continue;
+                WingRaw r = wingRaw(spec);
+                byRole.get(r.role).add(r.axes);
+                String ref = JAOModel.WING_REF[r.role];
+                if (ref != null && ref.equals(spec.getId())) out[r.role] = r.axes;
+            } catch (Throwable ignored) { }
         }
-        w.dps = dps * n * tough;
-        w.hit = dps > 0f ? hitSum / dps : 0f;
-        w.pd = w.interceptor;
-        w.rarity = Math.min(1f, Math.max(Math.max(0f, 1f - Math.min(1f, spec.getRarity())), spec.getTier() / 3f));
-        return w;
+        for (int i = 0; i < 4; i++) if (out[i] == null) out[i] = JAOModel.percentile(byRole.get(i), 0.75f);
+        wingRefs = out;
+        return out;
     }
 
     // ------------------------------------------------------------------ reference targets

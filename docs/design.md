@@ -496,6 +496,49 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 - An ammo-magazine burst value for regenerating guns (weapon_eval d.6).
 - The 225 modded scripted weapons that have no effects row (d.10).
 
+## 7j. Fighters, the fleet as a whole, and OP fixes in 0.4.0 (user, 11/03)
+
+**Reports.**
+- Every carrier got ARMAA Gunhed mechs.
+- An Aquilon stopped at 220 of 250 OP.
+- Valkyrian ships (Elegy, Valhallan series, Nirvana Mk2) were under-equipped, with front ballistics empty.
+- "Is the whole fleet primed for one damage type?"
+- User: "the Broadsword is an S-tier fighter… the best all-rounder… not the perfect fit for every situation."
+
+**Fighter value.**
+- **Why Gunheds won.** The old wing number was paper DPS times a toughness factor. That counted a fighter's guns as always firing and a mining drill as constant fire. The 9-OP Gunhed scored 210 per OP, the Broadsword 53 and the Trident 2.
+- **Value.** A wing is now worth `WING_VALUE_PER_OP` (20) × OP × quality, with quality 0.5–1.0 (`JAOModel.wingQuality`).
+- **Four axes.** Quality compares the wing with its role's reference wing on four axes:
+
+  | Axis | Weight | Measure |
+  |---|---|---|
+  | Firepower | 0.40 | Per OP. Guns count at 0.35 of paper; melee (range < 150) at a further 0.35; finite missiles once per refit + 25 s. Bombers count armor damage instead: type × hit / (hit + 500). |
+  | Durability | 0.30 | Craft × (hull + 2 × armor) per OP, × 1.25 with a shield. |
+  | Point defense | 0.20 | 0.4 + 0.6 × the share of firepower from PD, PD_ALSO or ANTI_FTR guns. |
+  | Refit tempo | 0.10 | 1 / refit seconds. |
+
+- **Scoring an axis.** Matching the reference scores 1 and beating it scores no more; falling short costs value.
+- **Reference wings.** The Broadsword for fighters (the user's pick) and the Dagger for bombers. Interceptors and support use the 75th percentile of their role's priced wings. A missing reference falls back to the percentile.
+- **Results on the research data.** Broadsword 160 (8 OP); Gunhed 146 (9 OP: no PD, melee drill, 13 s refit); Thunder 130; Gladius 99. For bombers: Dagger 360, Trident 297, Longbow 198. Script: `wing_values2.py`.
+- **PD credit.** Non-interceptor wings with PD-capable guns add half their value to the ship's point defense, as the Broadsword's machine guns screen.
+
+**Fleet balance** (`JAOFleetContext`, setting `jao_fleetBalance`, default on). Optimal reads the rest of the player's fleet:
+- **Fighter roles.** Each wing is × `wingRoleFactor`, 0.6–1.3, toward `WING_MIX` (40% fighters, 25% bombers, 25% interceptors, 10% support), counted across every bay in the fleet.
+- **Copies.** ×0.97 per copy of the same wing elsewhere in the fleet (up to 6), and ×0.95 per repeat on the same ship.
+- **Damage mix.** With the Auto or Balanced style and at least three other combat ships, the shield and armor weights move by up to 20–25% toward 45% kinetic and 30% armor-cracking (hit × armor multiplier ≥ 300) fleet firepower.
+- **The user's save.** HE 32%, kinetic 28%, frag 20%, energy 19%, armor-cracking 49%, so anti-shield was short. Bays held 17 fighter, 7 support, 1 bomber and 1 interceptor; Gunhed filled 16 of them.
+
+**Fleet analysis panel.** The button stacks under Order fleet weapons on the refit screen. The panel shows:
+- the fleet's firepower mix and fighter bays by role;
+- recommendations for shield or armor shortfalls, fighter roles leaning one way, ships short of PD, mixed range bands and empty mounts;
+- one line per ship.
+
+**OP fixes.**
+- **Live OP prices.** Weapon OP is priced on the scratch member's live stats (`JAOShip.op`). Cost modifiers from hullmods and listeners now count, such as Valkyrian Bryncore's ballistic discount. The old variant-only price thought the front ballistics didn't fit.
+- **`settleOp` after Confirm.** It re-reads the real OP: spare OP goes into vents, then capacitors; overage cuts capacitors, then vents. Each change is logged.
+
+**Not yet:** a per-ship "all-rounder" coverage term. The fleet carries the all-round mix and ships may specialise.
+
 ## 8. Hullmods
 
 R: `hullmods_vanilla.json` (129 vanilla, effect numbers with file:line), `hullmods_work\report_preview.txt` (the report; a hook stopped the agent writing the .md), `hullmods_mods.json` + `modded_report.txt`.

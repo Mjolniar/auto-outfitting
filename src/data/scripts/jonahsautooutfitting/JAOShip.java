@@ -191,9 +191,19 @@ final class JAOShip implements JAOSearch.World {
         Float v = opCache.get(key);
         if (v != null) return v;
         setMods(mods);
+        // priced on the scratch member's live stats: hullmods that cut weapon OP through a WeaponOPCostModifier listener
+        // (Valkyrian Brunhild Cyclonic Core, 1-3 OP off every weapon) only exist there; the cloned variant's own
+        // stats-for-OP never have them, which left Valkyrian mounts empty and the savings in vents
+        MutableShipStatsAPI opStats;
+        try {
+            scratch.setVariant(work, false, true);
+            opStats = scratch.getStats();
+        } catch (Throwable t) {
+            opStats = work.getStatsForOpCosts();
+        }
         float op;
-        if (c.entry instanceof AvailableWeapon) op = ((AvailableWeapon) c.entry).getOPCost(cstats, work.getStatsForOpCosts());
-        else if (c.entry instanceof AvailableFighter) op = ((AvailableFighter) c.entry).getWingSpec().getOpCost(work.getStatsForOpCosts());
+        if (c.entry instanceof AvailableWeapon) op = ((AvailableWeapon) c.entry).getOPCost(cstats, opStats);
+        else if (c.entry instanceof AvailableFighter) op = ((AvailableFighter) c.entry).getWingSpec().getOpCost(opStats);
         else op = 0f;
         opCache.put(key, op);
         return op;
