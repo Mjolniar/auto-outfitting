@@ -43,8 +43,8 @@ public class JAOScreenButton implements EveryFrameScript {
     private boolean broken;
     private float timer;
     private UIPanelAPI core, refit, overlayHost;
-    /** button: Order fleet weapons (with Fleet analysis under it); button2: Optimize fleet, in the next column when there's room. */
-    private CustomPanelAPI button, button2, overlay;
+    /** button: Order fleet weapons (with Optimize fleet under it); button2: Optimize fleet on its own; button3: Fleet analysis. */
+    private CustomPanelAPI button, button2, button3, overlay;
     private int reports, placements;
     private String lastReport;
 
@@ -89,8 +89,10 @@ public class JAOScreenButton implements EveryFrameScript {
         }
         // the same size as the game's own buttons when the Autofit button is there
         float w = autofit != null ? autofit[2] : W, h = autofit != null ? autofit[3] : H;
-        // two buttons stacked in the free cells right of Autofit and right of Strip ("Order fleet weapons" over "Fleet
-        // analysis"), else the order button alone wherever there's room
+        // "Order fleet weapons" over "Optimize fleet" in the free cells right of Autofit and right of Strip (user 11/05:
+        // Optimize fleet belongs on the refit screen itself, not only inside Fleet analysis), "Fleet analysis" in the next
+        // free spot (beside them, else anywhere free on the refit panel; the Optimize fleet panel links to it too).
+        // Without those cells, each button goes wherever there's room.
         boolean two = false;
         float[] at = null;
         if (autofit != null) {
@@ -102,22 +104,34 @@ public class JAOScreenButton implements EveryFrameScript {
         button = make(w, h, two);
         PositionAPI rp = refit.getPosition();
         refit.addComponent(button).inBL(at[0] - rp.getX(), at[1] - rp.getY());
-        // Optimize fleet in the next column, beside Order fleet weapons or beside Fleet analysis (else only in Fleet analysis)
-        float[] at2 = null;
-        if (two) {
-            float x2 = at[0] + w + 3f;
-            for (float[] c : new float[][]{{x2, at[1] + h + 3f}, {x2, at[1]}}) {
-                if (spot(rect(refit), leaves, null, null, w, h, c) != null) { at2 = c; break; }
+        List<float[]> ours = new ArrayList<>();
+        ours.add(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h});
+        float[] atOpt = null;
+        if (!two) {
+            atOpt = spot(rect(refit), leaves, op, autofit, w, h, null, ours);
+            if (atOpt != null) {
+                button2 = single(w, h, OPTIMIZE, "Optimize fleet");
+                refit.addComponent(button2).inBL(atOpt[0] - rp.getX(), atOpt[1] - rp.getY());
+                ours.add(new float[]{atOpt[0], atOpt[1], w, h});
             }
         }
-        if (at2 != null) {
-            button2 = makeOptimize(w, h);
-            refit.addComponent(button2).inBL(at2[0] - rp.getX(), at2[1] - rp.getY());
+        float[] atAna = null;
+        if (two) {
+            float x2 = at[0] + w + 3f;
+            for (float[] c : new float[][]{{x2, at[1] + h + 3f}, {x2, at[1]}, {x2, at[1] - h - 3f}}) {
+                if (spot(rect(refit), leaves, null, null, w, h, c, ours) != null) { atAna = c; break; }
+            }
+        }
+        if (atAna == null) atAna = spot(rect(refit), leaves, op, autofit, w, h, null, ours);
+        if (atAna != null) {
+            button3 = single(w, h, ANALYSE, "Fleet analysis");
+            refit.addComponent(button3).inBL(atAna[0] - rp.getX(), atAna[1] - rp.getY());
         }
         if (placements < 4) {
             placements++;
-            LOG.info(TAG + (two ? "(with Fleet analysis) " : "") + "placed at " + box(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h})
-                    + (at2 != null ? ", Optimize fleet at " + box(new float[]{at2[0], at2[1], w, h}) : ", Optimize fleet only in Fleet analysis")
+            LOG.info(TAG + (two ? "(with Optimize fleet under it) " : "") + "placed at " + box(ours.get(0))
+                    + (two ? "" : atOpt != null ? ", Optimize fleet at " + box(new float[]{atOpt[0], atOpt[1], w, h}) : ", Optimize fleet: no room")
+                    + (atAna != null ? ", Fleet analysis at " + box(new float[]{atAna[0], atAna[1], w, h}) : ", Fleet analysis only in the Optimize fleet panel")
                     + " in " + refit.getClass().getName() + " " + box(rect(refit))
                     + "; OP readout " + box(op) + ", Autofit button " + box(autofit) + ", screen " + Math.round(screen(true)) + "x"
                     + Math.round(screen(false)) + "; buttons " + buttons(leaves));
@@ -152,7 +166,7 @@ public class JAOScreenButton implements EveryFrameScript {
 
     /** Every visible element under c with no children of its own; hidden ones (no opacity) and our button are skipped. */
     void collect(UIComponentAPI c, List<UIComponentAPI> leaves, int depth) {
-        if ((c == button && button != null) || (c == button2 && button2 != null)) return;
+        if ((c == button && button != null) || (c == button2 && button2 != null) || (c == button3 && button3 != null)) return;
         if (depth > 0 && c.getOpacity() <= 0f) return;
         boolean any = false;
         if (depth <= 16) for (Object o : JAORefl.children(c)) if (o instanceof UIComponentAPI) { any = true; collect((UIComponentAPI) o, leaves, depth + 1); }
@@ -166,7 +180,13 @@ public class JAOScreenButton implements EveryFrameScript {
 
     /** As above; with only set, that spot or null. */
     static float[] spot(float[] panel, List<UIComponentAPI> leaves, float[] op, float[] autofit, float w, float h, float[] only) {
+        return spot(panel, leaves, op, autofit, w, h, only, null);
+    }
+
+    /** As above, also keeping clear of extra rectangles (x, y, w, h: our own buttons already placed). */
+    static float[] spot(float[] panel, List<UIComponentAPI> leaves, float[] op, float[] autofit, float w, float h, float[] only, List<float[]> extra) {
         List<float[]> taken = new ArrayList<>();
+        if (extra != null) taken.addAll(extra);
         float big = 0.15f * panel[2] * panel[3];   // backgrounds and the ship display don't count, what's drawn on them does
         for (UIComponentAPI c : leaves) {
             float[] r = rect(c);
@@ -204,63 +224,61 @@ public class JAOScreenButton implements EveryFrameScript {
         return null;
     }
 
+    /** "Order fleet weapons", with "Optimize fleet" under it when two. */
     CustomPanelAPI make(float w, float h, boolean two) {
         float ph = two ? 2f * h + 3f : h;
         CustomPanelAPI p = Global.getSettings().createCustom(w, ph, new BaseCustomUIPanelPlugin() {
-            @Override public void buttonPressed(Object id) {
-                if (OPEN.equals(id)) openOrder();
-                else if (ANALYSE.equals(id)) openAnalysis();
-            }
+            @Override public void buttonPressed(Object id) { pressed(id); }
         });
         TooltipMakerAPI t = p.createUIElement(w, ph, false);
-        ButtonAPI b = t.addButton("Order fleet weapons", OPEN, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
-        b.getPosition().inTL(0f, 0f);
-        t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
-            public boolean isTooltipExpandable(Object o) { return false; }
-            public float getTooltipWidth(Object o) { return 420f; }
-            public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
-                tt.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
-                        + "were in stock, and lists everything custom production would have to build for it. Nothing is ordered "
-                        + "until you press Queue all; pressing it again later only orders what's still missing.", 0f);
-                tt.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
-                        Math.round(JAOSettings.productionBudget * 100f) + "%");
-            }
-        }, TooltipMakerAPI.TooltipLocation.BELOW);
-        if (two) {
-            ButtonAPI a = t.addButton("Fleet analysis", ANALYSE, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
-            a.getPosition().inTL(0f, h + 3f);
-            t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
-                public boolean isTooltipExpandable(Object o) { return false; }
-                public float getTooltipWidth(Object o) { return 420f; }
-                public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
-                    tt.addPara("What your fleet carries: firepower by damage type, fighter roles, point defense, range bands and "
-                            + "empty mounts, and which ships to re-fit with Optimal to balance it. Changes nothing.", 0f);
-                }
-            }, TooltipMakerAPI.TooltipLocation.BELOW);
-        }
+        addButton(t, OPEN, "Order fleet weapons", w, h, 0f);
+        if (two) addButton(t, OPTIMIZE, "Optimize fleet", w, h, h + 3f);
         p.addUIElement(t).inTL(0f, 0f);
         return p;
     }
 
-    CustomPanelAPI makeOptimize(float w, float h) {
+    /** One button on its own (Optimize fleet or Fleet analysis away from the stack). */
+    CustomPanelAPI single(float w, float h, String id, String label) {
         CustomPanelAPI p = Global.getSettings().createCustom(w, h, new BaseCustomUIPanelPlugin() {
-            @Override public void buttonPressed(Object id) { if (OPTIMIZE.equals(id)) openOptimize(); }
+            @Override public void buttonPressed(Object pressedId) { pressed(pressedId); }
         });
         TooltipMakerAPI t = p.createUIElement(w, h, false);
-        ButtonAPI b = t.addButton("Optimize fleet", OPTIMIZE, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
-        b.getPosition().inTL(0f, 0f);
+        addButton(t, id, label, w, h, 0f);
+        p.addUIElement(t).inTL(0f, 0f);
+        return p;
+    }
+
+    void pressed(Object id) {
+        if (OPEN.equals(id)) openOrder();
+        else if (OPTIMIZE.equals(id)) openOptimize();
+        else if (ANALYSE.equals(id)) openAnalysis();
+    }
+
+    /** A button in the game's colors at y from the element's top, with its tooltip. */
+    static void addButton(TooltipMakerAPI t, String id, String label, float w, float h, float y) {
+        ButtonAPI b = t.addButton(label, id, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
+        b.getPosition().inTL(0f, y);
         t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
             public boolean isTooltipExpandable(Object o) { return false; }
             public float getTooltipWidth(Object o) { return 440f; }
             public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
-                tt.addPara("Plans every combat ship's Optimal fit together, from what the ships carry, your cargo and the storage "
-                        + "where you're docked, balancing the whole fleet (anti-shield, armor-cracking, fighter roles). Shows what "
-                        + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
-                tt.addPara("S-mods: %s (mod settings).", 6f, Misc.getHighlightColor(), JAOSettings.fleetSmods ? "built in, one story point each" : "off");
+                if (OPEN.equals(id)) {
+                    tt.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
+                            + "were in stock, and lists everything custom production would have to build for it. Nothing is ordered "
+                            + "until you press Queue all; pressing it again later only orders what's still missing.", 0f);
+                    tt.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
+                            Math.round(JAOSettings.productionBudget * 100f) + "%");
+                } else if (OPTIMIZE.equals(id)) {
+                    tt.addPara("Plans every combat ship's Optimal fit together, from what the ships carry, your cargo and the storage "
+                            + "where you're docked, balancing the whole fleet (anti-shield, armor-cracking, fighter roles). Shows what "
+                            + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
+                    tt.addPara("S-mods: %s (mod settings).", 6f, Misc.getHighlightColor(), JAOSettings.fleetSmods ? "built in, one story point each" : "off");
+                } else {
+                    tt.addPara("What your fleet carries: anti-shield and armor-cracking against their aims, damage types, fighter roles, "
+                            + "point defense, range bands and empty mounts, with recommendations. Changes nothing.", 0f);
+                }
             }
         }, TooltipMakerAPI.TooltipLocation.BELOW);
-        p.addUIElement(t).inTL(0f, 0f);
-        return p;
     }
 
     /** Plans the order and shows it centred over the screen, in the core UI so it sits above the refit screen. */
@@ -277,10 +295,10 @@ public class JAOScreenButton implements EveryFrameScript {
         if (show(content, JAOAnalysisPanel.W, JAOAnalysisPanel.H)) content.build(overlay);
     }
 
-    /** Optimize fleet: plans the whole fleet, then shows what would change, over the screen. */
+    /** Optimize fleet: plans the whole fleet, then shows what would change, over the screen; it links to Fleet analysis. */
     void openOptimize() {
         if (overlay != null) return;
-        JAOFleetPanel content = new JAOFleetPanel(JAOFleetPanel.start(refit), this::closeOrder, true);
+        JAOFleetPanel content = new JAOFleetPanel(JAOFleetPanel.start(refit), this::closeOrder, () -> { closeOrder(); openAnalysis(); }, true);
         if (show(content, JAOFleetPanel.W, JAOFleetPanel.H)) content.build(overlay);
     }
 
@@ -302,10 +320,12 @@ public class JAOScreenButton implements EveryFrameScript {
     }
 
     void remove() {
-        try { if (button != null && refit != null) refit.removeComponent(button); } catch (Throwable ignored) { }
-        try { if (button2 != null && refit != null) refit.removeComponent(button2); } catch (Throwable ignored) { }
+        for (CustomPanelAPI b : new CustomPanelAPI[]{button, button2, button3}) {
+            try { if (b != null && refit != null) refit.removeComponent(b); } catch (Throwable ignored) { }
+        }
         button = null;
         button2 = null;
+        button3 = null;
     }
 
     /** What was found while the button can't be placed, when it changes, a few times a session. */

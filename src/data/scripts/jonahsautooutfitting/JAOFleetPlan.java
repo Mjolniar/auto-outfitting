@@ -326,8 +326,11 @@ final class JAOFleetPlan {
             w.merge(v.getWeaponId(slot), 1, Integer::sum);
         }
         int builtIn = v.getHullSpec().getBuiltInWings() == null ? 0 : v.getHullSpec().getBuiltInWings().size();
-        List<String> wings = v.getWings();
-        for (int i = builtIn; wings != null && i < wings.size(); i++) if (wings.get(i) != null) f.merge(wings.get(i), 1, Integer::sum);
+        int bays = Global.getSettings().computeNumFighterBays(v);
+        for (int i = builtIn; i < bays; i++) {
+            String id = JAOFleetApply.wingAt(v, i);   // an empty bay reads "" in getWings()
+            if (id != null) f.merge(id, 1, Integer::sum);
+        }
     }
 
     static void addMountedWithModules(ShipVariantAPI v, Map<String, Integer> w, Map<String, Integer> f) {

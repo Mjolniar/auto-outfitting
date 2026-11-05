@@ -29,7 +29,7 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 
 ## The fleet plan
 
-Three buttons on the refit screen, next to Autofit, work on the whole fleet at once: **Order fleet weapons**, **Fleet analysis** and **Optimize fleet**.
+Three buttons on the refit screen work on the whole fleet at once: **Order fleet weapons** and **Optimize fleet**, stacked next to Autofit, and **Fleet analysis** in the next free spot (also linked from the Optimize fleet panel).
 
 The first two buttons share one fleet plan, which works like this:
 - Every combat ship is planned together, from one shared stock, biggest ships first.
@@ -53,7 +53,7 @@ It lists what changes on each ship: weapons, wings, hullmods on and off, and s-m
 - New s-mods cost a story point each, never below the story points you keep in reserve. Turn this off with "Optimize fleet builds s-mods".
 - Civilian ships with the logistics fit are left alone.
 
-If there's no room on the refit screen for this button, it's in Fleet analysis.
+Fleet analysis also has an Optimize fleet button.
 
 ### Order fleet weapons
 
