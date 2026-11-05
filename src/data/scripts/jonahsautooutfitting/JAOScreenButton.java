@@ -36,14 +36,15 @@ import java.util.Locale;
  */
 public class JAOScreenButton implements EveryFrameScript {
     static final float W = 200f, H = 24f, GAP = 8f;
-    static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis";
+    static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis", OPTIMIZE = "jao_fleet_optimize";
     static final Logger LOG = Global.getLogger(JAOScreenButton.class);
     static final String TAG = "Jonah's Auto Outfitting: refit screen button ";
 
     private boolean broken;
     private float timer;
     private UIPanelAPI core, refit, overlayHost;
-    private CustomPanelAPI button, overlay;
+    /** button: Order fleet weapons (with Fleet analysis under it); button2: Optimize fleet, in the next column when there's room. */
+    private CustomPanelAPI button, button2, overlay;
     private int reports, placements;
     private String lastReport;
 
@@ -101,9 +102,23 @@ public class JAOScreenButton implements EveryFrameScript {
         button = make(w, h, two);
         PositionAPI rp = refit.getPosition();
         refit.addComponent(button).inBL(at[0] - rp.getX(), at[1] - rp.getY());
+        // Optimize fleet in the next column, beside Order fleet weapons or beside Fleet analysis (else only in Fleet analysis)
+        float[] at2 = null;
+        if (two) {
+            float x2 = at[0] + w + 3f;
+            for (float[] c : new float[][]{{x2, at[1] + h + 3f}, {x2, at[1]}}) {
+                if (spot(rect(refit), leaves, null, null, w, h, c) != null) { at2 = c; break; }
+            }
+        }
+        if (at2 != null) {
+            button2 = makeOptimize(w, h);
+            refit.addComponent(button2).inBL(at2[0] - rp.getX(), at2[1] - rp.getY());
+        }
         if (placements < 4) {
             placements++;
-            LOG.info(TAG + (two ? "(with Fleet analysis) " : "") + "placed at " + box(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h}) + " in " + refit.getClass().getName() + " " + box(rect(refit))
+            LOG.info(TAG + (two ? "(with Fleet analysis) " : "") + "placed at " + box(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h})
+                    + (at2 != null ? ", Optimize fleet at " + box(new float[]{at2[0], at2[1], w, h}) : ", Optimize fleet only in Fleet analysis")
+                    + " in " + refit.getClass().getName() + " " + box(rect(refit))
                     + "; OP readout " + box(op) + ", Autofit button " + box(autofit) + ", screen " + Math.round(screen(true)) + "x"
                     + Math.round(screen(false)) + "; buttons " + buttons(leaves));
         }
@@ -137,7 +152,7 @@ public class JAOScreenButton implements EveryFrameScript {
 
     /** Every visible element under c with no children of its own; hidden ones (no opacity) and our button are skipped. */
     void collect(UIComponentAPI c, List<UIComponentAPI> leaves, int depth) {
-        if (c == button && button != null) return;
+        if ((c == button && button != null) || (c == button2 && button2 != null)) return;
         if (depth > 0 && c.getOpacity() <= 0f) return;
         boolean any = false;
         if (depth <= 16) for (Object o : JAORefl.children(c)) if (o instanceof UIComponentAPI) { any = true; collect((UIComponentAPI) o, leaves, depth + 1); }
@@ -204,9 +219,9 @@ public class JAOScreenButton implements EveryFrameScript {
             public boolean isTooltipExpandable(Object o) { return false; }
             public float getTooltipWidth(Object o) { return 420f; }
             public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
-                tt.addPara("Plans the Optimal fit of every ship in your fleet as if every weapon and fighter blueprint you know "
-                        + "were in stock, and lists what custom production would have to build. Nothing is ordered until you press "
-                        + "Queue all.", 0f);
+                tt.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
+                        + "were in stock, and lists everything custom production would have to build for it. Nothing is ordered "
+                        + "until you press Queue all; pressing it again later only orders what's still missing.", 0f);
                 tt.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
                         Math.round(JAOSettings.productionBudget * 100f) + "%");
             }
@@ -227,18 +242,46 @@ public class JAOScreenButton implements EveryFrameScript {
         return p;
     }
 
+    CustomPanelAPI makeOptimize(float w, float h) {
+        CustomPanelAPI p = Global.getSettings().createCustom(w, h, new BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object id) { if (OPTIMIZE.equals(id)) openOptimize(); }
+        });
+        TooltipMakerAPI t = p.createUIElement(w, h, false);
+        ButtonAPI b = t.addButton("Optimize fleet", OPTIMIZE, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
+        b.getPosition().inTL(0f, 0f);
+        t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
+            public boolean isTooltipExpandable(Object o) { return false; }
+            public float getTooltipWidth(Object o) { return 440f; }
+            public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
+                tt.addPara("Plans every combat ship's Optimal fit together, from what the ships carry, your cargo and the storage "
+                        + "where you're docked, balancing the whole fleet (anti-shield, armor-cracking, fighter roles). Shows what "
+                        + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
+                tt.addPara("S-mods: %s (mod settings).", 6f, Misc.getHighlightColor(), JAOSettings.fleetSmods ? "built in, one story point each" : "off");
+            }
+        }, TooltipMakerAPI.TooltipLocation.BELOW);
+        p.addUIElement(t).inTL(0f, 0f);
+        return p;
+    }
+
     /** Plans the order and shows it centred over the screen, in the core UI so it sits above the refit screen. */
     void openOrder() {
         if (overlay != null) return;
-        JAOOrderPanel content = new JAOOrderPanel(JAOOrderPanel.planNow(), this::closeOrder, true);
+        JAOOrderPanel content = new JAOOrderPanel(JAOOrderPanel.start(), this::closeOrder, true);
         if (show(content, JAOOrderPanel.W, JAOOrderPanel.H)) content.build(overlay);
     }
 
-    /** The fleet analysis, centred over the screen like the order. */
+    /** The fleet analysis, centred over the screen like the order; its Optimize fleet button opens that panel instead. */
     void openAnalysis() {
         if (overlay != null) return;
-        JAOAnalysisPanel content = new JAOAnalysisPanel(JAOAnalysisPanel.analyseNow(), this::closeOrder, true);
+        JAOAnalysisPanel content = new JAOAnalysisPanel(JAOAnalysisPanel.analyseNow(), this::closeOrder, () -> { closeOrder(); openOptimize(); }, true);
         if (show(content, JAOAnalysisPanel.W, JAOAnalysisPanel.H)) content.build(overlay);
+    }
+
+    /** Optimize fleet: plans the whole fleet, then shows what would change, over the screen. */
+    void openOptimize() {
+        if (overlay != null) return;
+        JAOFleetPanel content = new JAOFleetPanel(JAOFleetPanel.start(refit), this::closeOrder, true);
+        if (show(content, JAOFleetPanel.W, JAOFleetPanel.H)) content.build(overlay);
     }
 
     private boolean show(JAOOverlayPanel content, float w, float h) {
@@ -260,7 +303,9 @@ public class JAOScreenButton implements EveryFrameScript {
 
     void remove() {
         try { if (button != null && refit != null) refit.removeComponent(button); } catch (Throwable ignored) { }
+        try { if (button2 != null && refit != null) refit.removeComponent(button2); } catch (Throwable ignored) { }
         button = null;
+        button2 = null;
     }
 
     /** What was found while the button can't be placed, when it changes, a few times a session. */

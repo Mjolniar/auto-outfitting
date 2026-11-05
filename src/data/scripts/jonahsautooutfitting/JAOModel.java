@@ -79,6 +79,45 @@ final class JAOModel {
         return 0.55f;
     }
 
+    /**
+     * A wing's weapons summed into wingQuality's axes (JAORatings.wingRaw in game, the bench offline). Fighters spend
+     * most of a fight flying to and from the target and losing craft, so their guns count at ENGAGE of their paper rate
+     * (melee weapons, like the ARMAA Gunhead's mining drill, at a third of that again; EMP at half), and finite missiles
+     * land once per sortie (refit + 25 s) times how reliably they hit (payloadReliability). Bombers are rated on armor
+     * damage (damage-type multiplier x hit / (hit + 500)) or shield breaking (Longbow's Sabots), whichever is larger.
+     * Durability is hull + 2x armor per craft (x1.25 with a shield) per OP. Tempo is the refit plus a 2000-unit trip out
+     * and back for wings that leave the carrier.
+     */
+    static final class WingParts {
+        static final float ENGAGE = 0.35f, MELEE = 0.35f;
+        float dps, hitSum, best = -1f, armorDps, shieldDps, pdDps;
+        int dmg = EN;
+
+        static float cycle(float refit) { return Math.max(10f, refit) + 25f; }
+
+        void weapon(boolean finite, float perShot, int ammo, float cycle, float reliability, float sustDps, float empDps, float range,
+                    float hit, int type, boolean pd) {
+            float wd = finite ? perShot * Math.max(1, ammo) / cycle * reliability
+                    : (sustDps + 0.5f * empDps) * ENGAGE * (range < 150f ? MELEE : 1f);
+            dps += wd;
+            hitSum += wd * hit;
+            armorDps += wd * ARMOR_MULT[type] * hit / (hit + 500f);
+            shieldDps += wd * SHIELD_MULT[type] * 0.5f;
+            if (pd) pdDps += wd;
+            if (wd > best) { best = wd; dmg = type; }
+        }
+
+        float hit() { return dps > 0f ? hitSum / dps : 0f; }
+        float pdShare() { return dps > 0f ? pdDps / dps : 0f; }
+
+        /** hp = hull + 2 x armor per craft; range = the wing's engagement range. */
+        float[] axes(int role, int n, float op, float hp, boolean shield, float refit, float range, float speed) {
+            float o = Math.max(1f, op), travel = range >= 2000f ? 4000f / Math.max(50f, speed) : 0f;
+            return new float[]{(role == W_BOMBER ? Math.max(armorDps, shieldDps) : dps) * n / o, n * hp * (shield ? 1.25f : 1f) / o,
+                    0.4f + 0.6f * pdShare(), 1f / (Math.max(5f, refit) + travel)};
+        }
+    }
+
     /** raw and ref: {firepower per OP, durability per OP, 0.4 + 0.6 x PD share, 1 / sortie seconds}. */
     static float wingQuality(float[] raw, float[] ref) {
         float q = 1f;
@@ -110,14 +149,19 @@ final class JAOModel {
 
     /**
      * How much a wing of this role is worth given the bays already filled by role (the rest of the fleet plus this
-     * ship, this wing included): roles past their share of WING_MIX lose value, missing ones gain (0.6-1.3).
+     * ship, this wing included): roles past their share of WING_MIX lose value, missing ones gain. Strong enough to
+     * beat a wing's OP: a 26-OP bomber is worth three 8-OP fighters per bay, and at 0.8 / 0.6-1.3 the user's carriers
+     * still filled 22 of 34 bays with bombers (JAOFleetSim, 11/05); at 3 / 0.4-1.6, 15 bombers, 10 fighters, 8 support
+     * and an interceptor, two bombers and a fighter or support wing per Legion.
      */
+    static float WING_PULL = 3f, WING_FACTOR_MIN = 0.4f, WING_FACTOR_MAX = 1.6f;
+
     static float wingRoleFactor(int role, float[] bays) {
         float total = 0f;
         for (float b : bays) total += b;
         if (total <= 0f) return 1f;
         float share = bays[Math.max(0, Math.min(3, role))] / total;
-        return clamp(1f + 0.8f * (WING_MIX[Math.max(0, Math.min(3, role))] - share), 0.6f, 1.3f);
+        return clamp(1f + WING_PULL * (WING_MIX[Math.max(0, Math.min(3, role))] - share), WING_FACTOR_MIN, WING_FACTOR_MAX);
     }
 
     /** Per weapon group past Starsector's 7, and per distinct gun type past three. */

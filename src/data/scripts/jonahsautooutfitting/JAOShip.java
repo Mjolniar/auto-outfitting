@@ -48,6 +48,8 @@ final class JAOShip implements JAOSearch.World {
     /** Hullmods treated as s-mods (0 OP, s-mod effects); set by the s-mod planner. Original perma mods stay as they are. */
     Set<String> smods = new java.util.LinkedHashSet<>();
     private final Set<String> originalPerma;
+    /** Hullmod applicability for ships off the refit screen (JAOCheckShip), made on first use. */
+    private JAOCheckShip checkShip;
 
     /** budget = OP this search may spend (hull OP minus what it doesn't own). */
     JAOShip(ShipVariantAPI current, AutofitPluginDelegate delegate, MutableCharacterStatsAPI cstats, int budget, int maxVents, int maxCaps) {
@@ -270,8 +272,13 @@ final class JAOShip implements JAOSearch.World {
             if (n >= 2) return false;
         }
         setMods(mods);
+        // the refit screen's ship when this is its ship; a stand-in for ships the fleet plan fits off screen
         ShipAPI ship = delegate.getShip();
-        if (ship != null && spec.getEffect() != null) {
+        if (ship == null) {
+            if (checkShip == null) checkShip = new JAOCheckShip(work, scratch, delegate.getFleetMember());
+            ship = checkShip;
+        }
+        if (spec.getEffect() != null) {
             ShipVariantAPI orig = ship.getVariant();
             try {
                 ship.setVariantForHullmodCheckOnly(work);

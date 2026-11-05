@@ -13,6 +13,8 @@ public class JAOSettings {
     static final Logger LOG = Global.getLogger(JAOSettings.class);
 
     public static boolean enabled = true, roles = true, civilianLogistics = true, productionButton = true, allowDrawbacks, allStyles, specialWeapons = true, preferRare, keepPriority = true, logistics, debug, smodWait = true, fleetBalance = true;
+    /** Optimize fleet also builds in s-mods (story points, within the s-mod settings). */
+    public static boolean fleetSmods = true;
     public static JAOStyle style = JAOStyle.AUTO;
     /** 0 auto, 1 long, 2 close. */
     public static int range;
@@ -52,6 +54,7 @@ public class JAOSettings {
         civilianLogistics = bool("jao_civilianLogistics", true);
         productionButton = bool("jao_productionButton", true);
         fleetBalance = bool("jao_fleetBalance", true);
+        fleetSmods = bool("jao_fleetSmods", true);
         productionBudget = clamp(dbl("jao_productionBudget", 0.5f), 0.05f, 1f);
         String r = string("jao_range", "Auto");
         range = "Long".equalsIgnoreCase(r) ? 1 : "Close".equalsIgnoreCase(r) ? 2 : 0;
@@ -104,7 +107,8 @@ public class JAOSettings {
         return (enabled ? "Optimal goal on" : "Optimal goal off") + ", style " + style.label + (roles ? ", fleet roles" : "") + (civilianLogistics ? ", civilian logistics fits" : "") + (fleetBalance ? ", fleet balance" : "") + (allStyles ? " (+ one goal per style)" : "")
                 + ", range " + (range == 1 ? "long" : range == 2 ? "close" : "auto") + ", fight " + (int) fightSeconds + "s"
                 + ", special weapons " + specialWeapons + (preferRare ? ", rare bonus " + rareBonus : "") + ", PD floor " + pdFloor + ", logistics " + logistics + ", drawbacks " + (allowDrawbacks ? "allowed" : "never") + ", SO " + (safetyOverrides == 0 ? "never" : safetyOverrides == 1 ? "frigates/destroyers" : "when best")
-                + ", s-mods up to " + smodCount + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP)"
+                + ", s-mods up to " + smodCount + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"
+                + (fleetSmods ? ", Optimize fleet builds them" : "") + ")"
                 + (debug ? ", debug log" : "");
     }
 }

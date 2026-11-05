@@ -4,7 +4,6 @@ import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.loading.FighterWingSpecAPI;
 import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.ButtonAPI;
-import com.fs.starfarer.api.ui.CustomPanelAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 
@@ -16,19 +15,21 @@ import java.util.Map;
 
 /**
  * "Fleet analysis" (user 11/03: "analyze what a fleet composition currently has ... and recommend a build"): what the
- * fleet carries, from the same numbers the Optimal fit balances against (JAOFleetContext), and which ships to re-fit.
- *  - firepower by damage type and the armor-cracking share, against the targets (about half kinetic, 30% armor);
+ * fleet carries, from the same numbers the fleet plan balances (JAOFleetMix), and what to do about it.
+ *  - anti-shield (how fast the fleet fills enemy flux bars) and armor-cracking against their aims, the damage types;
  *  - fighter bays by role against JAOModel.WING_MIX, and the most common wings;
  *  - ships short of point defense, with guns spread over two range bands, or with empty mounts;
  *  - one line per combat ship.
- * Read-only: nothing is changed; the recommendations say which ships an Optimal re-fit would move toward balance.
+ * Read-only; its Optimize fleet button opens the fleet plan (JAOFleetPanel), which is what balances the fleet.
  */
 final class JAOAnalysisPanel extends JAOOverlayPanel {
     static final float W = 900f, H = 600f;
     static final String[] ROLE = {"fighters", "bombers", "interceptors", "support"};
     final JAOFleetContext fleet;
+    /** Opens Optimize fleet (null: no button). */
+    final Runnable optimize;
 
-    JAOAnalysisPanel(JAOFleetContext fleet, Runnable close, boolean overlay) { super(close, overlay); this.fleet = fleet; }
+    JAOAnalysisPanel(JAOFleetContext fleet, Runnable close, Runnable optimize, boolean overlay) { super(close, overlay); this.fleet = fleet; this.optimize = optimize; }
 
     static JAOFleetContext analyseNow() {
         try {
@@ -39,36 +40,40 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         }
     }
 
-    void build(CustomPanelAPI inner) {
+    @Override String title() { return "Fleet analysis"; }
+    @Override float width() { return W; }
+    @Override float height() { return H; }
+
+    @Override
+    void buildResult() {
         Color h = Misc.getHighlightColor(), g = Misc.getGrayColor(), bad = Misc.getNegativeHighlightColor(), good = Misc.getPositiveHighlightColor();
-        TooltipMakerAPI head = inner.createUIElement(W - 20f, 210f, false);
-        head.addSectionHeading("Fleet analysis", Alignment.MID, 0f);
+        TooltipMakerAPI head = element(W - 20f, 210f, false, 10f, 10f);
+        head.addSectionHeading(title(), Alignment.MID, 0f);
         if (fleet == null || fleet.ships == 0) {
             head.addPara(fleet == null ? "Couldn't read the fleet (see starsector.log)." : "No combat ships in the fleet.", 6f, fleet == null ? bad : g);
-            inner.addUIElement(head).inTL(10f, 10f);
-            closeButton(inner);
+            buttons();
             return;
         }
+        JAOFleetMix mix = fleet.mix;
         int carriers = 0, bays = 0;
         for (JAOFleetContext.Ship s : fleet.perShip) if (s.bays > 0) { carriers++; bays += s.bays; }
         head.addPara("%s combat ships, %s of them carriers (%s fighter bays).", 6f, h, "" + fleet.ships, "" + carriers, "" + bays);
-        float t = Math.max(1f, fleet.total);
-        String kin = pct(fleet.dmg[JAOModel.KIN] / t), he = pct(fleet.dmg[JAOModel.HE] / t), en = pct(fleet.dmg[JAOModel.EN] / t), fr = pct(fleet.dmg[JAOModel.FRAG] / t);
-        head.addPara("Firepower: kinetic %s, high explosive %s, energy %s, fragmentation %s. Armor-cracking (hit 300+): %s.", 4f, h, kin, he, en, fr, pct(fleet.armorShare()));
-        boolean shieldShort = fleet.kineticShare() < JAOFleetContext.KINETIC_TARGET - 0.08f, armorShort = fleet.armorShare() < JAOFleetContext.ARMOR_TARGET - 0.08f;
-        head.addPara("Anti-shield: %s. Anti-armor: %s. (Aim: about " + esc(pct(JAOFleetContext.KINETIC_TARGET)) + " kinetic and " + esc(pct(JAOFleetContext.ARMOR_TARGET))
-                + " armor-cracking.)", 2f, new Color[]{shieldShort ? bad : good, armorShort ? bad : good},
-                shieldShort ? "short" : "fine", armorShort ? "short" : "fine");
+        float t = Math.max(1f, mix.total);
+        head.addPara("Firepower: kinetic %s, high explosive %s, energy %s, fragmentation %s.", 4f, h,
+                pct(mix.dmg[JAOModel.KIN] / t), pct(mix.dmg[JAOModel.HE] / t), pct(mix.dmg[JAOModel.EN] / t), pct(mix.dmg[JAOModel.FRAG] / t));
+        boolean shieldShort = shieldShort(mix), armorShort = armorShort(mix);
+        head.addPara("Anti-shield (how fast it fills enemy flux bars): %s, aim %s. Armor-cracking (hits of 300+ after armor): %s, aim %s.", 2f,
+                new Color[]{shieldShort ? bad : good, h, armorShort ? bad : good, h},
+                pct(mix.shieldShare()), pct(JAOFleetMix.SHIELD_TARGET), pct(mix.armorShare()), pct(JAOFleetMix.ARMOR_TARGET));
         if (bays > 0) {
             float filled = 0f;
-            for (float b : fleet.wingBays) filled += b;
-            StringBuilder mix = new StringBuilder();
-            for (int r = 0; r < 4; r++) mix.append(r == 0 ? "" : ", ").append((int) fleet.wingBays[r]).append(' ').append(ROLE[r]);
-            head.addPara("Fighter bays: " + esc(mix.toString()) + " (aim about 40%% fighters, 25%% bombers, 25%% interceptors, 10%% support). Most common: %s.", 4f, h, topWings(fleet.wingIds, filled));
+            for (float b : mix.wingBays) filled += b;
+            StringBuilder m = new StringBuilder();
+            for (int r = 0; r < 4; r++) m.append(r == 0 ? "" : ", ").append((int) mix.wingBays[r]).append(' ').append(ROLE[r]);
+            head.addPara("Fighter bays: " + esc(m.toString()) + " (aim about " + esc(aim()) + "). Most common: %s.", 4f, h, topWings(mix.wingIds, filled));
         }
-        inner.addUIElement(head).inTL(10f, 10f);
 
-        TooltipMakerAPI list = inner.createUIElement(W - 20f, H - 290f, true);
+        TooltipMakerAPI list = element(W - 20f, H - 290f, true, 10f, 230f);
         list.addSectionHeading("Recommendations", Alignment.MID, 0f);
         List<String> recs = recommendations(fleet, shieldShort, armorShort);
         if (recs.isEmpty()) list.addPara("The fleet is balanced; nothing to re-fit.", 4f, good);
@@ -77,58 +82,68 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         List<JAOFleetContext.Ship> ships = new ArrayList<>(fleet.perShip);
         ships.sort(Comparator.comparingInt((JAOFleetContext.Ship s) -> -s.member.getHullSpec().getHullSize().ordinal()).thenComparing(s -> name(s)));
         for (JAOFleetContext.Ship s : ships) {
-            float st = Math.max(1f, s.total);
             String range = s.maxRange <= 0f ? "no guns" : Math.round(s.minRange) == Math.round(s.maxRange) ? "" + Math.round(s.maxRange) : Math.round(s.minRange) + "-" + Math.round(s.maxRange);
             String[] vals = s.emptyMounts > 0
-                    ? new String[]{name(s), s.member.getVariant().getDisplayName(), range, pct(s.dmg[JAOModel.KIN] / st), pct(s.armorDps / st), pdShort(s) ? "short" : "ok", "" + s.emptyMounts}
-                    : new String[]{name(s), s.member.getVariant().getDisplayName(), range, pct(s.dmg[JAOModel.KIN] / st), pct(s.armorDps / st), pdShort(s) ? "short" : "ok"};
-            list.addPara("%s  %s   range %s   kinetic %s, armor %s   PD %s" + (s.bays > 0 ? "   bays " + esc(wingMix(s)) : "") + (s.emptyMounts > 0 ? "   %s empty" : ""), 2f,
+                    ? new String[]{name(s), s.member.getVariant().getDisplayName(), range, pct(s.own.shieldShare()), pct(s.own.armorShare()), pdShort(s) ? "short" : "ok", "" + s.emptyMounts}
+                    : new String[]{name(s), s.member.getVariant().getDisplayName(), range, pct(s.own.shieldShare()), pct(s.own.armorShare()), pdShort(s) ? "short" : "ok"};
+            list.addPara("%s  %s   range %s   anti-shield %s, armor %s   PD %s" + (s.bays > 0 ? "   bays " + esc(wingMix(s)) : "") + (s.emptyMounts > 0 ? "   %s empty" : ""), 2f,
                     new Color[]{h, g, h, h, h, pdShort(s) ? bad : h, bad}, vals);
         }
-        inner.addUIElement(list).inTL(10f, 230f);
-        closeButton(inner);
+        buttons();
     }
 
     static final String BULLET = "- ";
 
-    void closeButton(CustomPanelAPI inner) {
-        TooltipMakerAPI buttons = inner.createUIElement(W - 20f, 40f, false);
-        ButtonAPI b = buttons.addButton("Close", "close", 140f, 30f, 0f);
-        b.getPosition().inTL(0f, 0f);
-        inner.addUIElement(buttons).inTL(10f, H - 50f);
+    static boolean shieldShort(JAOFleetMix m) { return m.shieldShare() < JAOFleetMix.SHIELD_TARGET - 0.06f; }
+    static boolean armorShort(JAOFleetMix m) { return m.armorShare() < JAOFleetMix.ARMOR_TARGET - 0.06f; }
+
+    static String aim() {
+        StringBuilder b = new StringBuilder();
+        for (int r = 0; r < 4; r++) b.append(r == 0 ? "" : ", ").append(Math.round(100f * JAOModel.WING_MIX[r])).append("% ").append(ROLE[r]);
+        return b.toString();
+    }
+
+    void buttons() {
+        TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
+        ButtonAPI c = buttons.addButton("Close", "close", 140f, 30f, 0f);
+        c.getPosition().inTL(0f, 0f);
+        if (optimize != null) {
+            ButtonAPI o = buttons.addButton("Optimize fleet...", "optimize", 200f, 30f, 0f);
+            o.getPosition().rightOfTop(c, 10f);
+        }
     }
 
     @Override
     public void buttonPressed(Object id) {
         if ("close".equals(id)) close.run();
+        else if ("optimize".equals(id) && optimize != null) optimize.run();
     }
 
-    /** What an Optimal re-fit of which ships would fix, most important first. */
+    /** What to do, most important first. */
     static List<String> recommendations(JAOFleetContext f, boolean shieldShort, boolean armorShort) {
         List<String> out = new ArrayList<>();
-        if (shieldShort) out.add("Anti-shield is short (" + pct(f.kineticShare()) + " kinetic). Re-fit with Optimal: " + lowest(f, true)
-                + ". With fleet balance on, they lean kinetic.");
-        if (armorShort) out.add("Anti-armor is short (" + pct(f.armorShare()) + " armor-cracking). Re-fit with Optimal: " + lowest(f, false)
-                + ". With fleet balance on, they lean anti-armor.");
+        JAOFleetMix mix = f.mix;
+        if (shieldShort || armorShort) out.add((shieldShort ? "Anti-shield is short (" + pct(mix.shieldShare()) + ")" : "Anti-armor is short (" + pct(mix.armorShare()) + " armor-cracking)")
+                + ". Optimize fleet plans every ship together and leans each toward what the rest lacks; ships doing least of it now: " + lowest(f, shieldShort) + ".");
         float filled = 0f;
-        for (float b : f.wingBays) filled += b;
+        for (float b : mix.wingBays) filled += b;
         if (filled >= 4f) {
             String worst = null;
-            for (int r = 0; r < 4; r++) if (f.wingBays[r] / filled > JAOModel.WING_MIX[r] + 0.2f) worst = ROLE[r];
+            for (int r = 0; r < 4; r++) if (mix.wingBays[r] / filled > JAOModel.WING_MIX[r] + 0.2f) worst = ROLE[r];
             int top = 0;
             String topId = null;
-            for (Map.Entry<String, Integer> e : f.wingIds.entrySet()) if (e.getValue() > top) { top = e.getValue(); topId = e.getKey(); }
+            for (Map.Entry<String, Integer> e : mix.wingIds.entrySet()) if (e.getValue() > top) { top = e.getValue(); topId = e.getKey(); }
             if (worst != null || top >= 0.5f * filled) {
                 List<String> carriers = new ArrayList<>();
                 for (JAOFleetContext.Ship s : f.perShip) if (s.bays > 0) carriers.add(name(s));
                 out.add("Fighters lean one way (" + (worst != null ? "too many " + worst : top + " of " + (int) filled + " bays are " + wingName(topId))
-                        + "). Re-fit the carriers with Optimal to mix roles: " + join(carriers, 6) + ".");
+                        + "). Optimize fleet mixes roles across every bay: " + join(carriers, 6) + ".");
             }
         }
         List<String> pd = new ArrayList<>(), mixed = new ArrayList<>(), empty = new ArrayList<>(), noEscort = new ArrayList<>();
         for (JAOFleetContext.Ship s : f.perShip) {
             if (pdShort(s)) pd.add(name(s));
-            if (s.wingBays[JAOModel.W_INTERCEPTOR] > 0f && s.wingBays[JAOModel.W_BOMBER] > 0f) noEscort.add(name(s));
+            if (s.own.wingBays[JAOModel.W_INTERCEPTOR] > 0f && s.own.wingBays[JAOModel.W_BOMBER] > 0f) noEscort.add(name(s));
             if (s.maxRange - s.minRange > 400f && s.minRange < Float.MAX_VALUE) mixed.add(name(s) + " (" + Math.round(s.minRange) + "-" + Math.round(s.maxRange) + ")");
             if (s.emptyMounts > 0) empty.add(name(s) + " (" + s.emptyMounts + ")");
         }
@@ -140,11 +155,11 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         return out;
     }
 
-    /** The three combat ships with the least kinetic (or armor-cracking) share of their own firepower, carriers last. */
-    static String lowest(JAOFleetContext f, boolean kinetic) {
+    /** The three combat ships with the least anti-shield (or armor-cracking) share of their own firepower. */
+    static String lowest(JAOFleetContext f, boolean shield) {
         List<JAOFleetContext.Ship> l = new ArrayList<>();
-        for (JAOFleetContext.Ship s : f.perShip) if (s.total > 0f) l.add(s);
-        l.sort(Comparator.comparingDouble((JAOFleetContext.Ship s) -> (kinetic ? s.dmg[JAOModel.KIN] : s.armorDps) / Math.max(1f, s.total)).thenComparing(s -> name(s)));
+        for (JAOFleetContext.Ship s : f.perShip) if (s.own.total > 0f) l.add(s);
+        l.sort(Comparator.comparingDouble((JAOFleetContext.Ship s) -> shield ? s.own.shieldShare() : s.own.armorShare()).thenComparing(s -> name(s)));
         List<String> names = new ArrayList<>();
         for (int i = 0; i < Math.min(3, l.size()); i++) names.add(name(l.get(i)));
         return names.isEmpty() ? "any ship" : String.join(", ", names);
@@ -159,7 +174,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
 
     static String wingMix(JAOFleetContext.Ship s) {
         StringBuilder b = new StringBuilder();
-        for (int r = 0; r < 4; r++) if (s.wingBays[r] > 0f) b.append(b.length() == 0 ? "" : "/").append((int) s.wingBays[r]).append(ROLE[r].charAt(0));
+        for (int r = 0; r < 4; r++) if (s.own.wingBays[r] > 0f) b.append(b.length() == 0 ? "" : "/").append((int) s.own.wingBays[r]).append(ROLE[r].charAt(0));
         return b.length() == 0 ? "empty" : b.toString();
     }
 
@@ -191,7 +206,4 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
     }
 
     static String pct(float f) { return Math.round(100f * f) + "%"; }
-
-    /** addPara treats its text as a format string (vanilla writes %% for a literal percent sign). */
-    static String esc(String s) { return s.replace("%", "%%"); }
 }

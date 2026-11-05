@@ -229,23 +229,17 @@ public class JAORatings {
 
     /** A wing's numbers before the role reference: JAOModel.wingQuality's axes, damage per hit, main damage type. */
     private static final class WingRaw {
-        final float[] axes = new float[4];
+        float[] axes = new float[4];
         float hit, pdShare, op = 10f;
         int dmg = JAOModel.EN, role;
         String name;
     }
 
     /**
-     * Fighters spend most of a fight flying to and from the target and losing craft, so their guns count at ENGAGE of
-     * their paper rate (melee weapons, like the ARMAA Gunhead's mining drill, at a third of that again; EMP at half),
-     * and finite missiles land once per sortie (refit + 25 s) times how reliably they hit (payloadReliability).
-     * Bombers are rated on armor damage (damage-type multiplier x hit / (hit + 500)) or shield breaking (Longbow's
-     * Sabots), whichever is larger. Durability is hull + 2x armor per craft (x1.25 with a shield) per OP. Tempo is the
-     * refit plus a 2000-unit trip out and back for wings that leave the carrier. Wings tagged support or
-     * stay_in_front_of_ship (Sarissa, the Gunhead) are support whatever their role column says.
+     * The wing's weapons, hull and timings through JAOModel.WingParts (the formulas, shared with the offline bench).
+     * Wings tagged support or stay_in_front_of_ship (Sarissa, the Gunhead) are support whatever their role column says.
      */
     private static WingRaw wingRaw(FighterWingSpecAPI spec) {
-        final float ENGAGE = 0.35f, MELEE = 0.35f;
         WingRaw r = new WingRaw();
         WingRole role = spec.getRole();
         boolean staysHome = spec.hasTag("support") || spec.hasTag("stay_in_front_of_ship");
@@ -254,8 +248,10 @@ public class JAORatings {
         r.name = spec.getId();
         int n = Math.max(1, spec.getNumFighters());
         float refit = Math.max(5f, spec.getRefitTime());
-        float cycle = Math.max(10f, refit) + 25f;
-        float dps = 0f, hitSum = 0f, best = -1f, armorDps = 0f, shieldDps = 0f, pdDps = 0f, hp = 0f, shield = 1f, speed = 200f;
+        float cycle = JAOModel.WingParts.cycle(refit);
+        float hp = 0f, speed = 200f;
+        boolean shield = false;
+        JAOModel.WingParts parts = new JAOModel.WingParts();
         ShipVariantAPI v = spec.getVariant();
         if (v != null) {
             for (String slot : v.getFittedWeaponSlots()) {
@@ -264,40 +260,27 @@ public class JAORatings {
                 DerivedWeaponStatsAPI d = ws.getDerivedStats();
                 Set<AIHints> h = ws.getAIHints();
                 boolean finite = ws.usesAmmo() && ws.getAmmoPerSecond() <= 0f;
-                float wd;
-                if (finite) {
-                    float hits = JAOModel.payloadReliability(h.contains(AIHints.BOMB), h.contains(AIHints.DO_NOT_AIM), h.contains(AIHints.GUIDED_POOR), weapon(ws).projSpeed);
-                    wd = d.getDamagePerShot() * Math.max(1, ws.getMaxAmmo()) / cycle * hits;
-                } else {
-                    wd = (d.getSustainedDps() + 0.5f * d.getEmpPerSecond()) * ENGAGE * (ws.getMaxRange() < 150f ? MELEE : 1f);
-                }
-                dps += wd;
+                float hits = finite ? JAOModel.payloadReliability(h.contains(AIHints.BOMB), h.contains(AIHints.DO_NOT_AIM), h.contains(AIHints.GUIDED_POOR), weapon(ws).projSpeed) : 1f;
                 float hit = ws instanceof BeamWeaponSpecAPI ? 0.5f * ((BeamWeaponSpecAPI) ws).getDamagePerSecond() : d.getDamagePerShot();
                 float sub = mirvDamage(ws);
                 if (sub > 0f) hit = sub;
-                hitSum += wd * hit;
-                int type = dmg(ws.getDamageType() == null ? null : ws.getDamageType().name());
-                armorDps += wd * JAOModel.ARMOR_MULT[type] * hit / (hit + 500f);
-                shieldDps += wd * JAOModel.SHIELD_MULT[type] * 0.5f;
-                if (h.contains(AIHints.PD) || h.contains(AIHints.PD_ALSO) || h.contains(AIHints.PD_ONLY) || h.contains(AIHints.ANTI_FTR)) pdDps += wd;
-                if (wd > best) { best = wd; r.dmg = type; }
+                boolean pd = h.contains(AIHints.PD) || h.contains(AIHints.PD_ALSO) || h.contains(AIHints.PD_ONLY) || h.contains(AIHints.ANTI_FTR);
+                parts.weapon(finite, d.getDamagePerShot(), ws.getMaxAmmo(), cycle, hits, d.getSustainedDps(), d.getEmpPerSecond(), ws.getMaxRange(),
+                        hit, dmg(ws.getDamageType() == null ? null : ws.getDamageType().name()), pd);
             }
             if (v.getHullSpec() != null) {
                 r.name = v.getHullSpec().getHullName();
                 hp = v.getHullSpec().getHitpoints() + 2f * v.getHullSpec().getArmorRating();
                 ShieldType st = v.getHullSpec().getShieldType();
-                if (st != null && st != ShieldType.NONE && st != ShieldType.PHASE) shield = 1.25f;
+                shield = st != null && st != ShieldType.NONE && st != ShieldType.PHASE;
                 if (v.getHullSpec().getEngineSpec() != null && v.getHullSpec().getEngineSpec().getMaxSpeed() > 0f) speed = v.getHullSpec().getEngineSpec().getMaxSpeed();
             }
         }
         try { float o = spec.getOpCost(null); if (o > 0f) r.op = o; } catch (Throwable ignored) { }
-        r.hit = dps > 0f ? hitSum / dps : 0f;
-        r.pdShare = dps > 0f ? pdDps / dps : 0f;
-        float travel = spec.getRange() >= 2000f ? 4000f / Math.max(50f, speed) : 0f;
-        r.axes[0] = (r.role == JAOModel.W_BOMBER ? Math.max(armorDps, shieldDps) : dps) * n / r.op;
-        r.axes[1] = n * hp * shield / r.op;
-        r.axes[2] = 0.4f + 0.6f * r.pdShare;
-        r.axes[3] = 1f / (refit + travel);
+        r.dmg = parts.dmg;
+        r.hit = parts.hit();
+        r.pdShare = parts.pdShare();
+        r.axes = parts.axes(r.role, n, r.op, hp, shield, refit, spec.getRange(), speed);
         return r;
     }
 

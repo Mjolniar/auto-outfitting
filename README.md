@@ -27,17 +27,51 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 - Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
 - Every other goal keeps the game's own autofit.
 
-## Fleet production
+## The fleet plan
 
-The refit screen has an **Order weapons for fleet** button (with LunaLib it's also in LunaLib's refit menu, the small icon by the OP readout). It plans the Optimal fit of every ship in your fleet as if every weapon and fighter blueprint you know were in stock (biggest ships first, what you own used first), lists what custom production would have to build with cost and the ships using each item, and adds it to custom production when you press **Queue all**. With Ashes of the Domain: Vaults of Knowledge the order goes into AoTD's production (its Custom production screen; each unit is paid when it's finished and AoTD needs its resources delivered); without it, into the game's custom production (paid each month as items are built; needs Heavy Industry or Orbital Works). Nothing is charged when you press Queue all.
+Three buttons on the refit screen, next to Autofit, work on the whole fleet at once: **Order fleet weapons**, **Fleet analysis** and **Optimize fleet**.
 
-## Fleet analysis
+The first two buttons share one fleet plan, which works like this:
+- Every combat ship is planned together, from one shared stock, biggest ships first.
+- Each ship leans toward what the rest of the plan lacks:
+  - **anti-shield**: how fast the fleet fills enemy flux bars; kinetic counts fully, energy half, HE a quarter, fragmentation an eighth;
+  - **armor-cracking**: hits strong enough to get through armor;
+  - **fighter roles**: aiming for about 35% fighters, 35% bombers, 10% interceptors and 20% support.
+- Then each ship is planned again with all the others in view, at most two more passes. A ship only changes if the new plan is clearly better.
+- The plan doesn't depend on what your ships carry now. Every ship is planned from bare, so the same fleet, stock and blueprints always give the same plan.
 
-The **Fleet analysis** button sits under Order fleet weapons on the refit screen. It shows:
-- your fleet's firepower by damage type, and how much of it can crack armor;
+The plan runs a little each frame with a progress line. A big fleet takes a few seconds.
+
+### Optimize fleet
+
+Plans every combat ship from what you have here: what the ships carry, your fleet cargo, and your storage at the market you're docked at. Nothing is bought.
+
+It lists what changes on each ship: weapons, wings, hullmods on and off, and s-mods with their story points. It also shows the fleet's anti-shield, armor-cracking and fighter mix before and after. **Apply to all ships** then refits every ship:
+- Weapons and LPCs come off into cargo, and each ship takes its plan from cargo, then storage.
+- What isn't used again goes to that storage.
+- Hullmods change only where the refit rules allow (spaceport hullmods only at a spaceport).
+- New s-mods cost a story point each, never below the story points you keep in reserve. Turn this off with "Optimize fleet builds s-mods".
+- Civilian ships with the logistics fit are left alone.
+
+If there's no room on the refit screen for this button, it's in Fleet analysis.
+
+### Order fleet weapons
+
+The same fleet plan, but with every weapon and fighter blueprint you know in unlimited supply. It lists what custom production would have to build, with costs and the ships using each item, and adds it when you press **Queue all**.
+
+Owned items count as stock and are used first: cargo, every storage, what's on your ships, and what's already on order. So pressing it again only orders what's still missing. If the order is over the budget, the biggest ships' items are ordered first and the rest is ordered the next time you press it.
+
+With Ashes of the Domain: Vaults of Knowledge, the order goes into AoTD's production (its Custom production screen). Each unit is paid when it's finished, and AoTD needs its resources delivered. Without it, the order goes into the game's custom production: paid each month as items are built, and it needs Heavy Industry or Orbital Works. Nothing is charged when you press Queue all.
+
+### Fleet analysis
+
+Shows:
+- your fleet's firepower by damage type, with anti-shield and armor-cracking against their aims;
 - fighter bays by role, with the most common wings;
-- recommendations: which ships to refit for anti-shield or anti-armor, fighter roles leaning one way, ships short of point defense, mixed range bands and empty mounts;
+- recommendations: anti-shield or anti-armor shortfalls, fighter roles leaning one way, carriers mixing interceptors with bombers, ships short of point defense, mixed range bands and empty mounts;
 - one line per ship.
+
+It changes nothing; its **Optimize fleet** button opens the fleet plan.
 
 ## Settings
 
@@ -48,7 +82,7 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Add the Optimal goal | on | The Optimal entry in every ship's autofit list. |
 | Fit for each ship's fleet role | on | Builds each ship for its job: skirmisher frigates, flankers, line cruisers, capital anchors, carriers, battle carriers, support, phase, missile boats. |
 | Civilian ships: fit for the campaign | on | Freighters, tankers, liners, salvage and survey ships get no weapons and campaign hullmods (cargo/fuel/berths, burn, sensors, profile, survey, salvage, treasure hunting, supplies); built in on cruisers and capitals with Build in s-mods. |
-| Balance with the fleet | on | Fighter roles and wings the fleet already has count for less, and with Auto or Balanced each ship leans toward the damage the fleet is short of. |
+| Balance with the fleet | on | Fighter roles and wings the fleet already has count for less, and with Auto or Balanced each ship leans toward the damage the fleet is short of: the rest of the fleet plan in Optimize fleet and Order fleet weapons, the fleet as it stands for one Optimal fit. |
 | Build style | Auto | Auto, Balanced, Anti-shield, Anti-armor, Hull killer. |
 | One goal per style | off | Adds an Optimal goal for each style, so ships can differ. |
 | Range | Auto | Auto, Long, Close. |
@@ -67,8 +101,9 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Most days to hold a slot | 30 | After this, the ship builds the best you have in the held slots. |
 | How much better to wait for | 10% | |
 | Story points to keep | 0 | Never spends below this. |
-| Order weapons for fleet button | on | The refit screen production button. |
-| Production budget | 50% | Share of your credits a fleet order may cost. |
+| Optimize fleet builds s-mods | on | Optimize fleet also builds in s-mods on ships with room (one story point each, within the settings above). |
+| Order weapons for fleet button | on | The refit screen's fleet buttons (Order fleet weapons, Fleet analysis, Optimize fleet). |
+| Production budget | 50% | Share of your credits one fleet order may cost; the rest of the plan is ordered next time. |
 | Log every fit | off | Scores and reasons in starsector.log. |
 
 ## Requirements

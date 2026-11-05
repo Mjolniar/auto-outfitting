@@ -11,46 +11,69 @@ import java.awt.Color;
 import java.util.List;
 
 /**
- * The fleet production order (JAOFleetPlanner): summary, the item list (scrolls), Queue all / Close. Nothing is ordered
- * without Queue all. Drawn as an overlay from the refit screen button, or inside LunaLib's refit panel (JAORefitButton).
+ * The fleet production order (JAOFleetPlanner): planned a frame at a time with a progress line, then the summary, the
+ * fleet before and after the plan, the item list (scrolls), Queue all / Close. Nothing is ordered without Queue all.
+ * Drawn as an overlay from the refit screen button, or inside LunaLib's refit panel (JAORefitButton).
  */
 final class JAOOrderPanel extends JAOOverlayPanel {
     static final float W = 900f, H = 580f;
-    final JAOFleetPlanner.Plan plan;   // null when planning failed
-    CustomPanelAPI inner;
+    final JAOFleetPlanner.Job job;   // null when planning couldn't start
+    JAOFleetPlanner.Plan plan;
     ButtonAPI queue;
     TooltipMakerAPI status;
 
-    JAOOrderPanel(JAOFleetPlanner.Plan plan, Runnable close, boolean overlay) { super(close, overlay); this.plan = plan; }
+    JAOOrderPanel(JAOFleetPlanner.Job job, Runnable close, boolean overlay) { super(close, overlay); this.job = job; }
 
-    /** Plans the order now; null (logged) if that fails, which the panel shows as an error. */
-    static JAOFleetPlanner.Plan planNow() {
+    /** Starts planning the order; null (logged) if that fails, which the panel shows as an error. */
+    static JAOFleetPlanner.Job start() {
         try {
-            return JAOFleetPlanner.plan();
+            return new JAOFleetPlanner.Job();
         } catch (Throwable t) {
             Global.getLogger(JAOOrderPanel.class).error("Jonah's Auto Outfitting: fleet order planning failed", t);
             return null;
         }
     }
 
-    void build(CustomPanelAPI inner) {
-        this.inner = inner;
+    @Override String title() { return "Fleet production order"; }
+    @Override float width() { return W; }
+    @Override float height() { return H; }
+
+    /** One planning slice a frame; the result once the plan is done. */
+    @Override
+    boolean work() {
+        if (job == null) return true;
+        try {
+            if (!job.step(25L)) return false;
+            plan = job.plan;
+        } catch (Throwable t) {
+            Global.getLogger(JAOOrderPanel.class).error("Jonah's Auto Outfitting: fleet order planning failed", t);
+            plan = null;
+        }
+        return true;
+    }
+
+    @Override String progress() { return job == null ? "" : job.progress(); }
+
+    @Override
+    void buildResult() {
         Color h = Misc.getHighlightColor(), g = Misc.getGrayColor(), bad = Misc.getNegativeHighlightColor();
-        TooltipMakerAPI head = inner.createUIElement(W - 20f, 130f, false);
-        head.addSectionHeading("Fleet production order", Alignment.MID, 0f);
+        TooltipMakerAPI head = element(W - 20f, 150f, false, 10f, 10f);
+        head.addSectionHeading(title(), Alignment.MID, 0f);
         if (plan == null) {
             head.addPara("Couldn't plan the fleet order (see starsector.log).", 6f, bad);
         } else {
             if (plan.lines.isEmpty()) {
-                head.addPara("Nothing new to build: your fleet's Optimal fits use only what you own or have on order, or you know no "
-                        + "blueprint that would improve them" + (plan.ownedOnly > 0 ? " within the budget." : "."), 6f);
+                head.addPara(plan.laterItems > 0 ? "Nothing fits the budget now." : "Nothing new to build: your fleet's plan uses only what you own or have on order, or you know no "
+                        + "blueprint that would improve it.", 6f);
             } else {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.lines) units += l.count;
-                head.addPara("%s items (%s kinds) for %s ships, %s in all. You have %s; budget %s.", 6f, h,
-                        "" + units, "" + plan.lines.size(), "" + plan.planned, Misc.getDGSCredits(plan.totalCost),
-                        Misc.getDGSCredits(plan.credits), Misc.getDGSCredits(plan.budget));
+                head.addPara("%s items (%s kinds) for the fleet's plan, %s in all. You have %s; budget %s.", 6f, h,
+                        "" + units, "" + plan.lines.size(), Misc.getDGSCredits(plan.totalCost), Misc.getDGSCredits(plan.credits), Misc.getDGSCredits(plan.budget));
             }
+            if (plan.laterItems > 0) head.addPara("Over the budget: %s more items for %s ships (%s). Press Order fleet weapons again later to order them.",
+                    4f, h, "" + plan.laterItems, "" + plan.laterShips, Misc.getDGSCredits(plan.laterCost));
+            if (plan.before != null && plan.after != null) head.addPara(esc(mixLine(plan.before, plan.after)), 4f, g);
             if (!plan.moved.isEmpty()) {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.moved) units += l.count;
@@ -70,15 +93,13 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             head.addPara("Gathering point: %s.", 4f, plan.gatheringPoint == null ? bad : h,
                     plan.gatheringPoint == null ? "none set (Queue all picks your biggest production colony)" : plan.gatheringPoint);
             StringBuilder notes = new StringBuilder();
-            if (plan.ownedOnly > 0) notes.append(plan.ownedOnly).append(" smaller ships planned with owned stock only, to stay within the budget. ");
             if (plan.skippedCivilian > 0) notes.append(plan.skippedCivilian).append(" civilian ships skipped (logistics fit). ");
             if (plan.failed > 0) notes.append(plan.failed).append(" ships couldn't be planned (see starsector.log). ");
             if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
         }
-        inner.addUIElement(head).inTL(10f, 10f);
 
         if (plan != null) {
-            TooltipMakerAPI list = inner.createUIElement(W - 20f, H - 210f, true);
+            TooltipMakerAPI list = element(W - 20f, H - 230f, true, 10f, 170f);
             Color text = Global.getSettings().getColor("standardTextColor");
             List<JAOFleetPlanner.Line> all = new java.util.ArrayList<>(plan.lines);
             all.addAll(plan.moved);
@@ -87,17 +108,26 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                 list.addPara("%s  %s  %s (%s each)   %s", 3f, new Color[]{h, text, h, g, g},
                         l.count + "x", l.name, Misc.getDGSCredits(l.total()), Misc.getDGSCredits(l.unitCost), ships);
             }
-            inner.addUIElement(list).inTL(10f, 150f);
         }
 
-        TooltipMakerAPI buttons = inner.createUIElement(W - 20f, 40f, false);
+        TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
         queue = buttons.addButton("Queue all", "queue", 200f, 30f, 0f);
         // AoTD runs its own production; the game's needs Heavy Industry or Orbital Works capacity
         queue.setEnabled(plan != null && plan.anything() && (plan.aotd || plan.monthlyCapacity > 0));
         ButtonAPI closeButton = buttons.addButton("Close", "close", 140f, 30f, 0f);
         closeButton.getPosition().rightOfTop(queue, 10f);
-        inner.addUIElement(buttons).inTL(10f, H - 50f);
     }
+
+    /** "The plan's fleet: anti-shield 33% -> 46%, armor-cracking 34% -> 41%, bays fighters/bombers/interceptors/support 1/24/0/8 -> 9/15/1/9." */
+    static String mixLine(JAOFleetMix before, JAOFleetMix after) {
+        return "Fleet now -> with the plan: anti-shield " + pct(before.shieldShare()) + " -> " + pct(after.shieldShare())
+                + " (aim " + pct(JAOFleetMix.SHIELD_TARGET) + "), armor-cracking " + pct(before.armorShare()) + " -> " + pct(after.armorShare())
+                + " (aim " + pct(JAOFleetMix.ARMOR_TARGET) + "), fighter bays (fighters/bombers/interceptors/support) " + bays(before) + " -> " + bays(after) + ".";
+    }
+
+    static String bays(JAOFleetMix m) { return (int) m.wingBays[0] + "/" + (int) m.wingBays[1] + "/" + (int) m.wingBays[2] + "/" + (int) m.wingBays[3]; }
+
+    static String pct(float f) { return Math.round(100f * f) + "%"; }
 
     static String months(int cost, int perMonth) {
         int m = (int) Math.ceil(cost / (double) Math.max(1, perMonth));
@@ -111,10 +141,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         } else if ("queue".equals(id) && queue != null && queue.isEnabled() && plan != null) {
             String msg = JAOFleetPlanner.queue(plan);
             queue.setEnabled(false);
-            if (status == null) {
-                status = inner.createUIElement(W - 400f, 40f, false);
-                inner.addUIElement(status).inTL(370f, H - 48f);
-            }
+            if (status == null) status = element(W - 400f, 40f, false, 370f, H - 48f);
             boolean failed = msg.contains("nothing was ordered");
             status.addPara(msg + (failed ? "." : ". See Colonies, Custom production."), 0f, failed ? Misc.getNegativeHighlightColor() : Misc.getPositiveHighlightColor());
         }

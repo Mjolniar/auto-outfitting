@@ -49,8 +49,17 @@ class JAOOptimizer {
     final AutofitPluginDelegate delegate;
     final JAOStyle style;
     final boolean module;
-    /** Fleet production planning (JAOFleetPlanner): weapons and wings only, the ship's hullmods kept, nothing spent or logged. */
+    /**
+     * Planning on a copy (JAOFleetPlan): nothing spent, no timers started, nothing logged. Weapons and wings only, the
+     * ship's hullmods kept, unless fullPlan: then hullmods too, and s-mods with planSmods (added to the copy, paid for
+     * when the plan is applied).
+     */
     final boolean planning;
+    boolean fullPlan, planSmods;
+    /** The rest of the fleet when the fleet plan fits this ship (null: read the fleet as it stands). */
+    JAOFleetMix fleetMix;
+    /** After run(): the s-mod plan (null without one). */
+    JAOSMods.Plan smodPlan;
 
     JAOOptimizer(JAOAutofitPlugin plugin, ShipVariantAPI current, int maxSMods, AutofitPluginDelegate delegate, JAOStyle style) {
         this(plugin, current, delegate, style, false);
@@ -89,7 +98,7 @@ class JAOOptimizer {
                 plugin.clearWeaponSlot(slot, delegate, current);
             }
             for (int i = builtInWings; i < bays; i++) if (current.getWingId(i) != null) plugin.clearFighterSlot(i, delegate, current);
-            if (!module && !planning) {
+            if (!module && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
                     if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
@@ -117,32 +126,18 @@ class JAOOptimizer {
         Supplier<List<JAOSearch.Slot>> slotsOf = () -> buildSlots(hull, skip, bays, builtInWings, weapons, fighters);
         List<JAOSearch.Slot> slots = slotsOf.get();
         Set<String> keepMods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
-        List<String> modCands = module || planning ? new ArrayList<>() : hullmodCandidates(keepMods);
+        List<String> modCands = module || (planning && !fullPlan) ? new ArrayList<>() : hullmodCandidates(keepMods);
 
         // 4. search (s-mods first: they change how much OP everything else gets)
         int hullOp = hull.getOrdnancePoints(plugin.stats());
         int budget = hullOp - current.computeOPCost(plugin.stats());
         JAORole role = JAOSettings.roles ? roleOf(hull) : null;
         JAOStyle st = role != null ? style : resolve(style, hull);
-        JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role);
-        // the rest of the fleet: fighter roles already covered, and (Auto/Balanced) the damage it's short of
-        if (!module && JAOSettings.fleetBalance) {
-            try {
-                JAOFleetContext fc = JAOFleetContext.of(delegate.getFleetMember());
-                fc.wings(p);
-                if (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) fc.complement(p);
-                if (JAOSettings.debug) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: fleet context for " + shipName()
-                        + ": " + fc.ships + " other ships, kinetic " + Math.round(100 * fc.kineticShare()) + "%, armor-cracking "
-                        + Math.round(100 * fc.armorShare()) + "%, fighter bays " + java.util.Arrays.toString(fc.wingBays) + " -> weights "
-                        + p.wS + "/" + p.wA + "/" + p.wH);
-            } catch (Throwable t) {
-                Global.getLogger(JAOOptimizer.class).warn("Jonah's Auto Outfitting: couldn't read the fleet for balance", t);
-            }
-        }
+        JAOModel.Params p = paramsFor(hull, role, st);
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
-        if (!module && !planning && plugin.option(JAOAutofitPlugin.SMODS)) {
+        if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
             List<String> available = new ArrayList<>();
             for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
             for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
@@ -154,16 +149,18 @@ class JAOOptimizer {
                 smodNote = why[0] <= 0 ? "already has " + why[3] + " of " + (why[3] + Math.max(0, why[0])) + " s-mods"
                         : why[1] <= 0 ? "no story points" + (JAOSettings.smodReserve > 0 ? " above the " + JAOSettings.smodReserve + " kept in reserve" : "")
                         : "the s-mods per ship setting allows none";
-                if (why[0] <= 0 && memberId != null) JAOSMods.stopWaiting(memberId);
+                if (why[0] <= 0 && memberId != null && !planning) JAOSMods.stopWaiting(memberId);
             } else {
                 // waiting for missing hullmods is limited in time: after jao_smodWaitDays the ship builds the best it has
+                // (a plan starts no timer: applying it does)
                 float waited = memberId == null ? 0f : JAOSMods.waitedDays(memberId, false);
                 boolean mayWait = JAOSettings.smodWait && waited < JAOSettings.smodWaitDays;
                 JAOSMods.Plan plan = new JAOSMods(world, p, slotsOf, stock, modCands, keepMods, limit)
                         .plan(available, mayWait ? JAOSMods.everything() : available);
+                smodPlan = plan;
                 smods.addAll(plan.mods);
                 smodNote = plan.note;
-                if (plan.waiting && memberId != null) {
+                if (plan.waiting && memberId != null && !planning) {
                     waited = JAOSMods.waitedDays(memberId, true);
                     smodNote += "; waited " + Math.round(waited) + " of " + JAOSettings.smodWaitDays + " days";
                 } else if (JAOSettings.smodWait && !mayWait) {
@@ -177,7 +174,7 @@ class JAOOptimizer {
         List<String> cands = new ArrayList<>(modCands);
         cands.removeAll(smods);
         JAOSearch search = new JAOSearch(world, p, slots, stock, cands, keepAll);
-        if (!module && !planning) search.fleetMods.addAll(fleetHullmods(keepAll));
+        if (!module && (!planning || fullPlan)) search.fleetMods.addAll(fleetHullmods(keepAll));
         search.run();
         oneFeedbackWeapon(search);
 
@@ -263,6 +260,51 @@ class JAOOptimizer {
     }
 
     /**
+     * The build's params: style and role, then the rest of the fleet: fighter roles already covered, and (Auto/Balanced)
+     * the damage it's short of. The fleet plan passes the rest of its plan; a single fit reads the fleet as it stands.
+     */
+    private JAOModel.Params paramsFor(ShipHullSpecAPI hull, JAORole role, JAOStyle st) {
+        JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role);
+        if (!module && JAOSettings.fleetBalance) {
+            try {
+                JAOFleetMix others = fleetMix != null ? fleetMix : JAOFleetContext.of(delegate.getFleetMember()).mix;
+                others.wings(p);
+                if (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) others.complement(p);
+                if (JAOSettings.debug && !planning) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: fleet context for " + shipName()
+                        + ": " + others.ships + " other ships, " + others.describe() + " -> weights " + p.wS + "/" + p.wA + "/" + p.wH);
+            } catch (Throwable t) {
+                Global.getLogger(JAOOptimizer.class).warn("Jonah's Auto Outfitting: couldn't read the fleet for balance", t);
+            }
+        }
+        return p;
+    }
+
+    /**
+     * The build score of the variant as it stands, every weapon, wing and hullmod kept, the OP left in vents and
+     * capacitors the way a fit spends it, under the same params a fit would get (with fleetMix). The fleet plan compares
+     * a ship's new plan with its old one this way, so both are judged alike.
+     */
+    float scoreAsIs() {
+        ShipHullSpecAPI hull = current.getHullSpec();
+        Set<String> skip = JAORatings.skipSlots(hull.getHullId(), hull.getBaseHullId());
+        int bays = Global.getSettings().computeNumFighterBays(current);
+        int builtInWings = hull.getBuiltInWings() == null ? 0 : hull.getBuiltInWings().size();
+        List<JAOSearch.Slot> slots = buildSlots(hull, skip, bays, builtInWings, new ArrayList<>(), new ArrayList<>());
+        int vents = current.getNumFluxVents(), caps = current.getNumFluxCapacitors();
+        current.setNumFluxVents(0);
+        current.setNumFluxCapacitors(0);
+        int budget = hull.getOrdnancePoints(plugin.stats()) - current.computeOPCost(plugin.stats());
+        current.setNumFluxVents(vents);
+        current.setNumFluxCapacitors(caps);
+        JAORole role = JAOSettings.roles ? roleOf(hull) : null;
+        JAOStyle st = role != null ? style : resolve(style, hull);
+        JAOModel.Params p = paramsFor(hull, role, st);
+        JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+        JAOSearch s = new JAOSearch(world, p, slots, new LinkedHashMap<>(), new ArrayList<>(), new LinkedHashSet<>(current.getNonBuiltInHullmods()));
+        return s.objective();
+    }
+
+    /**
      * After Confirm the game rebuilds the ship around the new loadout, and hullmods whose effects depend on it (OP cost
      * listeners, weapon-composition mods) can change what it costs. The user saw an Aquilon land at 220 of 250 OP with
      * nothing logged. So the OP is read again from the rebuilt ship: spare points go to vents, then capacitors (gun
@@ -305,10 +347,13 @@ class JAOOptimizer {
                 + ", now " + (hullOp - current.computeOPCost(plugin.stats())) + " OP left");
     }
 
+    /** Story points the fleet plan has left for this ship (it shares them across the fleet); -1: the player's own. */
+    int storyPoints = -1;
+
     /** S-mods this fit may build in: the ship's limit left, story points above the reserve, the per-ship setting. */
     private int smodLimit(int[] why) {
         int room = Misc.getMaxPermanentMods(delegate.getFleetMember(), plugin.stats()) - current.getSMods().size();
-        int sp = Global.getSector().getPlayerStats().getStoryPoints() - JAOSettings.smodReserve;
+        int sp = (storyPoints >= 0 ? storyPoints : Global.getSector().getPlayerStats().getStoryPoints()) - JAOSettings.smodReserve;
         // why: room left, story points above the reserve, the per-ship setting, s-mods already on the ship
         why[0] = room; why[1] = sp; why[2] = JAOSettings.smodCount; why[3] = current.getSMods().size();
         return Math.max(0, Math.min(Math.min(room, sp), JAOSettings.smodCount));
@@ -466,7 +511,8 @@ class JAOOptimizer {
             }
             index++;
             new JAOOptimizer(plugin, m, delegate, style, true, planning).run();
-            if (!planning) current.setModuleVariant(slotId, m);
+            // planning fits a copy of the ship, so its module copies go into that copy (the plan carries them)
+            current.setModuleVariant(slotId, m);
         }
     }
 
