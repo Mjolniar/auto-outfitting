@@ -97,7 +97,11 @@ class JAOOptimizer {
                 if (slot == null || !mountable(slot) || skip.contains(id)) continue;
                 plugin.clearWeaponSlot(slot, delegate, current);
             }
-            for (int i = builtInWings; i < bays; i++) if (current.getWingId(i) != null) plugin.clearFighterSlot(i, delegate, current);
+            // a wing only scripts place (Nimbus drones, kites) stays where it is: it can't go back into cargo (JAOCompat)
+            for (int i = builtInWings; i < bays; i++) {
+                String w = current.getWingId(i);
+                if (w != null && !JAOCompat.boundWing(w)) plugin.clearFighterSlot(i, delegate, current);
+            }
             if (!module && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
@@ -466,6 +470,9 @@ class JAOOptimizer {
             offs.put(js, Misc.getDistanceFromArc(s.getAngle(), s.getArc(), 0f));
         }
         applyBearing(slots, offs);
+        // bay rules (JAOCompat): a Guru flies only Seeker's plague LPCs, a Trinity Worlds ship only its Nimbus drones;
+        // wings only scripts place are never taken from cargo or storage
+        List<String> allow = bays > builtInWings ? JAOCompat.bayWings(current) : null;
         for (int b = builtInWings; b < bays; b++) {
             JAOSearch.Slot js = new JAOSearch.Slot("bay" + b, 1, false, 1f, true, true);
             String kept = current.getWingId(b);
@@ -475,6 +482,7 @@ class JAOOptimizer {
                 for (int i = 0; i < fighters.size(); i++) {
                     AvailableFighter f = fighters.get(i);
                     if (f.getWingSpec() == null || f.getQuantity() <= 0) continue;
+                    if (JAOCompat.boundWing(f.getWingSpec()) || !JAOCompat.wingAllowed(allow, f.getId())) continue;
                     js.cands.add(new JAOSearch.Cand(JAORatings.wing(f.getWingSpec()), f, "f" + i, f.getPrice()));
                 }
             }
@@ -534,7 +542,7 @@ class JAOOptimizer {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
-            if (JAORatings.ruleMatches("never_add", id)) continue;
+            if (JAOCompat.neverAdd(id)) continue;
             if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
             if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
                     || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) continue;
@@ -604,7 +612,10 @@ class JAOOptimizer {
             WeaponSlotAPI slot = current.getSlot(id);
             if (slot != null && mountable(slot)) plugin.clearWeaponSlot(slot, delegate, current);
         }
-        for (int i = builtInWings; i < bays; i++) if (current.getWingId(i) != null) plugin.clearFighterSlot(i, delegate, current);
+        for (int i = builtInWings; i < bays; i++) {
+            String w = current.getWingId(i);
+            if (w != null && !JAOCompat.boundWing(w)) plugin.clearFighterSlot(i, delegate, current);
+        }
         if (strip) {
             for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
@@ -636,7 +647,7 @@ class JAOOptimizer {
         Set<String> smods = new LinkedHashSet<>();
         List<String> skipped = new ArrayList<>();
         for (String id : order) {
-            if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAORatings.ruleMatches("never_add", id)) continue;
+            if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden()) continue;
             world.setSMods(smods);
@@ -700,7 +711,7 @@ class JAOOptimizer {
         for (String id : new TreeSet<>(delegate.getAvailableHullmods())) {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id)) continue;
             boolean fleet = id.equals("ecm") || id.equals("nav_relay") || id.equals("escort_package") || (flagship && id.equals("operations_center"));
-            if (!fleet || JAORatings.ruleMatches("never_add", id)) continue;
+            if (!fleet || JAOCompat.neverAdd(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || (spec.hasUITag("Logistics") && !JAOSettings.logistics)) continue;
             out.add(id);

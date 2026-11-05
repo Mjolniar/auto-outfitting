@@ -187,6 +187,8 @@ final class JAOModel {
         float rarity;
         /** MagicLib interference: dissipation lost per other interference weapon on the ship (20/40/80). */
         float interference;
+        /** Seeker's nano-plague: % of max CR one fitted copy costs (3/6/12), scaled by the ship's plagueMult. */
+        float crCost;
         boolean ownedOnly;
     }
 
@@ -228,6 +230,8 @@ final class JAOModel {
         float valkRange;
         /** Where flux pressure starts and where extra guns sit switched off (JAOShip: SO and Valhalla Core run hot). */
         float fluxSoft = FLUX_SOFT, fluxLimit = FLUX_LIMIT;
+        /** Share of plague CR costs this hull pays: 0 on Seeker's plague hulls, 0.666 with Hardened Subsystems. */
+        float plagueMult = 1f;
 
         Ship copy() {
             Ship s = new Ship();
@@ -241,6 +245,7 @@ final class JAOModel {
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
             s.interferenceMult = interferenceMult; s.noVent = noVent;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
+            s.plagueMult = plagueMult;
             return s;
         }
     }
@@ -599,8 +604,14 @@ final class JAOModel {
         float mw = Math.max(MIN_MOBILITY, p.mobilityW);
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(Math.max(0.2f, s.speed / s.baseSpeed), mw) : 1f)
                 * (float) Math.pow(Math.max(0.2f, s.maneuver), 0.5f * mw + 0.04f);
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * (1f + s.extra);
+        // Seeker's nano-plague: each plague weapon or LPC on a hull it harms takes 3/6/12 points of max CR, which costs
+        // the ship its later engagements and its malfunction margin (plagueFactor)
+        float plague = 0f;
+        for (int i = 0; i < n; i++) plague += fits.get(i).w.crCost;
+        plague *= s.plagueMult;
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * plagueFactor(plague) * (1f + s.extra);
         if (out != null) {
+            if (plague > 0f) out.put("plague", plague);
             out.put("score", score); out.put("ttk", ttk); out.put("t1", t1s / wsum); out.put("t2", t2s / wsum); out.put("t3", t3s / wsum);
             out.put("ehp", ehp); out.put("uptime", uptime); out.put("load", load); out.put("budget", budget); out.put("reng", reng);
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
@@ -748,4 +759,16 @@ final class JAOModel {
     static final float[] TARGET_RADIUS = {45f, 70f, 110f, 170f};
 
     static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    /**
+     * Points of max CR a ship can give up to the plague before it stops being worth fielding: 70% max CR, malfunctions
+     * below 50% and a deployment's cost between battles leave about this much. One STRONG plague weapon (12) costs a
+     * fifth of the ship, so it has to be that much better than what else fits.
+     */
+    static final float PLAGUE_CR_SPAN = 60f;
+
+    /** Score multiplier for lost max CR (percentage points), never below 0.2. */
+    static float plagueFactor(float crLost) {
+        return crLost <= 0f ? 1f : clamp(1f - crLost / PLAGUE_CR_SPAN, 0.2f, 1f);
+    }
 }
