@@ -59,6 +59,10 @@ final class JAOFleetPlanner {
         String gatheringPoint, problem;
         long ms;
         JAOFleetMix before, after;
+        /** AoTD: commodity id -> units the order takes from your colonies' exports (JAOProduction.resources). */
+        Map<String, Integer> resources = new TreeMap<>();
+        /** "Ship: note" for ships whose plan the player should know about (bay rules, penalty hullmods). */
+        final List<String> notes = new ArrayList<>();
 
         boolean anything() { return !lines.isEmpty() || !moved.isEmpty(); }
     }
@@ -173,6 +177,14 @@ final class JAOFleetPlanner {
             plan.lines.addAll(lines.values());
             plan.lines.sort(Comparator.comparingInt((Line l) -> -l.total()).thenComparing(l -> l.name));
             plan.ms = Math.max(1L, fleet.nanos / 1_000_000L);
+            for (JAOFleetPlan.ShipPlan s : fleet.ships) for (String n : s.notes) plan.notes.add(s.name + ": " + n);
+            if (plan.aotd) {
+                Map<String, Integer> weapons = new LinkedHashMap<>(), wings = new LinkedHashMap<>();
+                for (Line l : plan.lines) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
+                for (Line l : plan.moved) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
+                plan.resources = JAOProduction.resources(weapons, wings);
+            }
+            if (!plan.notes.isEmpty()) Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: fleet order notes: " + plan.notes);
             Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: fleet order planned in " + plan.ms + " ms ("
                     + (plan.aotd ? "AoTD production" : "custom production") + "): " + plan.lines.size() + " items, " + plan.totalCost
                     + " credits (budget " + plan.budget + ")" + (plan.laterItems > 0 ? ", " + plan.laterItems + " more items for " + plan.laterShips
@@ -228,6 +240,14 @@ final class JAOFleetPlanner {
             }
             msg = "Ordered " + units + " items through AoTD production" + (moved > 0 ? " (" + moved + " moved from the game's own list)" : "")
                     + ", about " + Misc.getDGSCredits(plan.totalCost + plan.movedCost) + ", each paid when it's finished; " + where;
+            // what AoTD now waits to have delivered for all its orders, and the goods no colony makes (the order stalls on them)
+            Map<String, Integer> waits = JAOProduction.outstanding();
+            if (!waits.isEmpty()) {
+                List<String> none = JAOProduction.unmade(waits);
+                Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: AoTD production waits for " + JAOProduction.describe(waits)
+                        + (none.isEmpty() ? "" : "; no colony makes " + none + (JAOProduction.colonyManagerSupplies()
+                        ? " (Colony Manager's Special project supply plans producers for them)" : "")));
+            }
         } else {
             int items = 0;
             for (Line l : plan.lines) {

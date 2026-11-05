@@ -625,6 +625,31 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
   - Each applied ship logs its empty mounts and bays, wings, hullmods, vents/caps and OP.
 - **Button layout.** Optimize fleet couldn't go in the next column (taken on the user's screen) and ended up only inside Fleet analysis. It now sits in the stack under Order fleet weapons; Fleet analysis takes the next free spot, and the Optimize panel links to it.
 
+## 7l. Other mods' scripts, and what production takes, 0.5.2 (user, 11/05)
+
+**Report.** New game with 19 new mods. A Guru-class carrier (Seeker, XXX Chi-Prince) "registered Optimal" and every bay came out empty. User: "deep analysis on all the new mods ... run a new whole check", and have Order fleet weapons work with Colony Manager so the colonies supply what production needs.
+
+**What the log and save showed** (`fleet_diag_1105b`, research `modscan_1105_1605.txt`):
+- The Guru's built-in `SKR_plagueCultist` throws every LPC except Seeker's three plague LPCs into cargo when the ship is shown (`applyEffectsAfterShipCreation`). Its fighter cost mods (-1000 on every role) made every wing cost 0 OP in the model, so the plan filled the bays with Daggers, a JYD Heavy Drone and an Arma Kouto; all four were back in fleet cargo in the save. The plague LPCs cost 1008-1012 OP everywhere else.
+- Trinity Worlds `TrinityRetrofit` fills a Maquech's empty bays 0/1 with `nimbus_tw_wing_c` (10 OP each) on every stat refresh and deletes Nimbus LPCs from cargo when a TW ship is shown. The plan counted the Maquech's Nimbus drones as stock, moved them to other carriers, the Maquech got new ones for free (OP 65/45, so `tw_equipment_error`, -100% CR), and the moved ones were deleted later ("2 items weren't there any more", the Guru's empty bays on the next runs).
+- Yunru's zero-OP "Install:" hullmods (`yunru_silvervale_conversion`, `yunru_automation`, `yurnu_install_alpha/beta/gamma`, `yunru_lobster_install`, triggered by `yunru_install_confirm`) turn into permanent conversions the moment a ship carrying them is shown. `JAOSearch.spendLeftover` took them as "harmless" leftover spending on ships with maxed flux and empty mounts: 13 ships ended up with a permanent `yunru_silvervale_flux` (energy weapon range for damage by captain personality; nothing for Steady).
+- Plague weapons on normal hulls: the Thor carried a Dainsleif and a plague grenade launcher (-15% max CR), the Wyvern a plague Intercept launcher (-6%). The `plague` rule row existed but no code read it.
+
+**Fixes** (`JAOCompat`, rules in `jao_rules.csv`):
+- **Hull-bound wings**: an LPC tagged no_drop and no_sell stays in its bay. It's never stripped, counted as stock (`addMounted`), taken from cargo or storage (`buildSlots`) or moved by Optimize fleet.
+- **Bay rules** (`bay_wings`): `SKR_plagueCultist` / `SKR_plagueBearer` fly only Seeker's `plague_LPC` list (read from the merged modSettings); `tw_trinity_retrofit` only Nimbus drones; `tw_enhanced_control_node` anything. A plan with bays left empty by a rule gets a note ("only flies Fire Ant wing, Pillbug wing and Beetle wing; none in stock").
+- **Script probe**: after each fleet-plan fit, a scratch fleet member runs every hullmod's stat effects on a copy of the plan (`JAOCompat.probe`). Wings a script puts into empty bays join the plan (`ShipPlan.scripted`, never taken from cargo), the OP they take comes off capacitors then vents (vents first on carriers, phase, support, missile ships), and penalty hullmods a script adds (error/warning/malfunction/penalty) become a note. Apply runs `settle` again after `updateStats` and refreshes once more if it changed anything, so the TW penalty check sees a ship within its OP.
+- **Plague**: weapons and LPCs in `seeker.plague_weapons` / `plague_LPC` carry `W.crCost` (3/6/12); `Ship.plagueMult` is 0 on `plague_immune` hulls and 0.666 with Hardened Subsystems; the score takes `plagueFactor` = 1 - lost CR / 60 (one STRONG item costs a fifth of the ship, floor 0.2). Gated wing OP: a wing priced 1000+ OP is rated at the OP past 1000.
+- **MagicLib interference** from every mod's modSettings (`MagicLib.interferences_weapons`), after the jao_rules rows.
+- **Installers**: `spendLeftover` never takes a zero-OP hullmod (it spends nothing; free hullmods that help still come in through `addMods`); `never_add_ui,Installation` and `never_add` rows for `yunru_install_confirm`, `vice_apotheosis_protocol` and Roider's MIDAS levels; `never_remove,ix_dawnstar_*` (the player's Dawnstar mode).
+- **purge_lpc** `nimbus_tw_*`: removed from cargo and every storage on load, before saves and after each apply (two were in Hot Springs storage).
+
+**Production supply.** AoTD's production order is a Theory of Toolbox trade contract that takes goods from your colonies every month: Heavy Armaments for every weapon and LPC, Ships for LPCs, Electronic Components for most manufacturers (`AoTDProductionSpec`). Colony Manager 2.39.0 (its own session) reads the open orders and plans a producer for every good no colony makes (Special project supply), and keeps back the credits the orders still owe. Auto Outfitting's side: the order panel lists what the order takes, which colony makes each good, and which goods nobody makes (`JAOProduction.describe/unmade`); it says Colony Manager plans a producer when 2.39+ is enabled (`colonyManagerSupplies`, by mod id and version), else that those items wait. Queue all logs what all of AoTD's orders still wait for.
+
+**Checks.** `jtbuild\ao_modscan.py` (every enabled mod: scripts that change loadouts or cargo, installers, zero-OP hullmods, hull-bound and gated wings, unsellable weapons). JAOFitCheck 542 checks (plague factor and copy, zero-OP leftover). Research data regenerated for 92 sources (`data_1102` kept); the all-mods run fails 16 of 536 vanilla-tuned checks, driven by the new mods' weapon numbers (CFT's 7-OP 1,040-dps autocannon and 15,000-damage volley rockets, Yunru's 0-OP fighter gun), not by this change. Fleet sim on `fleet_diag_1105b`: 15 ships, settles in two passes.
+
+**Not verified in game:** the cultist bays staying empty without plague LPCs, the Maquech keeping its Nimbus drones within OP, and the order panel's supply lines.
+
 ## 8. Hullmods
 
 R: `hullmods_vanilla.json` (129 vanilla, effect numbers with file:line), `hullmods_work\report_preview.txt` (the report; a hook stopped the agent writing the .md), `hullmods_mods.json` + `modded_report.txt`.
@@ -674,10 +699,15 @@ R: `modded_report.txt` section 2, 700 mod hullmods in `hullmods_mods.json`, weap
 - Starship Legends `sun_sl_*` (carry ship traits);
 - AotD hull mods, IndEvo defects/pets.
 
+**Wings** (0.5.2, §7l)
+- No_drop + no_sell LPCs stay in their bays (scripts place them and delete them from cargo).
+- `bay_wings`: Seeker plague hulls fly only plague LPCs, Trinity Worlds hulls only Nimbus drones (Enhanced Control Node carriers anything).
+- Bays a hullmod script fills are found by a scratch-member probe and kept in the plan.
+
 **Weapons**
 - At most one `feedback_weapon` per ship.
-- MagicLib interference weapons cost (n−1) × 20/40/80 dissipation each when 2+ are fitted.
-- SEEKER plague items cost 3/6/12% max CR each.
+- MagicLib interference weapons cost (n−1) × 20/40/80 dissipation each when 2+ are fitted (jao_rules rows plus every mod's modSettings).
+- SEEKER plague items cost 3/6/12% max CR each on hulls that aren't plague hulls (×0.666 with Hardened Subsystems), scored by `plagueFactor` (0.5.2).
 - Fragment weapons need `fragment_swarm`.
 - `vice_seeker` and `archaic_c` weapons only get range from their own hullmods.
 - A_S-F artillery hulls need a target designator fitted.

@@ -94,8 +94,14 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             if (!c.smods.isEmpty()) parts.add("s-mod " + String.join(", ", c.smods));
             if (parts.isEmpty() && c.flux > 0) parts.add("vents/capacitors");
             list.addPara("%s  %s", 3f, new Color[]{h, text}, c.ship.name, esc(String.join(", ", parts)));
+            for (String n : c.ship.notes) list.addPara("    " + esc(n) + ".", 0f, g);
         }
         if (same > 0) list.addPara(same + " ships already match the plan.", 6f, g);
+        // notes on ships the plan doesn't change (a Guru with no plague LPCs to fly)
+        for (JAOFleetApply.Change c : job.changes) {
+            if (c.any()) continue;
+            for (String n : c.ship.notes) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, esc(n) + ".");
+        }
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
         apply = buttons.addButton("Apply to all ships", "apply", 220f, 30f, 0f);

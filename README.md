@@ -61,7 +61,7 @@ The same fleet plan, but with every weapon and fighter blueprint you know in unl
 
 Owned items count as stock and are used first: cargo, every storage, what's on your ships, and what's already on order. So pressing it again only orders what's still missing. If the order is over the budget, the biggest ships' items are ordered first and the rest is ordered the next time you press it.
 
-With Ashes of the Domain: Vaults of Knowledge, the order goes into AoTD's production (its Custom production screen). Each unit is paid when it's finished, and AoTD needs its resources delivered. Without it, the order goes into the game's custom production: paid each month as items are built, and it needs Heavy Industry or Orbital Works. Nothing is charged when you press Queue all.
+With Ashes of the Domain: Vaults of Knowledge, the order goes into AoTD's production (its Custom production screen). Each unit is paid when it's finished, and AoTD takes resources from your colonies every month: Heavy Armaments for every item, Ships for LPCs, Electronic Components for most. The order panel lists them, says which colony makes each, and flags anything no colony makes, since those items wait for it. With Jonah's Colony Manager 2.39 or later, its Special project supply plans a producer for those goods. Without AoTD, the order goes into the game's custom production: paid each month as items are built, and it needs Heavy Industry or Orbital Works. Nothing is charged when you press Queue all.
 
 ### Fleet analysis
 
@@ -72,6 +72,18 @@ Shows:
 - one line per ship.
 
 It changes nothing; its **Optimize fleet** button opens the fleet plan.
+
+## Other mods' rules
+
+Some mods change a ship's loadout from their own scripts. The Optimal fit and the fleet plan follow them:
+- **Seeker's plague hulls** (the Guru and the other Cultist ships, the Plague Bearers) only fly Seeker's plague LPCs: Fire Ant, Pillbug and Beetle. Any other wing gets thrown back into cargo as soon as the ship is shown, so none is planned there. Without plague LPCs those bays stay empty, and the plan says so.
+- **Plague weapons and LPCs** cost 3%, 6% or 12% max CR each on any other hull (a third less with Hardened Subsystems), and they're scored that way. On plague hulls they're free.
+- **Trinity Worlds** ships only fly their Nimbus drones. The carriers with an Enhanced Control Node (the Maquech) fly anything, but an empty bay gets Nimbus drones at 10 OP each, and the plan counts that.
+- **Wings you can't buy or drop** (Nimbus drones, Emergent Threats kites and Terminators, Arma bits) stay in the bay they're in. They're never taken off, moved to another ship or picked from cargo.
+- **Hullmods that convert a ship** are never added: Yunru's "Install:" hullmods turn into permanent hullmods or use up AI cores and lobsters once the ship is shown. A free hullmod only goes on when it helps.
+- Before any planned ship is refitted, its hullmods' scripts run once on a copy. Drones they add go into the plan, and the OP they take comes out of vents and capacitors.
+
+The rules live in `data/config/jao_rules.csv`.
 
 ## Settings
 

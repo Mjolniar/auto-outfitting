@@ -51,6 +51,10 @@ final class JAOFleetPlan {
         JAOSMods.Plan smods;
         int newSmods;
         boolean failed;
+        /** Bays the ship's own scripts fill (Nimbus drones on a Maquech): in the plan, never taken from stock or cargo. */
+        final java.util.Set<Integer> scripted = new java.util.TreeSet<>();
+        /** What the player should know about this ship's plan (bay rules, penalty hullmods its scripts add). */
+        final List<String> notes = new ArrayList<>();
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
@@ -125,6 +129,9 @@ final class JAOFleetPlan {
             o.storyPoints = storyPoints;
             o.fleetMix = others;
             o.run();
+            // what the ship's hullmod scripts do to it when the game refreshes it: wings they place in empty bays join the
+            // plan and their OP comes out of flux (JAOCompat); judged that way against the old plan too
+            JAOCompat.Probe probe = JAOCompat.settle(v, capsFirst(v));
             if (old != null) {
                 float vNew = score(v, others, s.member), vOld = score(old, others, s.member);
                 if (vNew <= vOld * (1f + KEEP)) {
@@ -140,6 +147,9 @@ final class JAOFleetPlan {
             s.used.clear();
             s.used.addAll(d.used);
             s.ws = ws;
+            s.scripted.clear();
+            s.scripted.addAll(probe.wings.keySet());
+            notes(s, probe);
             if (old == null) {
                 s.smods = o.smodPlan;
                 s.newSmods = newSmods;
@@ -155,6 +165,35 @@ final class JAOFleetPlan {
             s.failed = true;
             Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't plan " + s.name, t);
         }
+    }
+
+    /** Carriers, phase, support and missile ships keep capacitors and give up vents first (JAOOptimizer.settleOp). */
+    private static boolean capsFirst(ShipVariantAPI v) {
+        JAORole r = JAOOptimizer.roleOf(v.getHullSpec());
+        return r == JAORole.CARRIER || r == JAORole.PHASE || r == JAORole.MISSILE_BOAT || r == JAORole.SUPPORT;
+    }
+
+    /**
+     * The plan's notes: bays a bay rule leaves empty (a Guru with no plague LPCs in stock) and penalty hullmods the ship's
+     * scripts would add (error, warning, malfunction or penalty markers).
+     */
+    private static void notes(ShipPlan s, JAOCompat.Probe probe) {
+        s.notes.clear();
+        ShipVariantAPI v = s.plan;
+        int builtIn = v.getHullSpec().getBuiltInWings() == null ? 0 : v.getHullSpec().getBuiltInWings().size();
+        int empty = 0, bays = Global.getSettings().computeNumFighterBays(v);
+        for (int i = builtIn; i < bays; i++) if (JAOFleetApply.wingAt(v, i) == null) empty++;
+        String rule = empty > 0 ? JAOCompat.bayRule(v) : null;
+        if (rule != null) s.notes.add(rule + "; none in stock, so " + empty + (empty == 1 ? " bay stays" : " bays stay") + " empty");
+        List<String> bad = new ArrayList<>();
+        for (String id : probe.added) {
+            String n = (id + " " + JAOSMods.name(id)).toLowerCase(java.util.Locale.ROOT);
+            if (n.contains("error") || n.contains("warning") || n.contains("malfunction") || n.contains("penalty")) bad.add(id);
+        }
+        if (!bad.isEmpty()) s.notes.add("its scripts add " + JAOCompat.names(bad));
+        if (!probe.added.isEmpty() || !probe.wings.isEmpty()) Global.getLogger(JAOFleetPlan.class).info("Jonah's Auto Outfitting: " + s.name
+                + " plan: scripts fill bays " + probe.wings + ", add hullmods " + probe.added + (probe.removed.isEmpty() ? "" : ", remove " + probe.removed)
+                + (probe.over > 0 ? ", " + probe.over + " OP over (taken from flux)" : ""));
     }
 
     /** A ship that couldn't be planned keeps what it carries: those items leave the shared stock. */
@@ -317,7 +356,10 @@ final class JAOFleetPlan {
         }
     }
 
-    /** The weapons and wings a ship (or module) carries that a refit could take off: not built-in or mod-owned ones. */
+    /**
+     * The weapons and wings a ship (or module) carries that a refit could take off: not built-in or mod-owned ones, and
+     * not wings only scripts place (JAOCompat.boundWing: they stay in their bay).
+     */
     static void addMounted(ShipVariantAPI v, Map<String, Integer> w, Map<String, Integer> f) {
         java.util.Set<String> skip = JAORatings.skipSlots(v.getHullSpec().getHullId(), v.getHullSpec().getBaseHullId());
         for (String slot : v.getFittedWeaponSlots()) {
@@ -329,7 +371,7 @@ final class JAOFleetPlan {
         int bays = Global.getSettings().computeNumFighterBays(v);
         for (int i = builtIn; i < bays; i++) {
             String id = JAOFleetApply.wingAt(v, i);   // an empty bay reads "" in getWings()
-            if (id != null) f.merge(id, 1, Integer::sum);
+            if (id != null && !JAOCompat.boundWing(id)) f.merge(id, 1, Integer::sum);
         }
     }
 

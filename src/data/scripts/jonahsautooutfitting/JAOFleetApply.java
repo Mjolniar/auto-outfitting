@@ -204,10 +204,10 @@ final class JAOFleetApply {
         for (JAOFleetPlan.ShipPlan s : todo) {
             try {
                 ShipVariantAPI v = live(s.member, true);
-                missing += fit(v, s.plan, used);
+                missing += fit(v, s.plan, used, s.scripted);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
                     ShipVariantAPI mv = module(v, slot), mp = s.plan.getModuleVariant(slot);
-                    if (mv != null && mp != null) missing += fit(mv, mp, used);
+                    if (mv != null && mp != null) missing += fit(mv, mp, used, java.util.Collections.emptySet());
                 }
                 built += hullmods(v, s, ps);
                 v.setNumFluxVents(s.plan.getNumFluxVents());
@@ -216,7 +216,16 @@ final class JAOFleetApply {
                 v.setVariantDisplayName(s.plan.getDisplayName());
                 v.setSource(VariantSource.REFIT);
                 if (s.smods != null && s.smods.waiting) JAOSMods.waitedDays(s.member.getId(), true);
+                List<String> before = new ArrayList<>(v.getHullMods());
                 s.member.updateStats();
+                // the refresh ran the ship's hullmod scripts: bays they fill (Nimbus drones, 10 OP each on a Maquech) or
+                // costs they change can put it over its OP, and Trinity Worlds then adds Equipment Malfunction (-100% CR);
+                // flux comes off until it fits and the scripts look again
+                if (settle(v, s.member)) s.member.updateStats();
+                List<String> added = new ArrayList<>();
+                for (String id : v.getHullMods()) if (!before.contains(id)) added.add(id);
+                if (!added.isEmpty()) Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + s.name
+                        + "'s hullmod scripts added " + added);
                 done.add(s.member);
                 ships++;
                 Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
@@ -249,6 +258,7 @@ final class JAOFleetApply {
             JAORefl.call(refit, "saveCurrentVariant");
         }
         purgeBlankLpcs();
+        JAOCompat.purgeLpcs();
         // hullmods that need an item (the refit screen's own bookkeeping, as when it saves a ship): take what new ones
         // need, give back what removed ones held; it works from the difference, so a second report changes nothing
         for (FleetMemberAPI m : done) {
@@ -297,7 +307,11 @@ final class JAOFleetApply {
         return mv;
     }
 
-    /** Takes the choosable weapons and non-built-in wings off into fleet cargo (counted into off: "w:id" / "f:id"). */
+    /**
+     * Takes the choosable weapons and non-built-in wings off into fleet cargo (counted into off: "w:id" / "f:id"). Wings
+     * only scripts place stay in their bays (JAOCompat.boundWing): their mods delete them from cargo, and the plan keeps
+     * them where they are.
+     */
     private void strip(ShipVariantAPI v, Map<String, Integer> off) {
         Set<String> skip = JAORatings.skipSlots(v.getHullSpec().getHullId(), v.getHullSpec().getBaseHullId());
         for (String slot : new ArrayList<>(v.getFittedWeaponSlots())) {
@@ -312,7 +326,7 @@ final class JAOFleetApply {
         int bays = Global.getSettings().computeNumFighterBays(v);
         for (int i = builtIn; i < bays; i++) {
             String id = wingAt(v, i);
-            if (id == null) continue;
+            if (id == null || JAOCompat.boundWing(id)) continue;
             v.setWingId(i, null);
             cargo.addFighters(id, 1);
             off.merge("f:" + id, 1, Integer::sum);
@@ -359,8 +373,11 @@ final class JAOFleetApply {
         return n;
     }
 
-    /** Puts the plan's weapons and wings on v from cargo, then storage. Returns how many weren't found. */
-    private int fit(ShipVariantAPI v, ShipVariantAPI plan, Map<String, Integer> used) {
+    /**
+     * Puts the plan's weapons and wings on v from cargo, then storage. Bays the ship's scripts fill (scripted) are left
+     * to them. Returns how many weren't found.
+     */
+    private int fit(ShipVariantAPI v, ShipVariantAPI plan, Map<String, Integer> used, Set<Integer> scripted) {
         int missing = 0;
         Set<String> skip = JAORatings.skipSlots(v.getHullSpec().getHullId(), v.getHullSpec().getBaseHullId());
         for (WeaponSlotAPI slot : v.getHullSpec().getAllWeaponSlotsCopy()) {
@@ -377,7 +394,7 @@ final class JAOFleetApply {
         int bays = Global.getSettings().computeNumFighterBays(plan);
         for (int i = builtIn; i < bays; i++) {
             String id = wingAt(plan, i);
-            if (id == null || wingAt(v, i) != null) continue;
+            if (id == null || wingAt(v, i) != null || scripted.contains(i)) continue;
             if (cargo.getNumFighters(id) > 0) cargo.removeFighters(id, 1);
             else if (storage != null && storage.getNumFighters(id) > 0) storage.removeFighters(id, 1);
             else { missing++; continue; }
@@ -435,15 +452,21 @@ final class JAOFleetApply {
         return newS.size();
     }
 
-    /** Over the hull's OP (a weapon missing, a cost that changed): capacitors, then vents, come off until it fits. */
-    private static void settle(ShipVariantAPI v, FleetMemberAPI m) {
+    /**
+     * Over the hull's OP (a weapon missing, a cost that changed, a bay a script filled): capacitors, then vents, come off
+     * until it fits. Returns true if anything changed.
+     */
+    private static boolean settle(ShipVariantAPI v, FleetMemberAPI m) {
         MutableCharacterStatsAPI stats = Global.getSector().getPlayerStats();
         int op = v.getHullSpec().getOrdnancePoints(stats);
         int over = v.computeOPCost(stats) - op;
-        if (over <= 0) return;
+        if (over <= 0) return false;
         int c = Math.min(over, v.getNumFluxCapacitors());
         v.setNumFluxCapacitors(v.getNumFluxCapacitors() - c);
         over -= c;
         v.setNumFluxVents(Math.max(0, v.getNumFluxVents() - over));
+        Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + (m == null ? v.getHullVariantId() : m.getShipName())
+                + " was over its OP after refitting (scripts or changed costs); now vents " + v.getNumFluxVents() + ", caps " + v.getNumFluxCapacitors());
+        return true;
     }
 }

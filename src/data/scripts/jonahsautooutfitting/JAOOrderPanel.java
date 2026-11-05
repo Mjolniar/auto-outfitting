@@ -16,7 +16,7 @@ import java.util.List;
  * Drawn as an overlay from the refit screen button, or inside LunaLib's refit panel (JAORefitButton).
  */
 final class JAOOrderPanel extends JAOOverlayPanel {
-    static final float W = 900f, H = 580f;
+    static final float W = 900f, H = 640f, HEAD = 230f;
     final JAOFleetPlanner.Job job;   // null when planning couldn't start
     JAOFleetPlanner.Plan plan;
     ButtonAPI queue;
@@ -57,7 +57,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
     @Override
     void buildResult() {
         Color h = Misc.getHighlightColor(), g = Misc.getGrayColor(), bad = Misc.getNegativeHighlightColor();
-        TooltipMakerAPI head = element(W - 20f, 150f, false, 10f, 10f);
+        TooltipMakerAPI head = element(W - 20f, HEAD, false, 10f, 10f);
         head.addSectionHeading(title(), Alignment.MID, 0f);
         if (plan == null) {
             head.addPara("Couldn't plan the fleet order (see starsector.log).", 6f, bad);
@@ -83,6 +83,19 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             if (plan.aotd) {
                 head.addPara("Production: Ashes of the Domain (Colonies, Custom production). Each unit is paid when it's finished, "
                         + "and AoTD needs its resources delivered.", 4f, g);
+                if (!plan.resources.isEmpty()) {
+                    // AoTD's order takes these from your colonies' exports every month; a good no colony makes stalls it
+                    List<String> none = JAOProduction.unmade(plan.resources);
+                    head.addPara(esc("It takes from your colonies: " + JAOProduction.describe(plan.resources) + "."), 4f, none.isEmpty() ? g : h);
+                    if (!none.isEmpty()) {
+                        boolean cm = JAOProduction.colonyManagerSupplies();
+                        List<String> names = new java.util.ArrayList<>();
+                        for (String c : none) names.add(JAOProduction.commodityName(c));
+                        head.addPara(esc(cm ? "No colony makes " + Misc.getAndJoined(names) + " yet: Colony Manager plans a producer for it "
+                                + "(Special project supply, under Items and AI cores), and those items wait until it runs."
+                                : "Those items wait until a colony makes " + Misc.getAndJoined(names) + "."), 4f, cm ? g : bad);
+                    }
+                }
             } else if (plan.monthlyCapacity <= 0) {
                 head.addPara("You have no custom production capacity: you need a colony with Heavy Industry or Orbital Works.", 4f, bad);
             } else if (plan.totalCost > 0) {
@@ -96,10 +109,12 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             if (plan.skippedCivilian > 0) notes.append(plan.skippedCivilian).append(" civilian ships skipped (logistics fit). ");
             if (plan.failed > 0) notes.append(plan.failed).append(" ships couldn't be planned (see starsector.log). ");
             if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
+            for (int i = 0; i < plan.notes.size() && i < 2; i++) head.addPara(esc(plan.notes.get(i) + "."), 4f, g);
+            if (plan.notes.size() > 2) head.addPara((plan.notes.size() - 2) + " more ship notes in starsector.log.", 4f, g);
         }
 
         if (plan != null) {
-            TooltipMakerAPI list = element(W - 20f, H - 230f, true, 10f, 170f);
+            TooltipMakerAPI list = element(W - 20f, H - HEAD - 80f, true, 10f, HEAD + 20f);
             Color text = Global.getSettings().getColor("standardTextColor");
             List<JAOFleetPlanner.Line> all = new java.util.ArrayList<>(plan.lines);
             all.addAll(plan.moved);

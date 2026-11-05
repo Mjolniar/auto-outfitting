@@ -240,7 +240,10 @@ final class JAOSearch {
             Slot bestSlot = null;
             Cand bestCand = null;
             for (String m : modCands) {
-                if (mods.contains(m) || world.modOp(m) > left || !world.canAdd(m, mods)) continue;
+                // a hullmod that costs nothing spends nothing: as "leftover" spending it was chosen for being harmless,
+                // which put Yunru's zero-OP "Install:" converters on 13 ships (user 11/05); free hullmods that help come
+                // in through addMods
+                if (mods.contains(m) || world.modOp(m) <= 0 || world.modOp(m) > left || !world.canAdd(m, mods)) continue;
                 mods.add(m);
                 float v = objective();
                 mods.remove(m);
@@ -248,7 +251,7 @@ final class JAOSearch {
             }
             // fleet hullmods score the same as nothing here, so they only win when nothing above is neutral or better
             for (String m : fleetMods) {
-                if (mods.contains(m) || world.modOp(m) > left || !world.canAdd(m, mods)) continue;
+                if (mods.contains(m) || world.modOp(m) <= 0 || world.modOp(m) > left || !world.canAdd(m, mods)) continue;
                 mods.add(m);
                 float v = objective();
                 mods.remove(m);

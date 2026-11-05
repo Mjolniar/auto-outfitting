@@ -25,6 +25,7 @@ public class JAOModPlugin extends BaseModPlugin {
         JAOGoals.removeAll();
         JAORatings.reset();
         JAOFleetApply.purgeBlankLpcs();
+        JAOCompat.purgeLpcs();
         Global.getSector().registerPlugin(new JAOCampaignPlugin());
         Global.getSector().addTransientScript(new JAOCleanup());
         Global.getSector().addTransientScript(new JAOScreenButton());
@@ -45,5 +46,6 @@ public class JAOModPlugin extends BaseModPlugin {
     public void beforeGameSave() {
         JAOGoals.removeAll();
         JAOFleetApply.purgeBlankLpcs();
+        JAOCompat.purgeLpcs();
     }
 }

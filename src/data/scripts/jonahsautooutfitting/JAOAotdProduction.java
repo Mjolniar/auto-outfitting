@@ -62,6 +62,39 @@ final class JAOAotdProduction {
         return d.getId();
     }
 
+    /**
+     * What AoTD's production takes from your colonies for these items, commodity id -> units: Heavy Armaments for every
+     * weapon and LPC, Ships for LPCs, Electronic Components for most manufacturers' items (AoTDProductionSpec). Special
+     * items (AI cores and the like) are left out: AoTD takes those from cargo when the order starts.
+     */
+    static Map<String, Integer> resources(Map<String, Integer> weapons, Map<String, Integer> wings) {
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        for (int pass = 0; pass < 2; pass++) {
+            boolean wing = pass == 1;
+            for (Map.Entry<String, Integer> e : (wing ? wings : weapons).entrySet()) {
+                AoTDProductionSpec s = spec(wing, e.getKey());
+                if (s == null || e.getValue() == null || e.getValue() <= 0) continue;
+                for (Map.Entry<String, Integer> r : s.getMapOfResourcesNeeded().entrySet()) {
+                    if (r.getValue() == null || r.getValue() <= 0 || AoTDProductionOrderSnapshot.isItemSpecial(r.getKey())) continue;
+                    out.merge(r.getKey(), r.getValue() * e.getValue(), Integer::sum);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** What every AoTD production order (this mod's and AoTD's own screen's) still waits to have delivered. */
+    static Map<String, Integer> outstanding() {
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        for (AoTDProductionOrderSnapshot snap : AoTDProductionManager.getInstance().getCurrentSnapshots()) {
+            for (Map.Entry<String, Integer> e : snap.getReqResources().entrySet()) {
+                if (e.getValue() == null || e.getValue() <= 0 || AoTDProductionOrderSnapshot.isItemSpecial(e.getKey())) continue;
+                out.merge(e.getKey(), e.getValue(), Integer::sum);
+            }
+        }
+        return out;
+    }
+
     /** One AoTD order for these (wing?, id) -> count items. Returns the units ordered (0: nothing placed). */
     static int order(Map<String, Integer> weapons, Map<String, Integer> wings) {
         AoTDProductionOrderSnapshot snap = new AoTDProductionOrderSnapshot();

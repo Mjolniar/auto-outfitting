@@ -204,7 +204,7 @@ final class JAOSMods {
     static boolean buildable(String id) {
         HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
         if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag(Tags.HULLMOD_NO_BUILD_IN) || spec.hasTag("dmod")) return false;
-        if (JAORatings.ruleMatches("never_add", id)) return false;
+        if (JAOCompat.neverAdd(id)) return false;
         JSONObject row = JAORatings.hullmods().get(id);
         if (row != null && !"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE"))) return false;
         // s-mods whose s-mod effect is a penalty (Heavy Armor maneuver -25%, Expanded Missile Racks missile rate of

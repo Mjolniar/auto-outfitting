@@ -173,6 +173,8 @@ final class JAOShip implements JAOSearch.World {
         if (work.hasHullMod("valk_valhallacore")) { s.fluxSoft = Math.max(s.fluxSoft, 1.45f); s.fluxLimit = Math.max(s.fluxLimit, 1.75f); }
         if (s.noVent) s.fluxLimit = Math.max(s.fluxLimit, 1.75f);
         s.noAutoEscort = hull.getHints().contains(ShipHullSpecAPI.ShipTypeHints.NO_AUTO_ESCORT);
+        // Seeker's nano-plague: free on its own plague hulls, a third off with Hardened Subsystems (JAOCompat)
+        s.plagueMult = JAOCompat.plagueMult(work);
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;

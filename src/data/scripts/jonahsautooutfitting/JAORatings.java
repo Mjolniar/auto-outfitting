@@ -124,6 +124,7 @@ public class JAORatings {
         for (String t : new String[]{"restricted", "omega", "threat", "dweller"}) if (spec.hasTag(t)) r = 1f;
         w.rarity = Math.min(1f, r);
         w.interference = interference(w.id);
+        w.crCost = JAOCompat.plagueCost(w.id);
         applyEffects(w);
         return w;
     }
@@ -224,6 +225,7 @@ public class JAORatings {
         w.pd = w.interceptor;
         w.wingPd = w.interceptor ? 0f : r.pdShare;
         w.rarity = Math.min(1f, Math.max(Math.max(0f, 1f - Math.min(1f, spec.getRarity())), spec.getTier() / 3f));
+        w.crCost = JAOCompat.plagueCost(w.id);
         return w;
     }
 
@@ -277,6 +279,9 @@ public class JAORatings {
             }
         }
         try { float o = spec.getOpCost(null); if (o > 0f) r.op = o; } catch (Throwable ignored) { }
+        // a 1000-OP gate (Seeker's plague LPCs cost 1008-1012 and their hulls take 1000 off): rated at the OP past it,
+        // or the wing's value would dwarf everything on the ship
+        if (r.op >= 1000f) r.op = Math.max(1f, r.op % 1000f);
         r.dmg = parts.dmg;
         r.hit = parts.hit();
         r.pdShare = parts.pdShare();
@@ -461,13 +466,16 @@ public class JAORatings {
         return rules;
     }
 
-    /** jao_rules interference rows: WEAK / MILD / STRONG = 20 / 40 / 80 dissipation per other interference weapon. */
+    /**
+     * jao_rules interference rows: WEAK / MILD / STRONG = 20 / 40 / 80 dissipation per other interference weapon; any
+     * other weapon a mod lists in MagicLib's modSettings (JAOCompat) too.
+     */
     static float interference(String weaponId) {
         for (String[] r : rules()) {
             if (!r[0].equals("interference") || !glob(r[1], weaponId)) continue;
             return "STRONG".equalsIgnoreCase(r[2]) ? 80f : "MILD".equalsIgnoreCase(r[2]) ? 40f : 20f;
         }
-        return 0f;
+        return JAOCompat.interference(weaponId);
     }
 
     /** jao_rules "role" override for a hull (id or pattern; the base hull counts too). */
