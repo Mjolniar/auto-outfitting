@@ -158,17 +158,19 @@ final class JAOSearch {
     /**
      * Slot-size-weighted share (small 1, medium 2, large 4) of choosable mounts left empty or under-used: a weapon
      * uses its mount by its OP against MOUNT_OP (a small machine gun in a medium mount, or a mining laser in a small
-     * one, leaves most of it unused). Players see those as empty, and so do fights.
+     * one, leaves most of it unused). Players see those as empty, and so do fights. A fighter bay weighs as a large
+     * mount (user 11/05: Optimize fleet left whole Legions without fighters once the fleet's role balance cut a
+     * surplus role's wings to 40% of their value; an empty bay had cost nothing).
      */
     float emptyShare() {
         float all = 0f, empty = 0f;
         for (Slot s : slots) {
-            if (s.fixed != null || s.bay || s.cands.isEmpty()) continue;
-            int sz = Math.max(0, Math.min(2, s.size));
+            if (s.fixed != null || s.cands.isEmpty()) continue;
+            int sz = s.bay ? 2 : Math.max(0, Math.min(2, s.size));
             float w = sz == 0 ? 1f : sz == 1 ? 2f : 4f;
             all += w;
             if (s.pick == null) empty += w;
-            else empty += w * (1f - Math.min(1f, world.baseOp(s.pick) / MOUNT_OP[sz]));
+            else if (!s.bay) empty += w * (1f - Math.min(1f, world.baseOp(s.pick) / MOUNT_OP[sz]));
         }
         return all <= 0f ? 0f : empty / all;
     }

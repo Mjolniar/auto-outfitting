@@ -18,11 +18,13 @@ import java.util.List;
 final class JAOFleetPanel extends JAOOverlayPanel {
     static final float W = 900f, H = 600f;
     final JAOFleetApply job;   // null when planning couldn't start
+    /** Opens Fleet analysis (null: no button). */
+    final Runnable analysis;
     boolean failed;
     ButtonAPI apply;
     TooltipMakerAPI status;
 
-    JAOFleetPanel(JAOFleetApply job, Runnable close, boolean overlay) { super(close, overlay); this.job = job; }
+    JAOFleetPanel(JAOFleetApply job, Runnable close, Runnable analysis, boolean overlay) { super(close, overlay); this.job = job; this.analysis = analysis; }
 
     static JAOFleetApply start(Object refit) {
         try {
@@ -100,12 +102,18 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         apply.setEnabled(job.changedShips > 0);
         ButtonAPI c = buttons.addButton("Close", "close", 140f, 30f, 0f);
         c.getPosition().rightOfTop(apply, 10f);
+        if (analysis != null) {
+            ButtonAPI a = buttons.addButton("Fleet analysis", "analysis", 160f, 30f, 0f);
+            a.getPosition().rightOfTop(c, 10f);
+        }
     }
 
     @Override
     public void buttonPressed(Object id) {
         if ("close".equals(id)) {
             close.run();
+        } else if ("analysis".equals(id) && analysis != null) {
+            analysis.run();
         } else if ("apply".equals(id) && apply != null && apply.isEnabled() && job != null) {
             apply.setEnabled(false);
             String msg;

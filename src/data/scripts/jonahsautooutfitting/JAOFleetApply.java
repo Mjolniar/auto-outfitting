@@ -113,7 +113,7 @@ final class JAOFleetApply {
                 ShipVariantAPI a = now.getModuleVariant(slot), b = s.plan.getModuleVariant(slot);
                 if (a != null && b != null) c.weapons += diffWeapons(a, b);
             }
-            int bays = Math.max(now.getWings() == null ? 0 : now.getWings().size(), s.plan.getWings() == null ? 0 : s.plan.getWings().size());
+            int bays = Math.max(Global.getSettings().computeNumFighterBays(now), Global.getSettings().computeNumFighterBays(s.plan));
             for (int i = 0; i < bays; i++) if (!same(wingAt(now, i), wingAt(s.plan, i))) c.wings++;
             Set<String> a = new LinkedHashSet<>(now.getNonBuiltInHullmods()), b = new LinkedHashSet<>(s.plan.getNonBuiltInHullmods());
             for (String id : b) if (!a.contains(id)) (s.plan.getSMods().contains(id) ? c.smods : c.added).add(JAOSMods.name(id));
@@ -219,6 +219,11 @@ final class JAOFleetApply {
                 s.member.updateStats();
                 done.add(s.member);
                 ships++;
+                Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
+                        + emptyMounts(v) + " empty mounts, " + emptyBays(v) + " empty bays, wings " + fittedWings(v) + ", hullmods "
+                        + v.getNonBuiltInHullmods() + ", s-mods " + v.getSMods() + ", vents " + v.getNumFluxVents() + ", caps "
+                        + v.getNumFluxCapacitors() + ", OP " + v.computeOPCost(Global.getSector().getPlayerStats()) + "/"
+                        + v.getHullSpec().getOrdnancePoints(Global.getSector().getPlayerStats()));
             } catch (Throwable t) {
                 Global.getLogger(JAOFleetApply.class).error("Jonah's Auto Outfitting: Optimize fleet couldn't finish " + s.name, t);
             }
@@ -229,6 +234,7 @@ final class JAOFleetApply {
             for (Map.Entry<String, Integer> e : off.entrySet()) {
                 String key = e.getKey(), id = key.substring(2);
                 boolean wing = key.startsWith("f:");
+                if (id.trim().isEmpty()) continue;
                 int spare = Math.min(e.getValue() - used.getOrDefault(key, 0), wing ? cargo.getNumFighters(id) : cargo.getNumWeapons(id));
                 if (spare <= 0) continue;
                 if (wing) { cargo.removeFighters(id, spare); storage.addFighters(id, spare); }
@@ -242,6 +248,7 @@ final class JAOFleetApply {
             JAORefl.call(refit, "syncWithCurrentVariant");
             JAORefl.call(refit, "saveCurrentVariant");
         }
+        purgeBlankLpcs();
         // hullmods that need an item (the refit screen's own bookkeeping, as when it saves a ship): take what new ones
         // need, give back what removed ones held; it works from the difference, so a second report changes nothing
         for (FleetMemberAPI m : done) {
@@ -256,6 +263,25 @@ final class JAOFleetApply {
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");
         Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + msg + "; fleet " + before.describe() + " -> " + fleet.mix().describe());
         return msg;
+    }
+
+    static int emptyMounts(ShipVariantAPI v) {
+        int n = 0;
+        Set<String> skip = JAORatings.skipSlots(v.getHullSpec().getHullId(), v.getHullSpec().getBaseHullId());
+        for (WeaponSlotAPI s : v.getHullSpec().getAllWeaponSlotsCopy()) if (JAOOptimizer.mountable(s) && !skip.contains(s.getId()) && v.getWeaponId(s.getId()) == null) n++;
+        return n;
+    }
+
+    static int emptyBays(ShipVariantAPI v) {
+        int n = 0, builtIn = v.getHullSpec().getBuiltInWings() == null ? 0 : v.getHullSpec().getBuiltInWings().size();
+        for (int i = builtIn; i < Global.getSettings().computeNumFighterBays(v); i++) if (wingAt(v, i) == null) n++;
+        return n;
+    }
+
+    static List<String> fittedWings(ShipVariantAPI v) {
+        List<String> out = new ArrayList<>();
+        for (int i = 0; i < Global.getSettings().computeNumFighterBays(v); i++) { String id = wingAt(v, i); if (id != null) out.add(id); }
+        return out;
     }
 
     /** A module variant safe to change: a shared stock one is copied into the ship first. */
@@ -277,15 +303,15 @@ final class JAOFleetApply {
         for (String slot : new ArrayList<>(v.getFittedWeaponSlots())) {
             WeaponSlotAPI s = v.getSlot(slot);
             String id = v.getWeaponId(slot);
-            if (s == null || id == null || !JAOOptimizer.mountable(s) || skip.contains(slot)) continue;
+            if (s == null || id == null || id.isEmpty() || !JAOOptimizer.mountable(s) || skip.contains(slot)) continue;
             v.clearSlot(slot);
             cargo.addWeapons(id, 1);
             off.merge("w:" + id, 1, Integer::sum);
         }
         int builtIn = v.getHullSpec().getBuiltInWings() == null ? 0 : v.getHullSpec().getBuiltInWings().size();
-        List<String> wings = new ArrayList<>(v.getWings() == null ? new ArrayList<>() : v.getWings());
-        for (int i = builtIn; i < wings.size(); i++) {
-            String id = wings.get(i);
+        int bays = Global.getSettings().computeNumFighterBays(v);
+        for (int i = builtIn; i < bays; i++) {
+            String id = wingAt(v, i);
             if (id == null) continue;
             v.setWingId(i, null);
             cargo.addFighters(id, 1);
@@ -293,10 +319,44 @@ final class JAOFleetApply {
         }
     }
 
-    /** The wing in bay i, or null (past the end of the list too). */
-    private static String wingAt(ShipVariantAPI v, int i) {
-        List<String> w = v.getWings();
-        return w == null || i < 0 || i >= w.size() ? null : w.get(i);
+    /**
+     * The wing in bay i, or null. The game marks an empty bay with "" in getWings() (setWingId(i, null) stores ""), so
+     * the list itself can't be read as id-or-null: 0.5.0 took every empty bay for a full one and skipped all planned
+     * wings, and stripped "" into cargo as a blank LPC.
+     */
+    static String wingAt(ShipVariantAPI v, int i) {
+        String id;
+        try { id = v.getWingId(i); } catch (Throwable t) { return null; }
+        return id == null || id.isEmpty() ? null : id;
+    }
+
+    /**
+     * Removes LPC stacks with a blank id from fleet cargo and every storage: 0.5.0's Optimize fleet put one there for
+     * every empty fighter bay it stripped (see wingAt). Run on load and after each Optimize fleet. Returns how many.
+     */
+    static int purgeBlankLpcs() {
+        int n = 0;
+        try {
+            n += purge(Global.getSector().getPlayerFleet().getCargo());
+            for (MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
+                CargoAPI c = Misc.getStorageCargo(m);
+                if (c != null) n += purge(c);
+            }
+        } catch (Throwable t) {
+            Global.getLogger(JAOFleetApply.class).warn("Jonah's Auto Outfitting: couldn't check for blank LPCs", t);
+        }
+        if (n > 0) Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: removed " + n + " blank LPCs (left by 0.5.0's Optimize fleet)");
+        return n;
+    }
+
+    private static int purge(CargoAPI c) {
+        int n = 0;
+        for (CargoAPI.CargoItemQuantity<String> q : c.getFighters()) {
+            if (q.getItem() != null && !q.getItem().trim().isEmpty()) continue;
+            n += q.getCount();
+            c.removeFighters(q.getItem(), q.getCount());
+        }
+        return n;
     }
 
     /** Puts the plan's weapons and wings on v from cargo, then storage. Returns how many weren't found. */

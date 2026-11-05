@@ -615,6 +615,16 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 
 **Not verified in game:** speed of a full first pass on the user's 44 ships (the offline plan takes about 2 s; the game's per-ship fit is slower), and the refit-screen sync of the shown ship.
 
+**0.5.1, after the first in-game run (11/05).**
+- **The run.** It refitted 41 ships, but the Legions and the Corrupting Heart got no fighters: the Heart showed 230/340 OP and 5 empty bays.
+- **Cause.** `HullVariantSpec.setWingId(i, null)` stores "" and `getWings()` returns the raw list, so every empty bay read as full. The apply step skipped every planned wing and stripped each "" into cargo as a blank LPC, then moved those to storage.
+- **Fixes.**
+  - `JAOFleetApply.wingAt` reads `getWingId` with "" as empty, and everything iterates `computeNumFighterBays`.
+  - `purgeBlankLpcs()` cleans cargo and all storages on load, before each save and after each apply.
+  - Empty fighter bays now count in `JAOSearch.emptyShare` as large mounts. The strong role pull could otherwise price a surplus role's wing under its OP.
+  - Each applied ship logs its empty mounts and bays, wings, hullmods, vents/caps and OP.
+- **Button layout.** Optimize fleet couldn't go in the next column (taken on the user's screen) and ended up only inside Fleet analysis. It now sits in the stack under Order fleet weapons; Fleet analysis takes the next free spot, and the Optimize panel links to it.
+
 ## 8. Hullmods
 
 R: `hullmods_vanilla.json` (129 vanilla, effect numbers with file:line), `hullmods_work\report_preview.txt` (the report; a hook stopped the agent writing the .md), `hullmods_mods.json` + `modded_report.txt`.
