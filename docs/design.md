@@ -568,6 +568,53 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 
 **Fleet analysis.** It flags carriers that mix interceptors with bombers.
 
+## 7k. The fleet plan, 0.5.0 (user, 11/05)
+
+**Reports.**
+- "Every time I run Optimal across the entire fleet, we still come up without a good balance on anti-shields", and a poor balance in fighter bays.
+- Asked for a button that optimizes the whole fleet, every ship with every s-mod, item and weapon, one by one.
+- Order fleet weapons ordered different weapons after a few ships were re-fitted. The user's suggestion: order everything the fleet could use and let it sit in storage.
+
+**What was found** (`research/fleet_diag_1105`, the 11/05 save; `jtbuild/JAOFleetSim.java`, run with `ao_bench.ps1 -Fleet`):
+- **Firepower.** 54% fragmentation, 16% kinetic. Industrial Evolution's Cryo Artillery alone was 36% of fleet firepower (33 mounted). It deals 1000 fragmentation damage per second at 16 OP: a quarter of that hits shields and armor, all of it hits hull.
+- **Hull-heavy model.** The model puts 50–70% of a kill's time on the hull, so hull damage looks best per OP. A gentle shield weight changed almost nothing: on the simulated fleet, anti-shield moved 43% → 44% at pull 2.5 / lean 1.6, 46% at 10 / 3, and 50% at 20 / 5, which swung between passes. The ships' own scores barely moved.
+- **Fighters.** All carriers took bombers: 24 of 33 bays. Value grows with OP, so a 26-OP bomber is worth three 8-OP fighters per bay, and the role pull (0.8, 0.6–1.3) was too weak to offset that.
+- **Order variance.** The planner kept each ship's current hullmods, balanced against the fleet as it stood, and replanned ships over the budget with owned stock only. Every re-fit changed the next order.
+- **Counting.** Anti-shield counted kinetic only, so energy fleets always read as short.
+
+**Changes.**
+- **`JAOFleetMix`** (pure; used by the plan, the analysis and the bench):
+  - anti-shield = shield damage per point of damage, kinetic 1. Beams count fully: the user notes their steady pressure suits the AI, which can't time a player's quick flux-out;
+  - armor-cracking = hit × armor multiplier of at least 300;
+  - targets 50% / 30%;
+  - `PULL` 10 with lean 0.6–3 on the shield and armor kill weights;
+  - wing pull 3 with factor 0.4–1.6. The simulated fleet's bays went from 4/22/0/8 to 9/15/1/9, about two bombers and a fighter or support wing per Legion.
+- **`JAOFleetPlan`**, the engine behind both buttons:
+  - combat ships biggest first from one shared stock;
+  - pass 1 is a full fit (hullmods and, for Optimize, s-mods), balanced against the ships planned so far;
+  - passes 2–3 re-pick weapons and wings with all the others in view. A ship keeps its plan unless the new one beats it by `KEEP` (1%), judged by `JAOOptimizer.scoreAsIs` under the same params. Without that rule, 30 of 44 ships flipped every pass; with it, 8 then 2 then 0;
+  - every ship is planned from bare, so the plan doesn't depend on what's fitted;
+  - story points are shared across the fleet;
+  - it runs in frame slices with a progress line.
+- **Hullmod checks off screen: `JAOCheckShip`.** It stands in for a ShipAPI, built on `JAOStubShip`, `JAOStubShield` and `JAOStubSystem`, which `jtbuild/gen_stubs.py` generates from the installed API. It answers from the planned variant: hull size, shield (none with Shield Shunt), phase cloak, system, stats and member.
+  - The refit screen's own ship can't stand in for another hull. Vanilla's shield hullmods read `getShield()`, and Safety Overrides and Dedicated Targeting Core read `getHullSize()`, both of which come from the displayed ship.
+  - For Optimize fleet, `PlanDelegate` applies the refit rules where you're docked: `canBeAddedOrRemovedNow` with the docked market and trade mode.
+- **Optimize fleet** (`JAOFleetApply`, `JAOFleetPanel`):
+  - stock is the planned ships' weapons, fleet cargo and the docked market's storage;
+  - it shows each ship's changes first;
+  - Apply strips the changing ships into cargo, fits each plan from cargo then storage, sets hullmods (the s-mods are built in through the game's story point path), vents and capacitors (trimmed if over OP), weapon groups and the variant name, then moves unused items to storage;
+  - shared stock variants and modules are copied first;
+  - the ship shown on the refit screen is changed through its working copy (`getShipDisplay().getCurrentVariant()`), then `syncWithCurrentVariant()` and `saveCurrentVariant()`.
+- **Order fleet weapons** (`JAOFleetPlanner.Job`):
+  - stock is owned items plus unlimited blueprints;
+  - the order is everything the plan takes from blueprints;
+  - the budget only decides how much is queued now (whole ships, biggest first); "N more items next time" is shown;
+  - what's on order counts as owned, so the next press orders only what's missing.
+- **Fleet analysis** uses the same mix and has an Optimize fleet button.
+- **Refit screen.** Optimize fleet goes beside the existing stack, in the next column, when that spot is free.
+
+**Not verified in game:** speed of a full first pass on the user's 44 ships (the offline plan takes about 2 s; the game's per-ship fit is slower), and the refit-screen sync of the shown ship.
+
 ## 8. Hullmods
 
 R: `hullmods_vanilla.json` (129 vanilla, effect numbers with file:line), `hullmods_work\report_preview.txt` (the report; a hook stopped the agent writing the .md), `hullmods_mods.json` + `modded_report.txt`.

@@ -33,7 +33,7 @@ public class JAORefitButton extends BaseRefitButton {
 
     @Override
     public void addTooltip(TooltipMakerAPI tooltip, FleetMemberAPI member, ShipVariantAPI variant, MarketAPI market) {
-        tooltip.addPara("Plans the Optimal fit of every ship in your fleet as if every weapon and fighter blueprint you know "
+        tooltip.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
                 + "were in stock, and lists what custom production would have to build. Nothing is ordered until you press "
                 + "Queue all.", 0f);
         tooltip.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
@@ -51,7 +51,7 @@ public class JAORefitButton extends BaseRefitButton {
 
     @Override
     public void initPanel(CustomPanelAPI background, FleetMemberAPI member, ShipVariantAPI variant, MarketAPI market) {
-        JAOOrderPanel p = new JAOOrderPanel(JAOOrderPanel.planNow(), this::closePanel, false);
+        JAOOrderPanel p = new JAOOrderPanel(JAOOrderPanel.start(), this::closePanel, false);
         CustomPanelAPI inner = Global.getSettings().createCustom(JAOOrderPanel.W, JAOOrderPanel.H, p);
         background.addComponent(inner).inTL(0f, 0f);
         p.build(inner);
