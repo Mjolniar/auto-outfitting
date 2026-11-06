@@ -191,6 +191,8 @@ final class JAOModel {
         float interference;
         /** Seeker's nano-plague: % of max CR one fitted copy costs (3/6/12), scaled by the ship's plagueMult. */
         float crCost;
+        /** Finite ammo: damage per second while it has ammo (0 = unknown); a fight gets no more of the pool than this x its length. */
+        float poolRate;
         boolean ownedOnly;
     }
 
@@ -382,6 +384,10 @@ final class JAOModel {
             x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f);
             // a slower missile rate (Expanded Missile Racks' s-mod penalty) delivers less of the pool within a fight
             if (w.cls == MIS && !w.wing) x.pool *= Math.min(1f, rof);
+            // a launcher can't fire faster than its rate: in a fight it delivers at most rate x fight length, however deep
+            // the magazine (0.5.6: a CFT Twin Rocket holds 100 s of fire, and Expanded Missile Racks doubled what the 90-s
+            // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
+            if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * Math.max(10f, p.fightSeconds));
             x.range = range(w, s);
             x.front = fits.get(i).front;
             e[i] = x;

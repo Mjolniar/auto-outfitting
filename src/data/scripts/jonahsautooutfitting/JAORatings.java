@@ -105,7 +105,11 @@ public class JAORatings {
                 // never above the real fire rate (some guns regenerate ammo faster than they can shoot)
                 w.dps = finite ? 0f : d.getDps() > 0f ? Math.min(d.getSustainedDps(), d.getDps()) : d.getSustainedDps();
                 w.flux = finite ? 0f : w.dps * d.getFluxPerDam();
-                if (finite) w.pool = (barrels > 1 ? projDmg : perShot) * Math.max(1, spec.getMaxAmmo());
+                if (finite) {
+                    w.pool = (barrels > 1 ? projDmg : perShot) * Math.max(1, spec.getMaxAmmo());
+                    // how fast it fires while it has ammo: a fight gets at most this much of the pool per second
+                    w.poolRate = Math.max(0f, d.getDps());
+                }
             }
             w.burst = d.getBurstDamage();
             w.emp = d.getEmpPerSecond();
