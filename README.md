@@ -81,6 +81,8 @@ Some mods change a ship's loadout from their own scripts. The Optimal fit and th
 - **Trinity Worlds** ships only fly their Nimbus drones. The carriers with an Enhanced Control Node (the Maquech) fly anything, but an empty bay gets Nimbus drones at 10 OP each, and the plan counts that.
 - **Wings you can't buy or drop** (Nimbus drones, Emergent Threats kites and Terminators, Arma bits) stay in the bay they're in. They're never taken off, moved to another ship or picked from cargo.
 - **Hullmods that convert a ship** are never added: Yunru's "Install:" hullmods turn into permanent hullmods or use up AI cores and lobsters once the ship is shown. A free hullmod only goes on when it helps.
+- **Joke and built-in parts** stay out: Yunru's "Let's Bayblade!" (turn rate x50 on any ship) is never added, and weapons priced at 0 OP (some hull's built-in gun or a fighter's) never go in ordinary mounts. Extra speed and handling only count up to half again the speed and twice the handling.
+- **Inverted Reverse Thrusters** (Yunru) roughly doubles speed but the ship can't fly backwards, so it counts as a hullmod with a drawback: only with "Allow hullmods with drawbacks" on.
 - Before any planned ship is refitted, its hullmods' scripts run once on a copy. Drones they add go into the plan, and the OP they take comes out of vents and capacitors.
 
 The rules live in `data/config/jao_rules.csv`.

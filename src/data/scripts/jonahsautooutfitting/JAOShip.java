@@ -306,8 +306,12 @@ final class JAOShip implements JAOSearch.World {
     /** Hullmods turned down for a drawback (with "Allow hullmods with drawbacks" off), with the stat that got worse. */
     final Map<String, String> drawbacks = new java.util.LinkedHashMap<>();
 
-    /** Listener hullmods whose drawback the scratch fleet member can't see. */
-    static final Map<String, String> KNOWN_DRAWBACKS = Map.of("high_scatter_amp", "beam range above 200 halved");
+    /**
+     * Hullmods whose drawback the scratch fleet member can't see. Yunru's Inverted Reverse Thrusters roughly doubles speed,
+     * acceleration and turning but the ship can no longer fly backwards (the AI can't back off to vent), 0.5.6.
+     */
+    static final Map<String, String> KNOWN_DRAWBACKS = Map.of("high_scatter_amp", "beam range above 200 halved",
+            "yunru_irt", "can't fly backwards");
 
     static final String[] STAT_NAMES = {"hull", "armor", "flux capacity", "flux dissipation", "top speed", "acceleration",
             "turn rate", "ballistic range", "energy range", "missile range", "beam range", "range past a threshold",

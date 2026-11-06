@@ -454,6 +454,9 @@ class JAOOptimizer {
                     AvailableWeapon w = weapons.get(i);
                     WeaponSpecAPI spec = w.getSpec();
                     if (spec == null || w.getQuantity() <= 0 || !s.weaponFits(spec) || spec.getAIHints().contains(AIHints.SYSTEM)) continue;
+                    // a weapon priced at 0 OP is some hull's built-in or a fighter's gun (IX cutting beam, Yunru strobe):
+                    // free in an ordinary mount it beat every real weapon (0.5.6, the all-weapons run)
+                    if (spec.getOrdnancePointCost(null) <= 0f) continue;
                     JAOModel.W m = JAORatings.weapon(spec);
                     // restricted weapons aren't bought from markets; a known blueprint can still build them
                     if (m.ownedOnly && w.getPrice() > 0f && !planning) continue;

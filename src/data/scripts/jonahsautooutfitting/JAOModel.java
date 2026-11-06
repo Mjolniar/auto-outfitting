@@ -24,6 +24,8 @@ final class JAOModel {
     static final float OFFENSE_W = 0.6f;
     /** Speed counts for every role at least this much (exponent on speed against the hull's own). */
     static final float MIN_MOBILITY = 0.1f;
+    /** Top speed and handling against the hull's own count up to these (more than that buys nothing in a fight). */
+    static final float SPEED_CAP = 1.5f, MANEUVER_CAP = 2f;
     /** How much of a poor shot's damage still lands on a frigate / destroyer / cruiser / capital. */
     static final float[] SIZE_HIT = {0.45f, 0.7f, 0.88f, 1f};
     /**
@@ -602,8 +604,10 @@ final class JAOModel {
         // speed and handling against the hull's own: every ship has to reach the fight and turn its guns (big ships
         // that arrive late lose battles), frigates live on it; so hullmods and s-mod penalties that slow a ship cost
         float mw = Math.max(MIN_MOBILITY, p.mobilityW);
-        float mobility = (s.baseSpeed > 0f ? (float) Math.pow(Math.max(0.2f, s.speed / s.baseSpeed), mw) : 1f)
-                * (float) Math.pow(Math.max(0.2f, s.maneuver), 0.5f * mw + 0.04f);
+        // capped (0.5.6): Yunru's joke "Let's Bayblade!" multiplies turn rate by 50 and was worth more than any gun, so it
+        // went on every ship once all hullmods were known; past half again the speed or twice the handling, more is no use
+        float mobility = (s.baseSpeed > 0f ? (float) Math.pow(clamp(s.speed / s.baseSpeed, 0.2f, SPEED_CAP), mw) : 1f)
+                * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), 0.5f * mw + 0.04f);
         // Seeker's nano-plague: each plague weapon or LPC on a hull it harms takes 3/6/12 points of max CR, which costs
         // the ship its later engagements and its malfunction margin (plagueFactor)
         float plague = 0f;
