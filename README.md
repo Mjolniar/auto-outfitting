@@ -50,7 +50,7 @@ It lists what changes on each ship: weapons, wings, hullmods on and off, and s-m
 - Weapons and LPCs come off into cargo, and each ship takes its plan from cargo, then storage.
 - What isn't used again goes to that storage.
 - Hullmods change only where the refit rules allow (spaceport hullmods only at a spaceport).
-- New s-mods cost a story point each, never below the story points you keep in reserve. Turn this off with "Optimize fleet builds s-mods".
+- S-mods only while **Build in s-mods** is ticked in the Autofit panel, the same box as a single Optimal fit (off by default). Then each new s-mod costs a story point, never below the story points you keep in reserve, and the panel lists them before you apply.
 - Civilian ships with the logistics fit are left alone.
 
 Fleet analysis also has an Optimize fleet button.
@@ -113,7 +113,6 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Most days to hold a slot | 30 | After this, the ship builds the best you have in the held slots. |
 | How much better to wait for | 10% | |
 | Story points to keep | 0 | Never spends below this. |
-| Optimize fleet builds s-mods | on | Optimize fleet also builds in s-mods on ships with room (one story point each, within the settings above). |
 | Order weapons for fleet button | on | The refit screen's fleet buttons (Order fleet weapons, Fleet analysis, Optimize fleet). |
 | Production budget | 50% | Share of your credits one fleet order may cost; the rest of the plan is ordered next time. |
 | Log every fit | off | Scores and reasons in starsector.log. |
