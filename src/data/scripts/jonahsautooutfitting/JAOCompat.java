@@ -107,6 +107,65 @@ final class JAOCompat {
         return names.isEmpty() ? "takes no LPCs" : "only flies " + Misc.getAndJoined(names);
     }
 
+    // ------------------------------------------------------------------ items you only get with cheats
+
+    private static Set<String> legalWeapons, legalWings;
+
+    /**
+     * A weapon you can't get in a normal game (0.5.8, the user: "anything that's cheat available only shouldn't be included
+     * in calculation and shouldn't be added"): no blueprint tag, no NPC faction knows it, no ship in any mod carries it in
+     * a normal mount (so it never drops), and it isn't Omega, Threat or Dweller gear. Yunru's gyrojets, the built-in TPC.
+     * The player faction's own known list doesn't count: console allblueprints puts everything in it.
+     */
+    static boolean cheatOnly(com.fs.starfarer.api.loading.WeaponSpecAPI s) {
+        if (s == null || endgameOrBlueprint(s.getTags())) return false;
+        legal();
+        return !legalWeapons.contains(s.getWeaponId());
+    }
+
+    static boolean cheatOnly(FighterWingSpecAPI s) {
+        if (s == null || endgameOrBlueprint(s.getTags())) return false;
+        legal();
+        return !legalWings.contains(s.getId());
+    }
+
+    private static boolean endgameOrBlueprint(java.util.Collection<String> tags) {
+        if (tags == null) return false;
+        for (String t : tags) if (t.endsWith("_bp") || t.equals("omega") || t.equals("threat") || t.equals("dweller")) return true;
+        return false;
+    }
+
+    /** Weapons and wings NPC factions know or NPC ship variants carry (not built in), read once per load. */
+    private static void legal() {
+        if (legalWeapons != null) return;
+        legalWeapons = new java.util.HashSet<>();
+        legalWings = new java.util.HashSet<>();
+        try {
+            if (Global.getSector() != null) for (com.fs.starfarer.api.campaign.FactionAPI f : Global.getSector().getAllFactions()) {
+                if (f.isPlayerFaction()) continue;
+                legalWeapons.addAll(f.getKnownWeapons());
+                legalWings.addAll(f.getKnownFighters());
+            }
+        } catch (Throwable t) {
+            Global.getLogger(JAOCompat.class).warn("Jonah's Auto Outfitting: couldn't read the factions' known weapons", t);
+        }
+        int variants = 0;
+        for (String id : Global.getSettings().getAllVariantIds()) {
+            try {
+                ShipVariantAPI v = Global.getSettings().getVariant(id);
+                // a fighter's own guns (the vanilla bomb) only come from wings: they don't make a ship weapon obtainable
+                if (v == null || v.getHullSpec() == null || v.getHullSpec().getHullSize() == com.fs.starfarer.api.combat.ShipAPI.HullSize.FIGHTER) continue;
+                variants++;
+                for (String slot : v.getNonBuiltInWeaponSlots()) { String w = v.getWeaponId(slot); if (w != null) legalWeapons.add(w); }
+                for (String w : v.getNonBuiltInWings()) if (w != null && !w.isEmpty()) legalWings.add(w);
+            } catch (Throwable ignored) { }
+        }
+        Global.getLogger(JAOCompat.class).info("Jonah's Auto Outfitting: " + legalWeapons.size() + " weapons and " + legalWings.size()
+                + " wings obtainable in a normal game (NPC factions and " + variants + " ship variants)");
+    }
+
+    static void reset() { legalWeapons = null; legalWings = null; }
+
     // ------------------------------------------------------------------ Seeker's plague, MagicLib interference
 
     /** % of max CR one fitted copy costs on a hull the plague harms (Seeker); 0 for anything else. */

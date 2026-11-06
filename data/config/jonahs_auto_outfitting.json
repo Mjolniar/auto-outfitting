@@ -12,6 +12,7 @@
 
 	"jao_specialWeapons":true,
 	"jao_preferRare":false,
+	"jao_cheatItems":false,        # use weapons and LPCs you can only get with cheats (no blueprint, no faction, no ship carries them)
 	"jao_rareBonus":0.15,         # +15% for the rarest weapon when preferRare is on
 	"jao_keepPriority":true,
 	"jao_pdFloor":1,

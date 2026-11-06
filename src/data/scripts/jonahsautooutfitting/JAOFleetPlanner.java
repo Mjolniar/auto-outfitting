@@ -117,12 +117,13 @@ final class JAOFleetPlanner {
                 WeaponSpecAPI spec = JAOFleetPlan.weaponSpec(id);
                 if (spec == null || spec.getAIHints().contains(AIHints.SYSTEM) || spec.getType() == WeaponType.DECORATIVE
                         || spec.getType() == WeaponType.BUILT_IN || spec.getType() == WeaponType.SYSTEM) continue;
+                if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec)) continue;   // console allblueprints gear
                 int cost = JAOProduction.unitCost(prod, false, id);   // 0: the production in use can't build it
                 if (cost > 0) weapons.add(new JAOFleetPlan.PlanWeapon(spec, cost, 9999, true));
             }
             for (String id : new java.util.TreeSet<>(faction.getKnownFighters())) {
                 FighterWingSpecAPI spec = JAOFleetPlan.wingSpec(id);
-                if (spec == null) continue;
+                if (spec == null || (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec))) continue;
                 int cost = JAOProduction.unitCost(prod, true, id);
                 if (cost > 0) fighters.add(new JAOFleetPlan.PlanFighter(spec, cost, 9999, true));
             }
