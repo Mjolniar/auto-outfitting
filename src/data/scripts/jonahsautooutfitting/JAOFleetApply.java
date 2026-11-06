@@ -40,7 +40,7 @@ import java.util.TreeMap;
  *  - New s-mods (only while the Autofit panel's "Build in s-mods" box is ticked) cost a story point each through the game's own build-in (bonus
  *    XP, playthrough log); the plan never counts on more story points than you have above the reserve.
  *  - The ship on the refit screen is changed through the screen's own copy, then the screen is synced and saved.
- * Civilian ships with the logistics fit are left as they are.
+ * Civilian ships (with the logistics fit setting on) get that fit: campaign hullmods, no weapons, never s-mods.
  */
 final class JAOFleetApply {
     final JAOFleetPlan fleet;
@@ -74,12 +74,16 @@ final class JAOFleetApply {
         market = dockedMarket();
         storage = market != null && Misc.playerHasStorageAccess(market) ? Misc.getStorageCargo(market) : null;
         int[] civ = new int[1];
-        List<FleetMemberAPI> ships = JAOFleetPlan.combatShips(pf.getFleetData().getMembersListCopy(), civ);
-        civilian = civ[0];
+        List<FleetMemberAPI> members = pf.getFleetData().getMembersListCopy();
+        List<FleetMemberAPI> ships = JAOFleetPlan.combatShips(members, civ);
+        // civilian ships get the logistics fit too (user 11/06), without s-mods; what they carry joins the stock
+        List<FleetMemberAPI> planned = new ArrayList<>(ships);
+        planned.addAll(JAOFleetPlan.civilianShips(members));
+        civilian = planned.size() - ships.size();
         Map<String, Integer> w = new TreeMap<>(), f = new TreeMap<>();
         JAOFleetPlan.addCargo(cargo, w, f);
         if (storage != null) JAOFleetPlan.addCargo(storage, w, f);
-        for (FleetMemberAPI m : ships) JAOFleetPlan.addMountedWithModules(live(m, false), w, f);
+        for (FleetMemberAPI m : planned) JAOFleetPlan.addMountedWithModules(live(m, false), w, f);
         List<AvailableWeapon> weapons = new ArrayList<>();
         List<AvailableFighter> fighters = new ArrayList<>();
         JAOFleetPlan.owned(w, f, weapons, fighters);
@@ -88,7 +92,7 @@ final class JAOFleetApply {
                 : market.getFaction().isHostileTo(Factions.PLAYER) ? CampaignUIAPI.CoreUITradeMode.SNEAK : CampaignUIAPI.CoreUITradeMode.OPEN;
         // s-mods only while the Autofit panel's "Build in s-mods" box is ticked, as for a single Optimal fit (off by default)
         smods = JAOGoals.optionChecked(JAOAutofitPlugin.SMODS);
-        fleet = new JAOFleetPlan(ships, weapons, fighters, true, smods, market, mode);
+        fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
         fleet.variantOf = m -> live(m, false);
     }
 

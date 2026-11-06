@@ -77,7 +77,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 "" + job.storyPoints, "" + sp, "" + JAOSettings.smodReserve);
         else head.addPara("S-mods: none to build (ships full, no story points to spare, or nothing worth one).", 4f, g);
         StringBuilder notes = new StringBuilder();
-        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships left as they are (logistics fit). ");
+        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons, no s-mods). ");
         if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
         if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
 
