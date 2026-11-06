@@ -100,7 +100,7 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Build style | Auto | Auto, Balanced, Anti-shield, Anti-armor, Hull killer. |
 | One goal per style | off | Adds an Optimal goal for each style, so ships can differ. |
 | Range | Auto | Auto, Long, Close. |
-| Fight length | 90 s | Short fights favour burst and missiles; long ones favour flux efficiency. |
+| Fight length | 90 s | Short fights favour burst and missiles; long ones favour flux efficiency. A launcher counts for at most what it can fire in this time, so more ammo only helps launchers that empty sooner. Raise it if your battles run long. |
 | Value special weapons | on | Counts scripted effects on top of the plain numbers. |
 | Prefer rare weapons | off | Rarer weapons get a bonus (Rare weapon bonus, 15%) on top of their measured strength. |
 | Respect priority weapons | on | Your faction doctrine's priority marks win ties. |
