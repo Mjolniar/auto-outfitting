@@ -8,6 +8,7 @@ kind,id,value,note
 #       bay_wings (hullmod id -> the only wings its hulls fly, ids or patterns split by ; ; * = any and lifts the other rows;
 #                  @seeker_plague = Seeker's plague_LPC list), purge_lpc (wing id or pattern: LPCs their own mod deletes from
 #                  cargo; removed from cargo and storage), never_add_ui (hullmod UI tag: hullmods with it are never added),
+#       min_size (hullmod id or pattern -> smallest hull size it's worth on: FRIGATE, DESTROYER, CRUISER, CAPITAL_SHIP),
 #       never_use (weapon id or pattern the Optimal fit never picks; the setting "Never use these weapons" adds to it),
 #       role (hull id or pattern -> Skirmisher, Flanker, Line, Anchor, Carrier, Battle carrier, Support, Phase, Missile boat, Civilian)
 skip_slots,odyssey_ix,WS TORP,ET-IX: code-placed torpedo (slot is BUILT_IN; guard only)
@@ -52,6 +53,7 @@ bay_wings,tw_trinity_retrofit,nimbus_tw_*;vice_nimbus_wing,IX: Trinity Worlds hu
 bay_wings,tw_enhanced_control_node,*,IX: TW carriers (Maquech and others) fly any wing; their empty bays get Nimbus drones at 10 OP each
 plague_immune,SKR_plagueBearer,,SEEKER: plague hulls pay nothing for plague weapons and LPCs
 plague_immune,SKR_plagueCultist,,
+min_size,targetingunit,DESTROYER,+10% range on a frigate is not worth its OP (Grievous69 and GrumpyThumper 0.98 guides)
 wing_mult,defective_manufactory,0.88,vanilla d-mod: fighters 25% slower and take 25% more damage
 purge_lpc,nimbus_tw_*,,IX: TrinityRetrofit deletes these from cargo itself; 0.5.1's Optimize fleet left some in storage
 never_add_ui,Installation,,Yunru Install hullmods: with Install Confirmation they become permanent conversions (automation / AI cores / lobsters / Silvervale) once the ship is shown

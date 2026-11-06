@@ -275,6 +275,22 @@ final class JAOCompat {
     // ------------------------------------------------------------------ hullmods
 
     /** Hullmods the optimizer never adds: jao_rules never_add ids, and never_add_ui UI tags (Yunru's "Install:" converters). */
+    /**
+     * jao_rules min_size rows: hullmod id -> the smallest hull size it's worth on (FRIGATE, DESTROYER, CRUISER,
+     * CAPITAL_SHIP). 0.5.12: Integrated Targeting Unit from destroyers up; Grievous69's and GrumpyThumper's 0.98 guides
+     * (research builds_update_1106 4.2) say +10% range isn't worth its OP on a frigate.
+     */
+    static boolean tooSmall(String id, com.fs.starfarer.api.combat.ShipAPI.HullSize size) {
+        if (size == null) return false;
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("min_size") || !JAORatings.glob(r[1], id)) continue;
+            try {
+                if (size.ordinal() < com.fs.starfarer.api.combat.ShipAPI.HullSize.valueOf(r[2].trim().toUpperCase(java.util.Locale.ROOT)).ordinal()) return true;
+            } catch (IllegalArgumentException ignored) { }
+        }
+        return false;
+    }
+
     static boolean neverAdd(String id) {
         if (JAORatings.ruleMatches("never_add", id)) return true;
         HullModSpecAPI spec;

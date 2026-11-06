@@ -17,6 +17,10 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
   - **Carriers:** they escort only when at least two thirds of their wings are fighters, interceptors or support. The shortest-range wing caps how far all of them strike. Defensive Targeting Array changes what each fighter role is worth.
   - **Ship systems:** Accelerated Ammo Feeder and High Energy Focus add to ballistic and energy weapons on their hulls.
   - **Handling:** extra turning counts most on slow hulls that aim hardpoints by turning, not on nimble frigates.
+  - **Officers:** a ship without an officer is fitted for the personality your doctrine's aggression slider gives it (Command > Doctrine), not always Steady.
+  - **Charged guns:** Autopulse, Thermal Pulse Cannon, Storm Needler and the like count the burst from their stored charges, not just their recharge rate. Expanded Magazines (more charges; as an s-mod, faster recharge too) is valued on those ships.
+  - **Hullmods the experts recommend:** Resistant Flux Conduits (EMP resistance, faster venting) counts on big ships. Shield Conversion - Omni gets a small bonus on slow, low-tech, front-shielded ships (Onslaught, Legion, Dominator, Enforcer), where the AI uses it to block torpedoes and big shells. Integrated Targeting Unit is never put on frigates.
+- Weapon groups: after the game makes its own groups, a broadside ship (a Conquest, say) gets each side's matching weapons in their own group so it fires the side that bears, and a missile boat's guided launchers are linked to fire as one volley.
 - Guns past the ship's sustained flux still count: they fire in burst windows (overloads, flanks) paid from flux capacity, so mounts get real weapons, not 1-OP fillers or small guns in big mounts.
 - Loadouts stay coherent: matched sets of the same weapon, one range band, within the game's 7 weapon groups. Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
 - Hullmods are chosen for the ship and its weapons (range mods only with guns that use them, missile mods only with missiles, and so on), then the remaining OP goes into vents and capacitors.

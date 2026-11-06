@@ -412,6 +412,7 @@ final class JAOFleetApply {
         v.getWeaponGroups().clear();
         v.setMayAutoAssignWeapons(true);
         v.autoGenerateWeaponGroups();
+        JAOGroups.arrange(v);
         return missing;
     }
 
