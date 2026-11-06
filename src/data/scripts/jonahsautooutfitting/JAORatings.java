@@ -448,18 +448,26 @@ public class JAORatings {
         return hullmods;
     }
 
-    /** Rows of jao_rules.csv: {kind, id, value}. */
+    /**
+     * Rows of jao_rules.csv: {kind, id, value}. Read straight from this mod's file (loadCSV), not merged: the merged read
+     * keys rows by its id column, and since the mod's folder name doesn't contain its id the game didn't take the file
+     * as the mod's own and kept only the last row of each kind. Until 0.5.5 every rule kind had one row: the Guru's
+     * plague-only bays lost to the Maquech row under them (user 11/05: Optimize fleet still put Daggers on the Gurus).
+     */
     static List<String[]> rules() {
         if (rules != null) return rules;
         rules = new ArrayList<>();
+        Map<String, Integer> kinds = new java.util.TreeMap<>();
         try {
-            JSONArray a = Global.getSettings().getMergedSpreadsheetDataForMod("kind", RULES, JAOSettings.MOD);
+            JSONArray a = Global.getSettings().loadCSV(RULES, JAOSettings.MOD);
             for (int i = 0; i < a.length(); i++) {
                 JSONObject o = a.getJSONObject(i);
                 String kind = o.optString("kind", "").trim();
                 if (kind.isEmpty() || kind.startsWith("#")) continue;
                 rules.add(new String[]{kind, o.optString("id", "").trim(), o.optString("value", "").trim()});
+                kinds.merge(kind, 1, Integer::sum);
             }
+            Global.getLogger(JAORatings.class).info("Jonah's Auto Outfitting: " + rules.size() + " rules " + kinds);
         } catch (Throwable t) {
             Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: can't read " + RULES, t);
         }
