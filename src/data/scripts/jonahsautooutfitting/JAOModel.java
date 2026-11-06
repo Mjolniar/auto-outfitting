@@ -238,6 +238,23 @@ final class JAOModel {
         float fluxSoft = FLUX_SOFT, fluxLimit = FLUX_LIMIT;
         /** Share of plague CR costs this hull pays: 0 on Seeker's plague hulls, 0.666 with Hardened Subsystems. */
         float plagueMult = 1f;
+        /**
+         * Max combat readiness (0-1) before plague weapons: the game's 70% with skills, hullmods and d-mods on it
+         * (Degraded Life Support, Faulty Automated Systems and Increased Maintenance take 5 points each).
+         */
+        float maxCr = CR_BASE;
+        /** CR one deployment spends (0-1; 0 = only the first deployment counts). */
+        float deployCr;
+        /**
+         * Carrier deck: fighter wings' value on this ship (deckFactor): refit time (Damaged Flight Deck +30%),
+         * replacement rate (Expanded Deck Crew), engagement range (Malfunctioning Comms x0.6), fighter d-mods
+         * (Defective Manufactory). 1 = as the wing's own numbers.
+         */
+        float deck = 1f;
+        /** Turret turn rate and spread against the weapons' own (Damaged Weapon Mounts 0.75 / 1.3, Advanced Turret Gyros 1.75). */
+        float turnMult = 1f, beamTurnMult = 1f, recoilMult = 1f;
+        /** Weapon malfunction chance outside combat readiness (Ill-Advised Modifications 0.05). */
+        float malfunction;
 
         Ship copy() {
             Ship s = new Ship();
@@ -251,7 +268,8 @@ final class JAOModel {
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
             s.interferenceMult = interferenceMult; s.noVent = noVent;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
-            s.plagueMult = plagueMult;
+            s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck;
+            s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             return s;
         }
     }
@@ -396,7 +414,8 @@ final class JAOModel {
             W w = fits.get(i).w;
             Eff x = new Eff();
             float rof = w.wing ? 1f : s.rofMult[w.cls];
-            float dm = w.wing ? 1f : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
+            // wings fly from this ship's deck: its refit time, replacement rate and engagement range (deckFactor)
+            float dm = w.wing ? s.deck : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
             if (w.beam && s.hsa) dm *= 1.1f;
             x.dps = w.dps * dm * rof;
             x.flux = w.wing ? 0f : w.flux * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
@@ -516,7 +535,10 @@ final class JAOModel {
             eff[i] = d;
             effB[i] = db;
             if (w.pd || w.pdOnly || w.interceptor) {
-                float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread));
+                float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread * s.recoilMult));
+                // turrets track missiles and fighters at the ship's turn rate (Damaged Weapon Mounts slow them, Advanced
+                // Turret Gyros speed them up)
+                if (!w.wing && !fits.get(i).hardpoint) hitf *= pdTrack(w.beam ? s.beamTurnMult : s.turnMult);
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
                 pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f);
             } else if (w.wing && w.wingPd > 0f) {
@@ -534,7 +556,7 @@ final class JAOModel {
         // time to kill each reference target
         float ttkSum = 0f, wsum = 0f, t1s = 0f, t2s = 0f, t3s = 0f;
         for (Target t : p.targets) {
-            float[] ph = phases(fits, e, eff, effB, t, p, missilePool, missilePoolStrike);
+            float[] ph = phases(fits, e, eff, effB, t, p, missilePool, missilePoolStrike, s.recoilMult);
             float ttk = p.wS * ph[0] + p.wA * ph[1] + p.wH * ph[2];
             ttkSum += t.weight * ttk;
             wsum += t.weight;
@@ -634,14 +656,21 @@ final class JAOModel {
         // went on every ship once all hullmods were known; past half again the speed or twice the handling, more is no use
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(clamp(s.speed / s.baseSpeed, 0.2f, SPEED_CAP), mw) : 1f)
                 * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), 0.5f * mw + 0.04f);
-        // Seeker's nano-plague: each plague weapon or LPC on a hull it harms takes 3/6/12 points of max CR, which costs
-        // the ship its later engagements and its malfunction margin (plagueFactor)
+        // combat readiness the ship starts its fights at: its own max CR (skills, hullmods, d-mods) less what Seeker's
+        // nano-plague takes (3/6/12 points per plague weapon or LPC on a hull it harms, Coda Launcher 3), through the
+        // game's CR rules (crStart); a d-mod ship near 50% pays more for the same plague weapon than a healthy one
         float plague = 0f;
         for (int i = 0; i < n; i++) plague += fits.get(i).w.crCost;
         plague *= s.plagueMult;
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * plagueFactor(plague) * (1f + s.extra);
+        float startCr = crStart(s.maxCr - plague / 100f, s.deployCr);
+        // weapons that malfunction outside CR (Ill-Advised Modifications) fire less
+        float malf = 1f - clamp(MALFUNCTION_COST * s.malfunction, 0f, 0.5f);
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * (1f + s.extra);
         if (out != null) {
             if (plague > 0f) out.put("plague", plague);
+            if (s.maxCr != CR_BASE || plague > 0f) { out.put("maxCr", s.maxCr - plague / 100f); out.put("crStart", startCr); }
+            if (s.deck != 1f) out.put("deck", s.deck);
+            if (malf < 1f) out.put("malf", malf);
             out.put("score", score); out.put("ttk", ttk); out.put("t1", t1s / wsum); out.put("t2", t2s / wsum); out.put("t3", t3s / wsum);
             out.put("ehp", ehp); out.put("uptime", uptime); out.put("load", load); out.put("budget", budget); out.put("reng", reng);
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
@@ -653,11 +682,15 @@ final class JAOModel {
 
     /** Seconds to break the shield, strip the armor and kill the hull of t (mechanics 8.6). */
     static float[] phases(List<Fit> fits, Eff[] e, float[] effAll, float[] effBurst, Target t, Params p, float pool, float poolStrike) {
+        return phases(fits, e, effAll, effBurst, t, p, pool, poolStrike, 1f);
+    }
+
+    static float[] phases(List<Fit> fits, Eff[] e, float[] effAll, float[] effBurst, Target t, Params p, float pool, float poolStrike, float spreadMult) {
         float hard = 0f, soft = 0f, debuff = 1f, armorExtra = 0f, arc = 0f;
         int n = fits.size();
         float[] eff = new float[n], effB = new float[n];
         for (int i = 0; i < n; i++) {
-            float acc = accuracy(fits.get(i).w, t.size);
+            float acc = accuracy(fits.get(i).w, t.size, spreadMult);
             eff[i] = effAll[i] * acc;
             effB[i] = effBurst[i] * acc;
         }
@@ -773,19 +806,23 @@ final class JAOModel {
      * inaccurate projectiles and unguided missiles miss small agile ships (a frigate dodges much of a 600-speed
      * spray; a capital doesn't).
      */
-    static float accuracy(W w, int targetSize) {
+    static float accuracy(W w, int targetSize) { return accuracy(w, targetSize, 1f); }
+
+    /** spreadMult: the ship's recoil (Damaged Weapon Mounts x1.3, Ill-Advised Modifications x2 widen every gun's spread). */
+    static float accuracy(W w, int targetSize, float spreadMult) {
         if (w.wing || w.beam) return 1f;
         int ts = Math.max(0, Math.min(3, targetSize));
         float sz = SIZE_HIT[ts];
         // semi-guided missiles (GUIDED_POOR: Sabot, Atropos) home on the target: about 0.85 against frigates
         if (w.cls == MIS) return w.guided ? 1f : w.guidedPoor ? 1f - 0.27f * (1f - sz) : sz;
-        float q = 0.5f * Math.min(1f, w.projSpeed / 1000f) + 0.5f / (1f + w.spread / 5f);
+        float spread = w.spread * Math.max(0.1f, spreadMult);
+        float q = 0.5f * Math.min(1f, w.projSpeed / 1000f) + 0.5f / (1f + spread / 5f);
         float acc = 1f - (1f - sz) * (1f - clamp(q, 0f, 1f));
         // wide-spread guns (flak, shotguns: Devastator 30 degrees) miss even big ships at range: the share of the
         // cone the target covers at 80% of the weapon's range
-        if (w.spread > 10f && w.range > 0f) {
+        if (spread > 10f && w.range > 0f) {
             float cone = (float) Math.toDegrees(2.0 * Math.atan(TARGET_RADIUS[ts] / (0.8f * w.range)));
-            acc *= clamp(cone / w.spread, 0.15f, 1f);
+            acc *= clamp(cone / spread, 0.15f, 1f);
         }
         return acc;
     }
@@ -795,15 +832,60 @@ final class JAOModel {
 
     static float clamp(float v, float lo, float hi) { return Math.max(lo, Math.min(hi, v)); }
 
-    /**
-     * Points of max CR a ship can give up to the plague before it stops being worth fielding: 70% max CR, malfunctions
-     * below 50% and a deployment's cost between battles leave about this much. One STRONG plague weapon (12) costs a
-     * fifth of the ship, so it has to be that much better than what else fits.
-     */
-    static final float PLAGUE_CR_SPAN = 60f;
+    // ------------------------------------------------------------------ combat readiness, carrier deck, d-mods
 
-    /** Score multiplier for lost max CR (percentage points), never below 0.2. */
-    static float plagueFactor(float crLost) {
-        return crLost <= 0f ? 1f : clamp(1f - crLost / PLAGUE_CR_SPAN, 0.2f, 1f);
+    /** Every ship's max CR before skills and d-mods (CRPluginImpl "Basic maintenance"). */
+    static final float CR_BASE = 0.7f;
+    /**
+     * Share of hits that depends on how well the AI aims: CRPluginImpl's aim accuracy is 1.5 x CR - 0.5 (0.55 at 70%,
+     * 1 at 100%, 0 at 33%), and a gun crew that leads its shots badly still lands most of them on a ship.
+     */
+    static final float CR_AIM = 0.25f;
+    /** Score lost per point of weapon malfunction chance (Ill-Advised Modifications 0.05 costs 7.5%). */
+    static final float MALFUNCTION_COST = 1.5f;
+
+    /**
+     * What a deployment at combat readiness c (0-1) is worth against one at the usual 70%, by the game's CR rules
+     * (CRPluginImpl): the AI aims worse as CR falls; above 70% damage, speed and damage taken get up to 10% better at
+     * 100%; below 50% up to 10% worse at 0; weapons and engines malfunction below 40% (up to 10% / 7.5%) and
+     * critically below 20%. The user 11/06: the Coda Launcher (Seeker) takes max CR off its ship; so do d-mods.
+     */
+    static float crEffect(float c) {
+        c = clamp(c, 0f, 1f);
+        float aim = clamp(1.5f * c - 0.5f, 0f, 1f);
+        float e = (1f - CR_AIM + CR_AIM * aim) / (1f - CR_AIM + CR_AIM * 0.55f);
+        if (c > 0.7f) e *= 1f + 0.12f * (c - 0.7f) / 0.3f;
+        else if (c < 0.5f) e *= 1f - 0.12f * (0.5f - c) / 0.5f;
+        if (c < 0.4f) e *= 1f - 0.2f * (0.4f - c) / 0.4f;
+        if (c < 0.2f) e *= 1f - 0.4f * (0.2f - c) / 0.2f;
+        return Math.max(0.05f, e);
+    }
+
+    /**
+     * Starting CR across a battle: the first deployment at max CR and the next one a deployment's CR lower (ships fight
+     * again before they recover; max CR is also the ceiling CR recovers to). Plague weapons and d-mods that cut max CR
+     * cost little on a healthy 70% ship and a lot on one already near the 50% and 40% lines.
+     */
+    static float crStart(float maxCr, float deployCr) {
+        if (deployCr <= 0f) return crEffect(maxCr);
+        return 0.5f * (crEffect(maxCr) + crEffect(maxCr - deployCr));
+    }
+
+    /**
+     * A carrier's deck against the wings' own numbers (1 = vanilla deck): fighters away longer per refit (Damaged
+     * Flight Deck +30% refit time: x0.88), a replacement rate that falls slower and recovers faster (Expanded Deck Crew
+     * x0.85 / +25%: x1.08), a shorter leash (Malfunctioning Comms x0.6 engagement range: x0.94), times fighter d-mods
+     * applied to the craft themselves (fighterMult, JAOCompat.wingMult).
+     */
+    static float deckFactor(float refitMult, float decreaseMult, float increaseMult, float rangeMult, float fighterMult) {
+        float r = refitMult > 0f ? refitMult : 1f, d = decreaseMult > 0f ? decreaseMult : 1f, in = increaseMult > 0f ? increaseMult : 1f;
+        float f = (float) (Math.pow(1f / r, 0.5) * Math.pow(1f / d, 0.25) * Math.pow(in, 0.15));
+        f *= 0.85f + 0.15f * clamp(rangeMult > 0f ? rangeMult : 1f, 0f, 1.5f);
+        return clamp(f * (fighterMult > 0f ? fighterMult : 1f), 0.3f, 1.6f);
+    }
+
+    /** Point defense hits against the ship's turret turn rate (x0.75: 0.93, Advanced Turret Gyros x1.75: 1.15). */
+    static float pdTrack(float turnMult) {
+        return (float) Math.pow(clamp(turnMult > 0f ? turnMult : 1f, 0.4f, 2f), 0.25);
     }
 }

@@ -184,6 +184,25 @@ final class JAOCompat {
         return v.hasHullMod("hardened_subsystems") ? hss : 1f;
     }
 
+    /**
+     * Hullmods that change the fighters a ship launches rather than the ship (applyEffectsToFighterSpawnedByShip, which
+     * the scratch member never runs): jao_rules wing_mult rows, hullmod id -> multiplier on its wings' value (Defective
+     * Manufactory: craft 25% slower and taking 25% more damage). A d-mod's share shrinks with the ship's d-mod effect
+     * (skills that soften d-mods).
+     */
+    static float wingMult(ShipVariantAPI v, float dmodEffect) {
+        float m = 1f;
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("wing_mult") || !v.hasHullMod(r[1])) continue;
+            float f;
+            try { f = Float.parseFloat(r[2].trim()); } catch (RuntimeException e) { continue; }
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(r[1]);
+            float effect = spec != null && spec.hasTag("dmod") ? Math.max(0f, dmodEffect) : 1f;
+            m *= 1f - (1f - f) * effect;
+        }
+        return m;
+    }
+
     /** MagicLib interference strength from the merged modSettings (dissipation per other interference weapon), or 0. */
     static float interference(String weaponId) {
         load();
