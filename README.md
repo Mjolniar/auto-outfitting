@@ -51,7 +51,7 @@ It lists what changes on each ship: weapons, wings, hullmods on and off, and s-m
 - What isn't used again goes to that storage.
 - Hullmods change only where the refit rules allow (spaceport hullmods only at a spaceport).
 - S-mods only while **Build in s-mods** is ticked in the Autofit panel, the same box as a single Optimal fit (off by default). Then each new s-mod costs a story point, never below the story points you keep in reserve, and the panel lists them before you apply.
-- Civilian ships with the logistics fit are left alone.
+- Civilian ships (freighters, tankers, liners, salvage and survey ships) get their campaign fit: cargo, fuel or berths, burn speed, sensors, surveying, salvage and the like, within the game's logistics limit, no weapons and never s-mods. Their weapons and LPCs go back into the stock for the warships.
 
 Fleet analysis also has an Optimize fleet button.
 

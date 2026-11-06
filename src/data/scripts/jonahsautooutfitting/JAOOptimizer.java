@@ -56,6 +56,8 @@ class JAOOptimizer {
      */
     final boolean planning;
     boolean fullPlan, planSmods;
+    /** Fleet plan: give this (civilian) ship the logistics fit, from bare and without s-mods (user 11/06). */
+    boolean logistics;
     /** The rest of the fleet when the fleet plan fits this ship (null: read the fleet as it stands). */
     JAOFleetMix fleetMix;
     /** After run(): the s-mod plan (null without one). */
@@ -78,7 +80,7 @@ class JAOOptimizer {
         long t0 = System.nanoTime();
         ShipHullSpecAPI hull = current.getHullSpec();
         current.setMayAutoAssignWeapons(false);
-        if (!module && !planning && JAOSettings.civilianLogistics && civilian(hull)) {
+        if (!module && (logistics || (!planning && JAOSettings.civilianLogistics && civilian(hull)))) {
             runLogistics(hull, t0);
             return;
         }
@@ -611,7 +613,8 @@ class JAOOptimizer {
      * hullmods need a spaceport, so away from one only the existing ones stay. Leftover OP goes to vents/capacitors.
      */
     private void runLogistics(ShipHullSpecAPI hull, long t0) {
-        boolean strip = plugin.option(CoreAutofitPlugin.STRIP);
+        // the fleet plan refits from bare like every other ship (only hullmods the refit rules here allow come off)
+        boolean strip = planning || plugin.option(CoreAutofitPlugin.STRIP);
         int bays = Global.getSettings().computeNumFighterBays(current);
         int builtInWings = hull.getBuiltInWings() == null ? 0 : hull.getBuiltInWings().size();
         for (String id : new ArrayList<>(current.getFittedWeaponSlots())) {
@@ -648,7 +651,8 @@ class JAOOptimizer {
         int limit;
         try { limit = Global.getSettings().getInt("maxLogisticsHullmods"); } catch (Throwable t) { limit = 2; }
         boolean big = hull.getHullSize().ordinal() >= HullSize.CRUISER.ordinal();
-        int smodRoom = big && plugin.option(JAOAutofitPlugin.SMODS) ? smodLimit(new int[4]) : 0;
+        // Optimize fleet never spends story points on civilian ships (user 11/06: "maybe just have it skip the s-mods")
+        int smodRoom = big && !planning && plugin.option(JAOAutofitPlugin.SMODS) ? smodLimit(new int[4]) : 0;
         Set<String> mods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
         Set<String> smods = new LinkedHashSet<>();
         List<String> skipped = new ArrayList<>();

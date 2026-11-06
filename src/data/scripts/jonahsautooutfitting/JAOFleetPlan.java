@@ -55,6 +55,8 @@ final class JAOFleetPlan {
         final java.util.Set<Integer> scripted = new java.util.TreeSet<>();
         /** What the player should know about this ship's plan (bay rules, penalty hullmods its scripts add). */
         final List<String> notes = new ArrayList<>();
+        /** A civilian hull: the logistics fit (campaign hullmods, no weapons, no s-mods), planned once, outside the fleet's balance. */
+        boolean civilian;
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
@@ -87,7 +89,11 @@ final class JAOFleetPlan {
         order.sort(Comparator.comparingInt((FleetMemberAPI m) -> -m.getHullSpec().getHullSize().ordinal())
                 .thenComparing(m -> -m.getDeploymentPointsCost()).thenComparing(m -> m.getShipName() == null ? "" : m.getShipName())
                 .thenComparing(FleetMemberAPI::getId));
-        for (FleetMemberAPI m : order) ships.add(new ShipPlan(m));
+        for (FleetMemberAPI m : order) {
+            ShipPlan s = new ShipPlan(m);
+            s.civilian = JAOSettings.civilianLogistics && JAOOptimizer.civilian(m.getHullSpec());
+            ships.add(s);
+        }
         done = ships.isEmpty();
     }
 
@@ -113,6 +119,7 @@ final class JAOFleetPlan {
     }
 
     private void planOne(ShipPlan s) {
+        if (s.civilian) { planCivilian(s); return; }
         ShipVariantAPI old = s.plan;
         List<Object> oldUsed = new ArrayList<>(s.used);
         if (old != null) give(oldUsed);
@@ -164,6 +171,34 @@ final class JAOFleetPlan {
             if (!s.failed) failed++;
             s.failed = true;
             Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't plan " + s.name, t);
+        }
+    }
+
+    /**
+     * A civilian ship's logistics fit (user 11/06: "it could automatically do the attuned drive field, surveying equipment,
+     * salvage gantries"): the same campaign hullmods a single Optimal fit gives it, from bare, no weapons and no s-mods.
+     * Takes nothing from the stock (what it carries goes back into it for the warships) and is planned once.
+     */
+    private void planCivilian(ShipPlan s) {
+        if (s.plan != null || s.failed) return;
+        try {
+            ShipVariantAPI v = variantOf.apply(s.member).clone();
+            PlanDelegate d = delegate(s.member, hullmods);
+            JAOOptimizer o = new JAOOptimizer(plugin, v, d, JAOSettings.style, false, true);
+            o.logistics = true;
+            o.run();
+            JAOCompat.Probe probe = JAOCompat.settle(v, true);
+            s.plan = v;
+            s.used.clear();
+            s.used.addAll(d.used);
+            s.ws = new ArrayList<>();
+            s.scripted.clear();
+            s.scripted.addAll(probe.wings.keySet());
+            changedThisPass++;
+        } catch (Throwable t) {
+            failed++;
+            s.failed = true;
+            Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't plan " + s.name + "'s logistics fit", t);
         }
     }
 
@@ -394,6 +429,17 @@ final class JAOFleetPlan {
 
     static FighterWingSpecAPI wingSpec(String id) {
         try { return Global.getSettings().getFighterWingSpec(id); } catch (Throwable t) { return null; }
+    }
+
+    /** Civilian hulls that get the logistics fit (setting on), not fighter wings. */
+    static List<FleetMemberAPI> civilianShips(List<FleetMemberAPI> members) {
+        List<FleetMemberAPI> out = new ArrayList<>();
+        if (!JAOSettings.civilianLogistics) return out;
+        for (FleetMemberAPI m : members) {
+            if (m.isFighterWing() || m.getVariant() == null || m.getHullSpec() == null) continue;
+            if (JAOOptimizer.civilian(m.getHullSpec())) out.add(m);
+        }
+        return out;
     }
 
     /** The combat ships a plan covers: not fighter wings, not civilian hulls with the logistics fit on. */
