@@ -59,3 +59,4 @@ never_add,roider_midas1,,Roider: MIDAS levels set by roider_midas
 never_add,roider_midas2,,
 never_add,roider_midas3,,
 never_remove,ix_dawnstar_*,,IX: Dawnstar fire modes the player picks (the script rolls a new one if they go)
+never_add,yunru_bayblade,,Yunru joke hullmod: turn rate x50 on any ship (its spinning-ship check is commented out)
