@@ -3,7 +3,8 @@ kind,id,value,note
 # kind: skip_slots (hull id -> slot ids filled by mod code; never fill or clear), never_add / never_remove (hullmod id or id prefix ending in *),
 #       one_per_ship (weapon tag), interference (weapon id -> WEAK/MILD/STRONG, MagicLib dissipation penalty when 2+ fitted),
 #       plague (weapon/wing id or pattern -> WEAK/MILD/STRONG or % max CR per fitted item; Seeker's modSettings are read too),
-#       plague_immune (hullmod id: its hulls pay no plague cost), needs_hullmod (weapon tag -> hullmod that must be on the ship),
+#       plague_immune (hullmod id: its hulls pay no plague cost), wing_mult (hullmod id -> multiplier on the value of the wings its ship launches;
+#                  for effects on the craft themselves, which the ship's stats don't show; d-mods scale with the ship's d-mod effect), needs_hullmod (weapon tag -> hullmod that must be on the ship),
 #       bay_wings (hullmod id -> the only wings its hulls fly, ids or patterns split by ; ; * = any and lifts the other rows;
 #                  @seeker_plague = Seeker's plague_LPC list), purge_lpc (wing id or pattern: LPCs their own mod deletes from
 #                  cargo; removed from cargo and storage), never_add_ui (hullmod UI tag: hullmods with it are never added),
@@ -51,6 +52,7 @@ bay_wings,tw_trinity_retrofit,nimbus_tw_*;vice_nimbus_wing,IX: Trinity Worlds hu
 bay_wings,tw_enhanced_control_node,*,IX: TW carriers (Maquech and others) fly any wing; their empty bays get Nimbus drones at 10 OP each
 plague_immune,SKR_plagueBearer,,SEEKER: plague hulls pay nothing for plague weapons and LPCs
 plague_immune,SKR_plagueCultist,,
+wing_mult,defective_manufactory,0.88,vanilla d-mod: fighters 25% slower and take 25% more damage
 purge_lpc,nimbus_tw_*,,IX: TrinityRetrofit deletes these from cargo itself; 0.5.1's Optimize fleet left some in storage
 never_add_ui,Installation,,Yunru Install hullmods: with Install Confirmation they become permanent conversions (automation / AI cores / lobsters / Silvervale) once the ship is shown
 never_add,yunru_install_confirm,,Yunru: the trigger for those conversions

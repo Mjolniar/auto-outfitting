@@ -5,6 +5,7 @@ import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.characters.MutableCharacterStatsAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.combat.MutableShipStatsAPI;
+import com.fs.starfarer.api.combat.MutableStat;
 import com.fs.starfarer.api.combat.ShieldAPI.ShieldType;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipHullSpecAPI;
@@ -175,10 +176,55 @@ final class JAOShip implements JAOSearch.World {
         s.noAutoEscort = hull.getHints().contains(ShipHullSpecAPI.ShipTypeHints.NO_AUTO_ESCORT);
         // Seeker's nano-plague: free on its own plague hulls, a third off with Hardened Subsystems (JAOCompat)
         s.plagueMult = JAOCompat.plagueMult(work);
+        // d-mods and the rest the live stats above don't carry (0.5.10, the user 11/06: build against every ship's
+        // d-mods): max CR, the carrier deck, turret turning and spread, malfunctions
+        s.maxCr = maxCr(st.getMaxCombatReadiness());
+        float deploy = hull.getCRToDeploy();
+        if (deploy > 1f) deploy /= 100f;
+        s.deployCr = JAOModel.clamp(st.getCRPerDeploymentPercent().computeEffective(deploy), 0f, 1f);
+        if (Global.getSettings().computeNumFighterBays(work) > 0) {
+            float dmodEffect = dyn(st, "dmod_effect_mult");
+            s.deck = JAOModel.deckFactor(mult(st.getFighterRefitTimeMult().getModifiedValue()), dyn(st, "replacement_rate_decrease_mult"),
+                    dyn(st, "replacement_rate_increase_mult"), st.getFighterWingRange().computeEffective(1f), JAOCompat.wingMult(work, dmodEffect));
+        }
+        s.turnMult = mult(st.getWeaponTurnRateBonus().computeEffective(1f));
+        s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
+        s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
+        s.malfunction = Math.max(0f, st.getWeaponMalfunctionChance().getModifiedValue());
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
         return s;
+    }
+
+    /**
+     * Max CR the way the game builds it (CRPluginImpl: 70% "Basic maintenance", then skills, hullmods and d-mods),
+     * without the crew shortfall (the scratch member has no crew) and without Seeker's plague debuff (the score prices
+     * the plague from the weapons it fits).
+     */
+    static float maxCr(MutableStat m) {
+        float flat = 0f;
+        for (Map.Entry<String, MutableStat.StatMod> e : m.getFlatMods().entrySet()) {
+            String k = e.getKey();
+            if (k == null || CR_SKIP.contains(k) || e.getValue() == null) continue;
+            flat += e.getValue().getValue();
+        }
+        return JAOModel.clamp((m.getBaseValue() + JAOModel.CR_BASE + flat) * m.getMult(), 0f, 1f);
+    }
+
+    private static final Set<String> CR_SKIP = new java.util.HashSet<>(java.util.Arrays.asList(
+            "crew skill bonus", "crew understrength", "SKR_plagueWarning"));
+
+    /** A multiplier stat, 1 when it reads as unset. */
+    private static float mult(float v) { return v > 0f ? v : 1f; }
+
+    /** A dynamic multiplier stat (Stats ids), 1 when unset. */
+    private static float dyn(MutableShipStatsAPI st, String id) {
+        try {
+            return mult(st.getDynamic().getValue(id));
+        } catch (Throwable t) {
+            return 1f;
+        }
     }
 
     private static void bonus(JAOModel.Ship s, int cls, StatBonus b) {

@@ -23,6 +23,11 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 - Line ships on the Auto or Balanced style carry both kinetic and an armor-cracker.
 - The fleet is treated as one team. Fighter roles the fleet already has plenty of, and wings already flying elsewhere, count for less. With the Auto or Balanced style, each ship leans toward the damage the fleet is short of (anti-shield or anti-armor).
 - Weapon OP costs are read from the ship's live stats, so hullmod discounts count (Valkyrian Bryncore, for example). The Bryncore's +100 range on Valkyrian weapons is counted too.
+- Every ship is fitted for its own numbers, d-mods included. Armor, hull, flux, speed, shields, range and peak time come from the ship's live stats. On top of those, the fit also accounts for:
+  - **max CR** (Degraded Life Support, Faulty Automated Systems, Increased Maintenance, skills), run through the game's CR rules: the AI aims worse as CR falls, and ships below 50% and 40% fight worse and malfunction;
+  - **the flight deck**: Damaged Flight Deck's longer refits, Malfunctioning Comms' shorter fighter range and Defective Manufactory's weaker craft make that carrier's wings worth less, and Expanded Deck Crew's faster replacement makes them worth more;
+  - **turrets**: Damaged Weapon Mounts' slower turning and extra recoil cost point defense and accuracy, and Advanced Turret Gyros helps point defense;
+  - **malfunctions**: Ill-Advised Modifications' weapon malfunctions.
 - After Confirm, any spare OP goes into vents and capacitors: capacitors first on carriers, phase ships, support ships and missile boats.
 - Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
 - Every other goal keeps the game's own autofit.
@@ -77,7 +82,7 @@ It changes nothing; its **Optimize fleet** button opens the fleet plan.
 
 Some mods change a ship's loadout from their own scripts. The Optimal fit and the fleet plan follow them:
 - **Seeker's plague hulls** (the Guru and the other Cultist ships, the Plague Bearers) only fly Seeker's plague LPCs: Fire Ant, Pillbug and Beetle. Any other wing gets thrown back into cargo as soon as the ship is shown, so none is planned there. Without plague LPCs those bays stay empty, and the plan says so.
-- **Plague weapons and LPCs** cost 3%, 6% or 12% max CR each on any other hull (a third less with Hardened Subsystems), and they're scored that way. On plague hulls they're free.
+- **Plague weapons and LPCs** (the Coda Launcher, Charger, Assault Revolver, Dainsleif and the rest) take 3, 6 or 12 points of max CR each on any other hull, a third less with Hardened Subsystems. They're priced by the game's CR rules from the ship's own max CR. On a healthy 70% ship a Coda Launcher costs about 1% and a 12-point weapon about 6%. Ships above 70% from skills pay a bit more, since they lose their bonus. Ships already short of CR, from d-mods for example, pay more, and much more once the plague would push them toward 50% or 40%. On plague hulls they're free.
 - **Trinity Worlds** ships only fly their Nimbus drones. The carriers with an Enhanced Control Node (the Maquech) fly anything, but an empty bay gets Nimbus drones at 10 OP each, and the plan counts that.
 - **Wings you can't buy or drop** (Nimbus drones, Emergent Threats kites and Terminators, Arma bits) stay in the bay they're in. They're never taken off, moved to another ship or picked from cargo.
 - **Hullmods that convert a ship** are never added: Yunru's "Install:" hullmods turn into permanent hullmods or use up AI cores and lobsters once the ship is shown. A free hullmod only goes on when it helps.

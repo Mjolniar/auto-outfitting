@@ -810,6 +810,12 @@ class JAOOptimizer {
             sb.append(slot.id).append('=').append(c == null ? "-" : c.w.id).append(slot.fixed != null ? "(kept)" : "").append(' ');
         }
         sb.append("| hullmods ").append(s.mods).append(" | vents ").append(vc[0]).append(" caps ").append(vc[1]).append(" | ");
+        List<String> dmods = new ArrayList<>();
+        for (String id : current.getHullMods()) {
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            if (spec != null && spec.hasTag("dmod")) dmods.add(id);
+        }
+        if (!dmods.isEmpty()) sb.append("d-mods ").append(dmods).append(" | ");
         for (Map.Entry<String, Float> e : b.entrySet()) sb.append(e.getKey()).append(' ').append(String.format(java.util.Locale.ROOT, "%.3g", e.getValue())).append(' ');
         Global.getLogger(JAOOptimizer.class).info(sb.toString());
     }

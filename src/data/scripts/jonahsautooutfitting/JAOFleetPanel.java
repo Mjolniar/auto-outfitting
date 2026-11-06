@@ -77,6 +77,10 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 "" + job.storyPoints, "" + sp, "" + JAOSettings.smodReserve);
         else head.addPara("S-mods: none to build (ships full, no story points to spare, or nothing worth one).", 4f, g);
         StringBuilder notes = new StringBuilder();
+        int dmodShips = 0;
+        for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (!s.civilian && dmods(s.member) > 0) dmodShips++;
+        if (dmodShips > 0) notes.append(dmodShips).append(dmodShips == 1 ? " ship has" : " ships have")
+                .append(" d-mods: each is fitted for its own armor, flux, speed, max CR, flight deck and turrets. ");
         if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons, no s-mods). ");
         if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
         if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
@@ -112,6 +116,18 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             ButtonAPI a = buttons.addButton("Fleet analysis", "analysis", 160f, 30f, 0f);
             a.getPosition().rightOfTop(c, 10f);
         }
+    }
+
+    /** D-mods on the ship (hullmods tagged dmod). */
+    static int dmods(com.fs.starfarer.api.fleet.FleetMemberAPI m) {
+        int n = 0;
+        try {
+            for (String id : m.getVariant().getHullMods()) {
+                com.fs.starfarer.api.loading.HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+                if (spec != null && spec.hasTag("dmod")) n++;
+            }
+        } catch (Throwable ignored) { }
+        return n;
     }
 
     @Override
