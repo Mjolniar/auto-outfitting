@@ -45,6 +45,7 @@ public class JAORatings {
 
     /** Drops the cache (after a load or a settings change); the next fit rebuilds it. */
     static void reset() {
+        JAOCompat.reset();
         weapons.clear();
         wings.clear();
         wingRefs = null;
@@ -86,6 +87,12 @@ public class JAORatings {
         Object proj = spec.getProjectileSpec();
         if (proj instanceof ProjectileSpecAPI) {
             try { w.projSpeed = ((ProjectileSpecAPI) proj).getMoveSpeed(null, null); } catch (Throwable ignored) { }
+        }
+        if (proj instanceof MissileSpecAPI) {
+            // unguided rockets and torpedoes hit friendlies (vanilla gives them MISSILE_FF: Annihilator, Hammer, Reaper,
+            // Neutron; guided missiles are NO_FF). The missile spec doesn't expose its collision class, so unguided stands in
+            w.ff = !w.guided && !w.guidedPoor;
+            try { float v = ((MissileSpecAPI) proj).getHullSpec().getEngineSpec().getMaxSpeed(); if (v > 0f) w.projSpeed = v; } catch (Throwable ignored) { }
         }
         DerivedWeaponStatsAPI d = spec.getDerivedStats();
         if (d != null) {

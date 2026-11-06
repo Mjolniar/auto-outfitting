@@ -193,6 +193,8 @@ final class JAOModel {
         float crCost;
         /** Finite ammo: damage per second while it has ammo (0 = unknown); a fight gets no more of the pool than this x its length. */
         float poolRate;
+        /** Its missiles hit friendly ships (unguided rockets and torpedoes; JAORatings). */
+        boolean ff;
         boolean ownedOnly;
     }
 
@@ -358,7 +360,24 @@ final class JAOModel {
     /** Per-weapon numbers on this ship, filled by evaluate(). */
     static final class Eff {
         float dps, flux, range, pool;
+        /** Finite missiles: share of the pool that reaches a target the size of a capital (missileReliability x facing). */
+        float rel = 1f;
         boolean front;
+    }
+
+    /**
+     * Unguided rockets miss what moves, and slow ones more (0.5.8, the user: gyrojets "hit like a missile" but travel
+     * slowly); guided missiles land, poorly guided ones mostly. Rockets that hit friendlies (collision MISSILE_FF: Yunru
+     * gyrojets, Annihilators, Hammers, Reapers) lose a little more the harder each one hits: the user saw team kills from
+     * gyrojets at 1,533 damage a rocket. Target size comes on top (SIZE_HIT).
+     */
+    static final float UNGUIDED_HIT = 0.75f, POOR_GUIDANCE_HIT = 0.85f, FF_RISK = 0.25f;
+
+    static float missileReliability(W w) {
+        float r = w.guided ? 1f : w.guidedPoor ? POOR_GUIDANCE_HIT : UNGUIDED_HIT;
+        if (!w.guided && w.projSpeed > 0f && w.projSpeed < 600f) r *= 0.9f;
+        if (w.ff) r *= 1f - FF_RISK * clamp(w.hit / 1000f, 0.2f, 1f);
+        return r;
     }
 
     // ------------------------------------------------------------------ build score
@@ -505,8 +524,9 @@ final class JAOModel {
                 pd += 0.5f * w.wingPd * x.dps * s.pdDmg;
             }
             if (x.pool > 0f && x.dps <= 0f) {
-                // finite missiles: unguided ones only count when they can face the target
-                float use = (w.guided || x.front) ? 1f : 0.25f;
+                // finite missiles: unguided ones only count when they can face the target, and miss more (missileReliability)
+                float use = ((w.guided || x.front) ? 1f : 0.25f) * (w.wing ? 1f : missileReliability(w));
+                x.rel = use;
                 if (w.strike) missilePoolStrike += x.pool * use; else missilePool += x.pool * use;
             }
         }
@@ -663,7 +683,7 @@ final class JAOModel {
         float t1 = 0f;
         if (t.shield) {
             float rate = (hard + Math.max(0f, soft - t.diss)) * t.shieldEff * debuff;
-            rate += missileShield(fits, e, missileWindow);
+            rate += missileShield(fits, e, missileWindow, missileHit);
             t1 = rate <= 0.01f ? 600f : Math.min(600f, 0.6f * t.cap / rate);
         }
         // armor: pooled armor from A down to 0.2A in steps
@@ -695,12 +715,17 @@ final class JAOModel {
         return new float[]{t1, t2, t3};
     }
 
-    static float missileShield(List<Fit> fits, Eff[] e, float window) {
+    /**
+     * Kinetic missiles into shields, with the same hit chances as against armor (0.5.8: they counted every round as a hit
+     * whatever the target's size or the missile's guidance, so kinetic rockets ran the fleet's anti-shield up to 70%).
+     */
+    static float missileShield(List<Fit> fits, Eff[] e, float window, float sizeHit) {
         float r = 0f;
         for (int i = 0; i < fits.size(); i++) {
             W w = fits.get(i).w;
             if (e[i].pool <= 0f || e[i].dps > 0f) continue;
-            if (w.dmg == KIN || w.shieldMultExtra > 1f) r += e[i].pool * SHIELD_MULT[w.dmg] * w.shieldMultExtra / window;
+            float hit = e[i].rel * (w.strike ? sizeHit : 0.5f + 0.5f * sizeHit);
+            if (w.dmg == KIN || w.shieldMultExtra > 1f) r += e[i].pool * hit * SHIELD_MULT[w.dmg] * w.shieldMultExtra / window;
         }
         return r;
     }

@@ -82,6 +82,7 @@ Some mods change a ship's loadout from their own scripts. The Optimal fit and th
 - **Wings you can't buy or drop** (Nimbus drones, Emergent Threats kites and Terminators, Arma bits) stay in the bay they're in. They're never taken off, moved to another ship or picked from cargo.
 - **Hullmods that convert a ship** are never added: Yunru's "Install:" hullmods turn into permanent hullmods or use up AI cores and lobsters once the ship is shown. A free hullmod only goes on when it helps.
 - **Joke and built-in parts** stay out: Yunru's "Let's Bayblade!" (turn rate x50 on any ship) is never added, and weapons priced at 0 OP (some hull's built-in gun or a fighter's) never go in ordinary mounts. Extra speed and handling only count up to half again the speed and twice the handling.
+- **Missiles**: a launcher counts for what it can fire within the fight length. Unguided rockets land less often than guided missiles (slow ones less again), and rockets that can hit your own ships, such as Yunru's gyrojets, Annihilators, Hammers and Reapers, count for less the harder each one hits. That holds against shields as well as armor.
 - **Inverted Reverse Thrusters** (Yunru) roughly doubles speed but the ship can't fly backwards, so it counts as a hullmod with a drawback: only with "Allow hullmods with drawbacks" on.
 - Before any planned ship is refitted, its hullmods' scripts run once on a copy. Drones they add go into the plan, and the OP they take comes out of vents and capacitors.
 
@@ -103,6 +104,7 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Fight length | 90 s | Short fights favour burst and missiles; long ones favour flux efficiency. A launcher counts for at most what it can fire in this time, so more ammo only helps launchers that empty sooner. Raise it if your battles run long. |
 | Value special weapons | on | Counts scripted effects on top of the plain numbers. |
 | Prefer rare weapons | off | Rarer weapons get a bonus (Rare weapon bonus, 15%) on top of their measured strength. |
+| Use items you can only get with cheats | off | Off: weapons and LPCs that have no blueprint, that no NPC faction knows and no ship in any mod carries (what console `allweapons` adds, like Yunru's gyrojets) are left out of fits, Optimize fleet and fleet orders. Omega, Threat and Dweller gear always counts. |
 | Respect priority weapons | on | Your faction doctrine's priority marks win ties. |
 | Point defense floor | 1 | Minimum point defense for the ship's size. |
 | Never use these weapons | (none) | Weapon ids or patterns the Optimal fit skips, e.g. `stardust_*`. |

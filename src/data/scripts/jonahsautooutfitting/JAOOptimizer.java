@@ -457,6 +457,8 @@ class JAOOptimizer {
                     // a weapon priced at 0 OP is some hull's built-in or a fighter's gun (IX cutting beam, Yunru strobe):
                     // free in an ordinary mount it beat every real weapon (0.5.6, the all-weapons run)
                     if (spec.getOrdnancePointCost(null) <= 0f) continue;
+                    // console-only gear (no blueprint, no faction, no ship carries it) unless the setting allows it
+                    if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec)) continue;
                     JAOModel.W m = JAORatings.weapon(spec);
                     // restricted weapons aren't bought from markets; a known blueprint can still build them
                     if (m.ownedOnly && w.getPrice() > 0f && !planning) continue;
@@ -486,6 +488,7 @@ class JAOOptimizer {
                     AvailableFighter f = fighters.get(i);
                     if (f.getWingSpec() == null || f.getQuantity() <= 0) continue;
                     if (JAOCompat.boundWing(f.getWingSpec()) || !JAOCompat.wingAllowed(allow, f.getId())) continue;
+                    if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(f.getWingSpec())) continue;
                     js.cands.add(new JAOSearch.Cand(JAORatings.wing(f.getWingSpec()), f, "f" + i, f.getPrice()));
                 }
             }
