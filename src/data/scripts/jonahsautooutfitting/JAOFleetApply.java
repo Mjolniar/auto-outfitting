@@ -37,7 +37,7 @@ import java.util.TreeMap;
  *    storage. What came off and isn't used again goes to that storage (user: "let it all sit in storage"), otherwise it
  *    stays in cargo.
  *  - Hullmods change only where the refit rules allow here (spaceport hullmods only at a spaceport).
- *  - New s-mods (setting "Optimize fleet builds s-mods") cost a story point each through the game's own build-in (bonus
+ *  - New s-mods (only while the Autofit panel's "Build in s-mods" box is ticked) cost a story point each through the game's own build-in (bonus
  *    XP, playthrough log); the plan never counts on more story points than you have above the reserve.
  *  - The ship on the refit screen is changed through the screen's own copy, then the screen is synced and saved.
  * Civilian ships with the logistics fit are left as they are.
@@ -50,6 +50,8 @@ final class JAOFleetApply {
     final Object refit;
     final JAOFleetMix before;
     int civilian;
+    /** "Build in s-mods" was ticked in the Autofit panel when this plan started. */
+    final boolean smods;
 
     /** What applying the plan changes on one ship. */
     static final class Change {
@@ -84,7 +86,9 @@ final class JAOFleetApply {
         before = JAOFleetPlanner.currentMix(ships);
         CampaignUIAPI.CoreUITradeMode mode = market == null ? CampaignUIAPI.CoreUITradeMode.NONE
                 : market.getFaction().isHostileTo(Factions.PLAYER) ? CampaignUIAPI.CoreUITradeMode.SNEAK : CampaignUIAPI.CoreUITradeMode.OPEN;
-        fleet = new JAOFleetPlan(ships, weapons, fighters, true, JAOSettings.fleetSmods, market, mode);
+        // s-mods only while the Autofit panel's "Build in s-mods" box is ticked, as for a single Optimal fit (off by default)
+        smods = JAOGoals.optionChecked(JAOAutofitPlugin.SMODS);
+        fleet = new JAOFleetPlan(ships, weapons, fighters, true, smods, market, mode);
         fleet.variantOf = m -> live(m, false);
     }
 

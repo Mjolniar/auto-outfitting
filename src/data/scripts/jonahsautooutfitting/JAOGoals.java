@@ -37,6 +37,25 @@ public class JAOGoals {
     private static boolean handlesFailed;
     private static final Set<String> injected = new HashSet<>();
 
+    /**
+     * An Autofit panel checkbox as the player last left it: the game keeps every box's state in SavedVariantData's option
+     * map (it goes into the save). False when it was never ticked or can't be read. Optimize fleet builds s-mods only
+     * while "Build in s-mods" is ticked (user 11/05: story points are too valuable for one button to spend them all).
+     */
+    static boolean optionChecked(String id) {
+        try {
+            Object svd = Global.getSector().getAutofitVariants();
+            MethodHandle get = MethodHandles.lookup().findVirtual(svd.getClass(), "getOptionState", MethodType.methodType(Map.class));
+            return Boolean.TRUE.equals(((Map<?, ?>) get.invoke(svd)).get(id));
+        } catch (Throwable t) {
+            if (!optionWarned) Global.getLogger(JAOGoals.class).warn("Jonah's Auto Outfitting: can't read the Autofit panel's \"" + id + "\" box; treated as unticked", t);
+            optionWarned = true;
+            return false;
+        }
+    }
+
+    private static boolean optionWarned;
+
     /** Method handles to SavedVariantData and its inner classes, looked up once. */
     private static final class Handles {
         MethodHandle getVisible, arrayVariants, getRecent, setVariants, getVariantMap, resolverVariant, addToVisible;

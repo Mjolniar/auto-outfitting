@@ -72,8 +72,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         head.addPara("Weapons and LPCs: what the ships carry, plus " + esc(from) + ". What comes off and isn't used again goes to "
                 + (job.storage != null ? "that storage." : "cargo."), 4f, g);
         int sp = Global.getSector().getPlayerStats().getStoryPoints();
-        if (!JAOSettings.fleetSmods) head.addPara("S-mods: off (setting \"Optimize fleet builds s-mods\").", 4f, g);
-        else if (job.storyPoints > 0) head.addPara("S-mods: %s to build in, one story point each (you have %s, keeping %s).", 4f, h,
+        if (!job.smods) head.addPara("S-mods: none. Optimize fleet only builds s-mods while \"Build in s-mods\" is ticked in the Autofit panel.", 4f, g);
+        else if (job.storyPoints > 0) head.addPara("S-mods: %s to build in, one story point each (you have %s, keeping %s; \"Build in s-mods\" is ticked in the Autofit panel).", 4f, h,
                 "" + job.storyPoints, "" + sp, "" + JAOSettings.smodReserve);
         else head.addPara("S-mods: none to build (ships full, no story points to spare, or nothing worth one).", 4f, g);
         StringBuilder notes = new StringBuilder();

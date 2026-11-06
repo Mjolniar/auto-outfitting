@@ -272,7 +272,8 @@ public class JAOScreenButton implements EveryFrameScript {
                     tt.addPara("Plans every combat ship's Optimal fit together, from what the ships carry, your cargo and the storage "
                             + "where you're docked, balancing the whole fleet (anti-shield, armor-cracking, fighter roles). Shows what "
                             + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
-                    tt.addPara("S-mods: %s (mod settings).", 6f, Misc.getHighlightColor(), JAOSettings.fleetSmods ? "built in, one story point each" : "off");
+                    tt.addPara("S-mods: %s (the Autofit panel's \"Build in s-mods\" box).", 6f, Misc.getHighlightColor(),
+                            JAOGoals.optionChecked(JAOAutofitPlugin.SMODS) ? "built in, one story point each" : "none");
                 } else {
                     tt.addPara("What your fleet carries: anti-shield and armor-cracking against their aims, damage types, fighter roles, "
                             + "point defense, range bands and empty mounts, with recommendations. Changes nothing.", 0f);

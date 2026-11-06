@@ -27,7 +27,6 @@
 	"jao_smodWaitMargin":0.1,
 	"jao_smodWaitDays":30,
 	"jao_smodReserve":0,
-	"jao_fleetSmods":true,         # the Optimize fleet button also builds s-mods (one story point each)
 
 	# fleet production order (Order weapons for fleet button on the refit screen)
 	"jao_productionButton":true,
