@@ -115,6 +115,10 @@ public class JAORatings {
             } else {
                 // never above the real fire rate (some guns regenerate ammo faster than they can shoot)
                 w.dps = finite ? 0f : d.getDps() > 0f ? Math.min(d.getSustainedDps(), d.getDps()) : d.getSustainedDps();
+                // recharging charges: the burst they allow (JAOModel.chargedDps)
+                if (!finite && spec.usesAmmo() && spec.getAmmoPerSecond() > 0f && d.getDps() > 1.05f * w.dps) {
+                    w.burstDps = d.getDps(); w.ammoMax = spec.getMaxAmmo(); w.regen = spec.getAmmoPerSecond();
+                }
                 w.flux = finite ? 0f : w.dps * d.getFluxPerDam();
                 if (finite) {
                     w.pool = (barrels > 1 ? projDmg : perShot) * Math.max(1, spec.getMaxAmmo());

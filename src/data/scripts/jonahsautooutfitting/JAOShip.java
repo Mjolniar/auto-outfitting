@@ -80,10 +80,22 @@ final class JAOShip implements JAOSearch.World {
 
     static int personalityOf(FleetMemberAPI m) {
         PersonAPI c = m == null ? null : m.getCaptain();
-        String p = c == null || c.isDefault() || c.getPersonalityAPI() == null ? "steady" : c.getPersonalityAPI().getId();
+        // a ship without an officer fights with the personality the faction doctrine's aggression sets (Command >
+        // Doctrine; FactionPersonalityPickerPluginImpl: 1 cautious, 2 steady, 3 aggressive, 4 aggressive or reckless,
+        // 5 reckless). 0.5.12: it was always taken as steady (research builds_update_1106 rule 3)
+        String p = c == null || c.isDefault() || c.getPersonalityAPI() == null ? doctrinePersonality() : c.getPersonalityAPI().getId();
         if ("aggressive".equals(p) || "reckless".equals(p)) return 1;
         if ("cautious".equals(p) || "timid".equals(p)) return 2;
         return 0;
+    }
+
+    static String doctrinePersonality() {
+        try {
+            int a = Global.getSector().getPlayerFaction().getDoctrine().getAggression();
+            return a <= 1 ? "cautious" : a == 2 ? "steady" : "aggressive";
+        } catch (Throwable t) {
+            return "steady";
+        }
     }
 
     String key(Set<String> mods) {
@@ -169,6 +181,11 @@ final class JAOShip implements JAOSearch.World {
         // as an s-mod the Autoloader waits 10 s after a reload instead of 5 (its s-mod penalty)
         if (work.hasHullMod("missile_autoloader")) s.ammoMult *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
         if (work.hasHullMod("phase_anchor") && s.phase) s.extra += 0.12f;
+        // Shield Conversion - Omni on slow low-tech front-shield hulls (0.5.12; research builds_update_1106 2.5, several
+        // sources incl. Grievous69's 0.98 guide): the AI swings the omni shield onto torpedoes and big shells and lets the
+        // armor take small arms. AI behaviour the stats can't show (they only see the arc -30%), so a flat bonus
+        if (work.hasHullMod("adaptiveshields") && hull.getShieldType() == ShieldType.FRONT && lowTech(hull)
+                && hull.getEngineSpec() != null && hull.getEngineSpec().getMaxTurnRate() <= 30f) s.extra += OMNI_BONUS;
         // Valkyrian Brunhild Cyclonic Core (and Micro): +100 base range to "valk" weapons through a combat-only
         // WeaponBaseRangeModifier (checked in Valkyrians.jar). Valhalla Core (Elegy) gives +20% damage above 66% flux,
         // so it runs hot; Safety Overrides ships can't vent anyway (research build_philosophy R2.5, R3.1, R3.3)
@@ -202,6 +219,12 @@ final class JAOShip implements JAOSearch.World {
         s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
         s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
         s.malfunction = Math.max(0f, st.getWeaponMalfunctionChance().getModifiedValue());
+        s.ammoBal = mult(st.getBallisticAmmoBonus().computeEffective(1f));
+        s.ammoEn = mult(st.getEnergyAmmoBonus().computeEffective(1f));
+        s.regenBal = mult(st.getBallisticAmmoRegenMult().getModifiedValue());
+        s.regenEn = mult(st.getEnergyAmmoRegenMult().getModifiedValue());
+        s.empTaken = Math.max(0f, st.getEmpDamageTakenMult().getModifiedValue());
+        s.ventRate = Math.max(0f, st.getVentRateMult().getModifiedValue());
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
@@ -290,9 +313,16 @@ final class JAOShip implements JAOSearch.World {
     @Override
     public void setSMods(Set<String> s) { smods = new java.util.LinkedHashSet<>(s); }
 
+    static final float OMNI_BONUS = 0.04f;
+
+    static boolean lowTech(ShipHullSpecAPI h) {
+        String m = h.getManufacturer();
+        return m != null && m.toLowerCase(java.util.Locale.ROOT).contains("low tech");
+    }
+
     /** Listener hullmods the model has its own numbers for (see ship()). */
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(
-            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
+            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
 
     /** Hull-only hullmods (roles HULL or CR in jao_hullmods.csv, or the vanilla padding mods) and Flux Distributor/Coil. */
     @Override

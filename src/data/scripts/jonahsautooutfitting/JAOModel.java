@@ -225,6 +225,9 @@ final class JAOModel {
         float prior = 1f;
         /** Missiles: hit points of one missile (enemy point defense kills the weak ones; 0 = unknown). */
         float projHP;
+        /** Guns with recharging ammo (Autopulse, Thermal Pulse Cannon, Storm Needler, Burst PD): dps while the charges last,
+         *  charges, and charges regained per second. dps above is the recharge-limited rate. 0 = none. */
+        float burstDps, ammoMax, regen;
         boolean ownedOnly;
     }
 
@@ -289,6 +292,10 @@ final class JAOModel {
         float turnMult = 1f, beamTurnMult = 1f, recoilMult = 1f;
         /** Weapon malfunction chance outside combat readiness (Ill-Advised Modifications 0.05). */
         float malfunction;
+        /** Ballistic / energy charge capacity and recharge rate (Expanded Magazines +50% / s-mod +50% recharge). */
+        float ammoBal = 1f, ammoEn = 1f, regenBal = 1f, regenEn = 1f;
+        /** EMP damage taken and flux dissipation while venting (Resistant Flux Conduits 0.5 / x1.25). */
+        float empTaken = 1f, ventRate = 1f;
 
         Ship copy() {
             Ship s = new Ship();
@@ -304,6 +311,7 @@ final class JAOModel {
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
             s.turnRate = turnRate; s.baseTurn = baseTurn; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
+            s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             return s;
         }
     }
@@ -451,8 +459,10 @@ final class JAOModel {
             // wings fly from this ship's deck: its refit time, replacement rate and engagement range (deckFactor)
             float dm = w.wing ? s.deck : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
             if (w.beam && s.hsa) dm *= 1.1f;
-            x.dps = w.dps * dm * rof * w.prior;
-            x.flux = w.wing ? 0f : w.flux * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
+            float base = w.wing ? w.dps : chargedDps(w, s, p.fightSeconds);
+            float fluxScale = w.dps > 0f ? base / w.dps : 1f;
+            x.dps = base * dm * rof * w.prior;
+            x.flux = w.wing ? 0f : w.flux * fluxScale * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
             x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f) * w.prior;
             // a slower missile rate (Expanded Missile Racks' s-mod penalty) delivers less of the pool within a fight
             if (w.cls == MIS && !w.wing) x.pool *= Math.min(1f, rof);
@@ -740,7 +750,10 @@ final class JAOModel {
         float startCr = crStart(s.maxCr - plague / 100f, s.deployCr);
         // weapons that malfunction outside CR (Ill-Advised Modifications) fire less
         float malf = 1f - clamp(MALFUNCTION_COST * s.malfunction, 0f, 0.5f);
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * (1f + s.extra);
+        // EMP resistance and faster venting (Resistant Flux Conduits; 0.5.12, "absolute necessity on any battleship" late
+        // game against Remnant, Threat and Omega EMP, research builds_update_1106 4.2): small, larger on big hulls
+        float resist = (1f + EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - s.empTaken, 0f, 1f)) * (s.noVent ? 1f : 1f + VENT_W * clamp(s.ventRate - 1f, 0f, 1f));
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * (1f + s.extra);
         if (out != null) {
             if (plague > 0f) out.put("plague", plague);
             if (s.maxCr != CR_BASE || plague > 0f) { out.put("maxCr", s.maxCr - plague / 100f); out.put("crStart", startCr); }
@@ -881,6 +894,28 @@ final class JAOModel {
     }
 
     static final float[] STRIKE_USE_UNGUIDED = {0.05f, 0.3f, 0.7f, 0.95f}, STRIKE_USE_GUIDED = {0.05f, 0.95f, 1f, 1f};
+
+    /** Score per point of EMP damage avoided, by hull size; per point of extra vent rate. */
+    static final float[] EMP_W = {0f, 0.01f, 0.025f, 0.05f};
+    static final float VENT_W = 0.03f;
+    /** Times a gun's charges refill and empty again in a fight (lulls between engagements, overload windows). */
+    static final float MAG_REFILLS = 3f;
+
+    /**
+     * A recharging-ammo gun's average dps over a fight (0.5.12): the recharge-limited rate plus the stored charges, emptied
+     * about MAG_REFILLS times. Before, only the recharge rate counted (Autopulse 300 of its 1,500, Thermal Pulse Cannon 250
+     * of 1,250), so Expanded Magazines (+50% charges; as an s-mod +50% recharge too), which experts take first on those
+     * ships, was worth nothing.
+     */
+    static float chargedDps(W w, Ship s, float fight) {
+        if (w.regen <= 0f || w.burstDps <= w.dps * 1.05f || w.ammoMax <= 0f) return w.dps;
+        float ammo = w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
+        float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : 1f;
+        float sust = Math.min(w.burstDps, w.dps * regen);
+        float ratio = w.burstDps / Math.max(1f, sust);
+        float mag = ratio > 1.01f ? w.ammoMax * ammo / (w.regen * regen * (ratio - 1f)) : 0f;
+        return sust + (w.burstDps - sust) * Math.min(1f, MAG_REFILLS * mag / Math.max(30f, fight));
+    }
 
     /**
      * Share of missiles that get past the target's point defense, by missile hit points (0.5.11): 50-HP rockets

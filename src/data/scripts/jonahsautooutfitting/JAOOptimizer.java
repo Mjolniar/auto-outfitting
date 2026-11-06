@@ -246,6 +246,7 @@ class JAOOptimizer {
         current.getWeaponGroups().clear();
         current.setMayAutoAssignWeapons(true);
         current.autoGenerateWeaponGroups();
+        JAOGroups.arrange(current);
         current.setSource(VariantSource.REFIT);
         if (!module) {
             String what = role != null ? role.label : "";
@@ -550,7 +551,7 @@ class JAOOptimizer {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
-            if (JAOCompat.neverAdd(id)) continue;
+            if (JAOCompat.neverAdd(id) || JAOCompat.tooSmall(id, current.getHullSize())) continue;
             if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
             if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
                     || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) continue;
