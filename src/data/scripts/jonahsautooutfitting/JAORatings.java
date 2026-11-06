@@ -33,11 +33,12 @@ import java.util.Set;
  * (merged by id), so nothing here is keyed to a particular mod.
  */
 public class JAORatings {
-    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv";
+    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv", TIERS = "data/config/jao_weapon_tiers.csv";
 
     private static final Map<String, JAOModel.W> weapons = new HashMap<>(), wings = new HashMap<>();
     private static Map<String, JSONObject> effects, hullmods;
     private static List<String[]> rules;
+    private static Map<String, Float> tiers;
     /** Reference targets per size class: [size][0 shielded, 1 not]. */
     private static JAOModel.Target[][] refs;
     /** Reference wing axes per role (wingRefs). */
@@ -52,6 +53,7 @@ public class JAORatings {
         effects = null;
         hullmods = null;
         rules = null;
+        tiers = null;
         refs = null;
     }
 
@@ -84,6 +86,7 @@ public class JAORatings {
         w.guidedPoor = spec.getAIHints().contains(AIHints.GUIDED_POOR);
         w.fireWhenInefficient = spec.getAIHints().contains(AIHints.FIRE_WHEN_INEFFICIENT);
         w.spread = spec.getMaxSpread();
+        w.turnRate = spec.getTurnRate();
         Object proj = spec.getProjectileSpec();
         if (proj instanceof ProjectileSpecAPI) {
             try { w.projSpeed = ((ProjectileSpecAPI) proj).getMoveSpeed(null, null); } catch (Throwable ignored) { }
@@ -93,6 +96,7 @@ public class JAORatings {
             // Neutron; guided missiles are NO_FF). The missile spec doesn't expose its collision class, so unguided stands in
             w.ff = !w.guided && !w.guidedPoor;
             try { float v = ((MissileSpecAPI) proj).getHullSpec().getEngineSpec().getMaxSpeed(); if (v > 0f) w.projSpeed = v; } catch (Throwable ignored) { }
+            try { w.projHP = ((MissileSpecAPI) proj).getHullSpec().getHitpoints(); } catch (Throwable ignored) { }
         }
         DerivedWeaponStatsAPI d = spec.getDerivedStats();
         if (d != null) {
@@ -136,6 +140,7 @@ public class JAORatings {
         w.rarity = Math.min(1f, r);
         w.interference = interference(w.id);
         w.crCost = JAOCompat.plagueCost(w.id);
+        w.prior = prior(w.id);
         applyEffects(w);
         return w;
     }
@@ -465,6 +470,34 @@ public class JAORatings {
      * as the mod's own and kept only the last row of each kind. Until 0.5.5 every rule kind had one row: the Guru's
      * plague-only bays lost to the Maquech row under them (user 11/05: Optimize fleet still put Daggers on the Gurus).
      */
+    /**
+     * The community's AI rating of a weapon as a value multiplier (jao_weapon_tiers.csv, Grievous69's 0.98a tier lists;
+     * 0.5.11, the user asked for builds as good as the experts'): B is 1, each tier step about 2% (S- 1.05, A 1.03, C 0.97,
+     * D 0.94). It only decides near-ties: the model rated an LR PD laser within 1% of a Burst PD laser, where every
+     * expert build takes the Burst PD. 1 for weapons without a row or with the setting off.
+     */
+    static float prior(String id) {
+        if (!JAOSettings.communityTiers || id == null) return 1f;
+        if (tiers == null) {
+            tiers = new HashMap<>();
+            try {
+                JSONArray a = Global.getSettings().getMergedSpreadsheetDataForMod("id", TIERS, JAOSettings.MOD);
+                for (int i = 0; i < a.length(); i++) {
+                    JSONObject o = a.getJSONObject(i);
+                    String wid = o.optString("id", "").trim();
+                    if (wid.isEmpty() || wid.startsWith("#")) continue;
+                    float s = JAOModel.tierScore(o.optString("tier", ""));
+                    if (s > 0f) tiers.put(wid, JAOModel.tierPrior(s));
+                }
+                Global.getLogger(JAORatings.class).info("Jonah's Auto Outfitting: " + tiers.size() + " community weapon ratings");
+            } catch (Throwable e) {
+                Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: can't read " + TIERS, e);
+            }
+        }
+        Float f = tiers.get(id);
+        return f == null ? 1f : f;
+    }
+
     static List<String[]> rules() {
         if (rules != null) return rules;
         rules = new ArrayList<>();
