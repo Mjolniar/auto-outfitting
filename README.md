@@ -9,6 +9,14 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 
 - Weapons are scored on real combat numbers: damage against shields, armor and hull, flux cost, range, hit strength against armor, ammo, and scripted special effects. OP cost and the game's autofit tiers aren't used to rank weapons.
 - The loadout is balanced to finish a kill: break the shield, strip the armor, kill the hull. Build styles can lean on one layer instead.
+- It scores loadouts by how the game's AI actually fights, read from the game's own combat code. That covers:
+  - **Missiles:** HE torpedoes and rockets are priced against armor the same way guns are. Unguided torpedoes are only fired at slow, big targets. Free-firing rockets mostly spend themselves on raised shields. Enemy point defense shoots weak missiles down: about a third of 50-HP rockets, but few 500-HP Reapers.
+  - **Shields and flux:** shields only use 80% of flux capacity. Shield upkeep only runs while the shield is up. AI ships get dissipation to 1.25x their weapons' flux before capacitors.
+  - **Aim:** only the main weapon group is held back against shields. Large slow turrets can't track frigates.
+  - **Point defense:** it's rated by whether one weapon can kill a missile in time, so Burst PD wins over LR PD.
+  - **Carriers:** they escort only when at least two thirds of their wings are fighters, interceptors or support. The shortest-range wing caps how far all of them strike. Defensive Targeting Array changes what each fighter role is worth.
+  - **Ship systems:** Accelerated Ammo Feeder and High Energy Focus add to ballistic and energy weapons on their hulls.
+  - **Handling:** extra turning counts most on slow hulls that aim hardpoints by turning, not on nimble frigates.
 - Guns past the ship's sustained flux still count: they fire in burst windows (overloads, flanks) paid from flux capacity, so mounts get real weapons, not 1-OP fillers or small guns in big mounts.
 - Loadouts stay coherent: matched sets of the same weapon, one range band, within the game's 7 weapon groups. Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
 - Hullmods are chosen for the ship and its weapons (range mods only with guns that use them, missile mods only with missiles, and so on), then the remaining OP goes into vents and capacitors.
@@ -108,6 +116,7 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 | Range | Auto | Auto, Long, Close. |
 | Fight length | 90 s | Short fights favour burst and missiles; long ones favour flux efficiency. A launcher counts for at most what it can fire in this time, so more ammo only helps launchers that empty sooner. Raise it if your battles run long. |
 | Value special weapons | on | Counts scripted effects on top of the plain numbers. |
+| Lean on community weapon ratings | on | When two weapons score about the same, the one the community rates higher for AI ships wins (Grievous69's 0.98a tier lists: Burst PD over LR PD, HVD over Gauss). It moves a weapon's value by about 5% at most. Vanilla weapons only; other mods can add rows to `data/config/jao_weapon_tiers.csv`. |
 | Prefer rare weapons | off | Rarer weapons get a bonus (Rare weapon bonus, 15%) on top of their measured strength. |
 | Use items you can only get with cheats | off | Off: weapons and LPCs that have no blueprint, that no NPC faction knows and no ship in any mod carries (what console `allweapons` adds, like Yunru's gyrojets) are left out of fits, Optimize fleet and fleet orders. Omega, Threat and Dweller gear always counts. |
 | Respect priority weapons | on | Your faction doctrine's priority marks win ties. |

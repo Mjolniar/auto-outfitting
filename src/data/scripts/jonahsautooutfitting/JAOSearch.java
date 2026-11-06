@@ -198,6 +198,13 @@ final class JAOSearch {
             if (removeMods()) changed = true;
             if (!changed) break;
         }
+        // 3b. hullmod trades the steps above can't see (0.5.11): a costly hullmod taken early (Heavy Armor on a Conquest)
+        // can block a better one (Dedicated Targeting Core) when neither removing the first nor adding the second alone helps
+        for (int round = 0; round < 3 && swapMods(); round++) {
+            for (Slot s : order) if (s.fixed == null) pickBest(s, true);
+            addMods();
+            removeMods();
+        }
         // 4. never leave ordnance points unspent
         spendLeftover(order);
         // 5. the same weapon from a cheaper source when one is still in stock (owned before bought or built)
@@ -333,6 +340,29 @@ final class JAOSearch {
             mods.add(best);
             any = true;
         }
+    }
+
+    /** Replaces one hullmod with another when the trade beats both (best trade first). Returns true if one was made. */
+    boolean swapMods() {
+        float base = objective();
+        String bestOut = null, bestIn = null;
+        float bestV = base * 1.002f;
+        for (String out : new ArrayList<>(mods)) {
+            if (keepMods.contains(out)) continue;
+            mods.remove(out);
+            for (String in : modCands) {
+                if (in.equals(out) || mods.contains(in) || world.filler(in) || !world.canAdd(in, mods)) continue;
+                mods.add(in);
+                float v = objective();
+                mods.remove(in);
+                if (v > bestV) { bestV = v; bestOut = out; bestIn = in; }
+            }
+            mods.add(out);
+        }
+        if (bestOut == null) return false;
+        mods.remove(bestOut);
+        mods.add(bestIn);
+        return true;
     }
 
     boolean removeMods() {

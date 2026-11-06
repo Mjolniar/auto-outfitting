@@ -20,7 +20,14 @@ final class JAOModel {
     static final float MAX_DR = 0.85f, MIN_ARMOR = 0.05f, ENGAGE_SECONDS = 30f, REACH_SAT = 1100f;
     static final float[] KA = {10f, 15f, 20f, 25f};
     /** Point defense a ship needs: about 1 / 2 / 3 / 4.5 Burst PD lasers (research weapon_eval d.13; was 3.6x that). */
+    /**
+     * Point defense floor by hull size (dps x hit share x arc x reach x pdKill). 0.5.11 tried 60/130/250/400 (about
+     * 1/2/3/5 Burst PD) and got PD-filled destroyers, the user's 11/02 complaint, so it stays 35/65/100/150; pdKill
+     * and PD_EXTRA make Burst PD win the PD mounts instead.
+     */
     static final float[] PD_NEED = {35f, 65f, 100f, 150f};
+    /** Score for point defense past the floor, at three times the floor. */
+    static final float PD_EXTRA = 0.04f;
     static final float OFFENSE_W = 0.6f;
     /** Speed counts for every role at least this much (exponent on speed against the hull's own). */
     static final float MIN_MOBILITY = 0.1f;
@@ -32,7 +39,22 @@ final class JAOModel {
      * Burst windows: share of armor and hull damage dealt while the target can't block (shield down, overloaded,
      * flanked), the capacity spent on them and how long they last. Load over budget the AI won't fire even then.
      */
-    static final float BURST_SHARE = 0.5f, BURST_CAP = 0.6f, BURST_SECONDS = 10f, FLUX_LIMIT = 1.75f, FLUX_SOFT = 1.4f, FLUX_SOFT_EXP = 0.3f;
+    /**
+     * BURST_CAP: share of capacity the AI spends opening every group in burst windows; 0.4 since 0.5.11 (the "2x budget"
+     * rule only holds while the ship has no soft flux; research ai_behaviour_1106 SF-3). AUTOFIRE_CAP: share of capacity
+     * over-budget autofire uses up (it stops at a flux level of 0.2-0.5), more on frigates and destroyers. SHIELD_USABLE:
+     * shields don't come back up past 80% flux, and omni shields drop there (SF-1).
+     */
+    static final float AUTOFIRE_CAP = 0.3f, AUTOFIRE_CAP_FAST = 0.45f, SHIELD_USABLE = 0.8f;
+    /**
+     * Share of a fight the shield is up, for its upkeep (0.5.11). Counting upkeep as always on put Stabilized Shields on
+     * 54% of hulls in the reference run; experts take it where upkeep is high (Paragon, Conquest, Eagle, Aurora; break-even
+     * 60/120/180/300 flux/s by size at full uptime, builds_update_1106 4.2).
+     */
+    static final float SHIELD_UPTIME = 0.6f;
+    /** Ship systems the AI fires whenever their weapons are in range: Accelerated Ammo Feeder, High Energy Focus (SYS-2/3). */
+    static final float AMMO_FEED = 1.29f, ENERGY_FOCUS = 1.075f;
+    static final float BURST_SHARE = 0.5f, BURST_CAP = 0.4f, BURST_SECONDS = 10f, FLUX_LIMIT = 1.75f, FLUX_SOFT = 1.4f, FLUX_SOFT_EXP = 0.3f;
     /** Fighter wing roles. */
     static final int W_FIGHTER = 0, W_BOMBER = 1, W_INTERCEPTOR = 2, W_SUPPORT = 3;
     /**
@@ -48,6 +70,8 @@ final class JAOModel {
      * one-bay ship has no escort. Research R1.8.
      */
     static final float INTERCEPTOR_NO_ESCORT = 0.4f, LONE_BOMBER = 0.7f;
+    /** Share of a carrier's ranged wings that must be fighters, interceptors or support for it to escort (CF-1). */
+    static final float ESCORT_SHARE = 0.66f;
     /**
      * Wing value. Paper numbers (fighter guns as if they always fired, a mining drill as constant fire, torpedoes spread
      * over the refit cycle) were off by up to 100x: a 9-OP Gunhead scored 210 per OP, a Trident 2. So a wing is worth
@@ -183,6 +207,8 @@ final class JAOModel {
         /** Sustained damage/s, flux/s, damage per hit, base range; pool = total damage of finite ammo (0 = unlimited). */
         float dps, flux, hit, range, pool, burst, emp;
         float projSpeed = 1000f, spread;
+        /** Turret turn rate, degrees per second (0 = unknown: no tracking limit). */
+        float turnRate;
         /** Scripted extras (jao_weapon_effects.csv). */
         float shieldMultExtra = 1f, armorExtraPerHit, hitsPerSec, arcDps, shieldDebuff = 1f;
         /** 0..1 rarity score (only used with Prefer rare weapons). */
@@ -195,6 +221,10 @@ final class JAOModel {
         float poolRate;
         /** Its missiles hit friendly ships (unguided rockets and torpedoes; JAORatings). */
         boolean ff;
+        /** Community AI rating as a value multiplier (JAORatings.prior; 1 = none). */
+        float prior = 1f;
+        /** Missiles: hit points of one missile (enemy point defense kills the weak ones; 0 = unknown). */
+        float projHP;
         boolean ownedOnly;
     }
 
@@ -214,6 +244,8 @@ final class JAOModel {
         float speed, baseSpeed, ppt;
         /** Turning and acceleration against the hull's own (1 = unchanged; Heavy Armor's s-mod penalty is 0.75). */
         float maneuver = 1f;
+        /** The ship's own max turn rate, degrees per second (0 = unknown), and the hull's before hullmods. */
+        float turnRate, baseTurn;
         int vents, caps, maxVents, maxCaps;
         float[] rangePct = new float[3], rangeFlat = new float[3], rangeMult = {1f, 1f, 1f};
         float beamPct, beamFlat, beamMult = 1f, threshold = Float.MAX_VALUE, pastThreshold = 1f;
@@ -251,6 +283,8 @@ final class JAOModel {
          * (Defective Manufactory). 1 = as the wing's own numbers.
          */
         float deck = 1f;
+        /** Defensive Targeting Array (wing engagement range 0): every wing stays at the carrier (CF-4). */
+        boolean dta;
         /** Turret turn rate and spread against the weapons' own (Damaged Weapon Mounts 0.75 / 1.3, Advanced Turret Gyros 1.75). */
         float turnMult = 1f, beamTurnMult = 1f, recoilMult = 1f;
         /** Weapon malfunction chance outside combat readiness (Ill-Advised Modifications 0.05). */
@@ -268,7 +302,7 @@ final class JAOModel {
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
             s.interferenceMult = interferenceMult; s.noVent = noVent;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
-            s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck;
+            s.turnRate = turnRate; s.baseTurn = baseTurn; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             return s;
         }
@@ -417,9 +451,9 @@ final class JAOModel {
             // wings fly from this ship's deck: its refit time, replacement rate and engagement range (deckFactor)
             float dm = w.wing ? s.deck : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
             if (w.beam && s.hsa) dm *= 1.1f;
-            x.dps = w.dps * dm * rof;
+            x.dps = w.dps * dm * rof * w.prior;
             x.flux = w.wing ? 0f : w.flux * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
-            x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f);
+            x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f) * w.prior;
             // a slower missile rate (Expanded Missile Racks' s-mod penalty) delivers less of the pool within a fight
             if (w.cls == MIS && !w.wing) x.pool *= Math.min(1f, rof);
             // a launcher can't fire faster than its rate: in a fight it delivers at most rate x fight length, however deep
@@ -439,8 +473,12 @@ final class JAOModel {
 
         // MagicLib interference eats dissipation; then the flux budget the AI fires within (mechanics 3.4, 8.3)
         float diss = s.diss - interferenceLoss(s, fits);
-        float budget = Math.max(1f, diss - (s.shield ? s.upkeep : 0f));
-        float uptime = load <= 0f ? 1f : Math.min(1f, (budget * ENGAGE_SECONDS + 0.5f * s.cap) / (load * ENGAGE_SECONDS));
+        // shield upkeep only runs while the shield is up (SHIELD_UPTIME of a fight)
+        float budget = Math.max(1f, diss - (s.shield ? SHIELD_UPTIME * s.upkeep : 0f));
+        // over-budget autofire only spends capacity up to a flux level of 0.2-0.5 (0.5.11, research ai_behaviour_1106
+        // SF-3): about 0.3 of it, 0.45 on frigates and destroyers, which are usually faster than what they fight
+        float autoCap = s.size <= 1 ? AUTOFIRE_CAP_FAST : AUTOFIRE_CAP;
+        float uptime = load <= 0f ? 1f : Math.min(1f, (budget * ENGAGE_SECONDS + autoCap * s.cap) / (load * ENGAGE_SECONDS));
         // burst windows (target overloaded, venting or flanked; mechanics 3.3-3.4: the AI opens every group up to 2x its
         // budget while its flux is hard and low): guns past the sustained budget still fire, paid from capacity
         float burstUp = load <= 0f ? 1f : Math.min(1f, (budget + BURST_CAP * s.cap / BURST_SECONDS) / load);
@@ -457,7 +495,11 @@ final class JAOModel {
             g[1] = Math.min(g[1], e[i].range);
         }
         float reng = 0f, best = -1f;
-        for (float[] g : groups.values()) if (g[0] > best) { best = g[0]; reng = g[1]; }
+        String mainId = null;
+        for (Map.Entry<String, float[]> ge : groups.entrySet()) {
+            float[] g = ge.getValue();
+            if (g[0] > best || (g[0] == best && mainId != null && ge.getKey().compareTo(mainId) < 0)) { best = g[0]; reng = g[1]; mainId = ge.getKey(); }
+        }
         if (best < 0f) {
             // missile boats and carriers: stand off at their missile range (or a carrier distance)
             reng = 1500f;
@@ -491,16 +533,28 @@ final class JAOModel {
         // fighter bays by role across the fleet and this ship, for the role balance of each wing
         float[] bays = p.fleetWingBays.clone();
         Map<String, Integer> sameWing = new HashMap<>();
-        int shipWings = 0;
-        boolean shipBomber = false;
+        int shipWings = 0, ranged = 0, escorts = 0, screens = 0;
+        float shortWing = Float.MAX_VALUE, longWing = 0f;
         for (Fit f : fits) {
             if (!f.w.wing) continue;
             bays[Math.max(0, Math.min(3, f.w.wingRole))] += 1f;
             shipWings++;
-            shipBomber |= f.w.wingRole == W_BOMBER;
+            if (f.w.range <= 0f) continue; // range-0 wings always stay with the carrier
+            ranged++;
+            if (f.w.wingRole != W_BOMBER) escorts++;
+            if (f.w.wingRole == W_INTERCEPTOR || f.w.wingRole == W_SUPPORT) screens++;
+            if (f.w.wingRole != W_SUPPORT) { shortWing = Math.min(shortWing, f.w.range); longWing = Math.max(longWing, f.w.range); }
         }
-        // interceptors only escort (their point defense job) when the carrier has no bomber and may auto-escort
-        float escort = shipBomber || s.noAutoEscort ? INTERCEPTOR_NO_ESCORT : 1f;
+        // interceptors only do their escort (point defense) job when the carrier goes into escort mode: the game wants
+        // at least 66% of its ranged wings to be fighters, interceptors or support (bombers count against it), and 75%
+        // with half of them interceptors or support under an aggressive or reckless captain (0.5.11, research
+        // ai_behaviour_1106 CF-1; the old rule "any bomber means no escort" was wrong for 3-4-bay carriers)
+        float escortShare = ranged > 0 ? escorts / (float) ranged : 1f, screenShare = ranged > 0 ? screens / (float) ranged : 0f;
+        boolean defend = escortShare >= ESCORT_SHARE && (s.personality != 1 || (escortShare >= 0.75f && screenShare >= 0.5f));
+        float escort = !defend || s.noAutoEscort ? INTERCEPTOR_NO_ESCORT : 1f;
+        // every wing strikes only as far as the shortest ranged non-support wing reaches (CF-2): one short wing caps the rest
+        float reachCap = shortWing == Float.MAX_VALUE || longWing <= 0f ? 1f
+                : 0.85f + 0.15f * clamp((Math.max(1500f, 0.9f * shortWing) - 1500f) / Math.max(1f, Math.max(1500f, 0.9f * longWing) - 1500f), 0f, 1f);
 
         // per-weapon effective dps and the shares that matter per phase: the shield phase is a flux war at the
         // sustained rate; armor and hull go down half in burst windows (shield down, overload, flanks)
@@ -524,6 +578,10 @@ final class JAOModel {
                 wingBalance = wingRoleFactor(w.wingRole, bays) * (float) Math.pow(0.97, elsewhere) * (float) Math.pow(0.95, seen);
                 if (w.wingRole == W_INTERCEPTOR) wingBalance *= escort;
                 if (w.wingRole == W_BOMBER && shipWings == 1) wingBalance *= LONE_BOMBER;
+                if (w.wingRole != W_SUPPORT && w.range > 0f) wingBalance *= reachCap;
+                // Defensive Targeting Array keeps every wing at the carrier (CF-4): bombers have nothing to strike,
+                // interceptors and point-defense wings gain +50% against fighters and missiles
+                if (s.dta) wingBalance *= w.wingRole == W_BOMBER ? 0.2f : w.wingRole == W_INTERCEPTOR || w.wingPd >= 0.5f ? 1.3f : w.wingRole == W_SUPPORT ? 1f : 0.8f;
             }
             float d = w.wing ? x.dps * p.wingMult * wingBalance : x.dps * uptime * inRange * reach * bear;
             float db = w.wing ? d : x.dps * (BURST_SHARE * burstUp + (1f - BURST_SHARE) * uptime) * inRange * reach * bear;
@@ -540,7 +598,7 @@ final class JAOModel {
                 // Turret Gyros speed them up)
                 if (!w.wing && !fits.get(i).hardpoint) hitf *= pdTrack(w.beam ? s.beamTurnMult : s.turnMult);
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
-                pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f);
+                pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f) * (w.wing ? 1f : pdKill(x.dps * s.pdDmg, x.range));
             } else if (w.wing && w.wingPd > 0f) {
                 // multi-role fighters screen against missiles and fighters with their PD-capable guns, at half weight
                 pd += 0.5f * w.wingPd * x.dps * s.pdDmg;
@@ -556,7 +614,7 @@ final class JAOModel {
         // time to kill each reference target
         float ttkSum = 0f, wsum = 0f, t1s = 0f, t2s = 0f, t3s = 0f;
         for (Target t : p.targets) {
-            float[] ph = phases(fits, e, eff, effB, t, p, missilePool, missilePoolStrike, s.recoilMult);
+            float[] ph = phases(fits, e, eff, effB, t, p, missilePool, missilePoolStrike, s, mainId);
             float ttk = p.wS * ph[0] + p.wA * ph[1] + p.wH * ph[2];
             ttkSum += t.weight * ttk;
             wsum += t.weight;
@@ -571,7 +629,7 @@ final class JAOModel {
             float eF = Math.max(0.05f, s.shieldEff * s.shieldTaken);
             tank = (0.5f + 0.4f * clamp((1f - eF) / 0.4f, 0f, 1f)) * (float) Math.sqrt(Math.min(1f, s.arc / 180f));
             if (s.armor >= 1000f) tank *= 0.8f;
-            shieldHp = tank * (s.cap + 30f * Math.max(0f, diss - s.upkeep - 0.5f * load)) / eF;
+            shieldHp = tank * (SHIELD_USABLE * s.cap + 30f * Math.max(0f, diss - s.upkeep - 0.5f * load)) / eF;
         }
         float ka = KA[Math.max(0, Math.min(3, s.size))];
         float ehp = s.hull / Math.max(0.1f, s.hullTaken) + ka * s.armor / Math.max(0.1f, s.armorTaken) + shieldHp;
@@ -597,8 +655,14 @@ final class JAOModel {
 
         // point defense floor (destroyers and up need some); past the need, PD only counts as half a gun
         float need = PD_NEED[Math.max(0, Math.min(3, s.size))] * p.pdFloor * p.pdMult;
-        float pdFactor = need <= 0f ? 1f : 0.9f + 0.1f * Math.min(1f, pd / need);
+        // past the floor, more point defense still stops more missiles and fighters, up to about twice the floor (0.5.11:
+        // with no credit past the floor, small energy mounts filled with LR PD lasers at 50 dps where the community puts
+        // 2-3 Burst PD lasers at 210; research meta_report 5)
+        float pdFactor = need <= 0f ? 1f : 0.9f + 0.1f * Math.min(1f, pd / need) + PD_EXTRA * clamp((pd - need) / (2f * need), 0f, 1f);
         if (s.size >= 1 && need > 0f && pd < 0.5f * need) pdFactor *= 0.95f;
+        // a ship with no point defense at all backs away from every incoming missile (tournament commentary, research
+        // tournaments_1106 rule 1): frigates too
+        if (pd <= 0f && need > 0f) pdFactor *= 0.95f;
 
         // far over budget the AI keeps groups switched off even in burst windows (mechanics 3.4: f up to 2;
         // research meta R91: 2x is the workable limit), so guns past that waste OP
@@ -654,8 +718,19 @@ final class JAOModel {
         float mw = Math.max(MIN_MOBILITY, p.mobilityW);
         // capped (0.5.6): Yunru's joke "Let's Bayblade!" multiplies turn rate by 50 and was worth more than any gun, so it
         // went on every ship once all hullmods were known; past half again the speed or twice the handling, more is no use
+        // turning matters to slow hulls that aim hardpoints by turning (0.5.11: Auxiliary Thrusters went on 59% of hulls,
+        // nimble frigates included, against the community's "slow hardpoint ships": Dominator, Legion, Onslaught,
+        // Executor, Conquest, Invictus; research meta_report 3.1): full weight at 20 degrees a second or slower
+        float hpW = 0f, gunW = 0f;
+        for (Fit f : fits) {
+            if (f.w.wing || f.w.pd || f.w.pdOnly || f.w.cls == MIS) continue;
+            float wt = f.w.size == 0 ? 1f : f.w.size == 1 ? 2f : 4f;
+            gunW += wt;
+            if (f.hardpoint) hpW += wt;
+        }
+        float turnNeed = (s.baseTurn > 0f ? clamp(TURN_REF / s.baseTurn, 0.3f, 1f) : 1f) * (0.6f + 0.4f * (gunW > 0f ? hpW / gunW : 0f));
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(clamp(s.speed / s.baseSpeed, 0.2f, SPEED_CAP), mw) : 1f)
-                * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), 0.5f * mw + 0.04f);
+                * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), (0.5f * mw + 0.04f) * turnNeed);
         // combat readiness the ship starts its fights at: its own max CR (skills, hullmods, d-mods) less what Seeker's
         // nano-plague takes (3/6/12 points per plague weapon or LPC on a hull it harms, Coda Launcher 3), through the
         // game's CR rules (crStart); a d-mod ship near 50% pays more for the same plague weapon than a healthy one
@@ -682,21 +757,38 @@ final class JAOModel {
 
     /** Seconds to break the shield, strip the armor and kill the hull of t (mechanics 8.6). */
     static float[] phases(List<Fit> fits, Eff[] e, float[] effAll, float[] effBurst, Target t, Params p, float pool, float poolStrike) {
-        return phases(fits, e, effAll, effBurst, t, p, pool, poolStrike, 1f);
+        return phases(fits, e, effAll, effBurst, t, p, pool, poolStrike, null, null);
     }
 
     static float[] phases(List<Fit> fits, Eff[] e, float[] effAll, float[] effBurst, Target t, Params p, float pool, float poolStrike, float spreadMult) {
+        Ship s = new Ship();
+        s.recoilMult = spreadMult;
+        return phases(fits, e, effAll, effBurst, t, p, pool, poolStrike, s, null);
+    }
+
+    /**
+     * mainId: the heaviest non-missile group (the one the AI aims and fires by hand); personality as Ship.personality.
+     * pool and poolStrike are the old summed missile pools, no longer used: missiles are priced one by one from e[].
+     */
+    static float[] phases(List<Fit> fits, Eff[] e, float[] effAll, float[] effBurst, Target t, Params p, float pool, float poolStrike,
+                          Ship ship, String mainId) {
+        float spreadMult = ship == null ? 1f : ship.recoilMult;
+        int personality = ship == null ? 0 : ship.personality;
         float hard = 0f, soft = 0f, debuff = 1f, armorExtra = 0f, arc = 0f;
         int n = fits.size();
+        int ts = Math.max(0, Math.min(3, t.size));
         float[] eff = new float[n], effB = new float[n];
         for (int i = 0; i < n; i++) {
-            float acc = accuracy(fits.get(i).w, t.size, spreadMult);
+            Fit fit = fits.get(i);
+            float acc = accuracy(fit.w, t.size, spreadMult) * (ship == null ? 1f : track(fit, ship, ts));
             eff[i] = effAll[i] * acc;
             effB[i] = effBurst[i] * acc;
         }
-        float missileHit = SIZE_HIT[Math.max(0, Math.min(3, t.size))];
-        pool *= 0.5f + 0.5f * missileHit;
-        poolStrike *= missileHit;
+        float missileHit = SIZE_HIT[ts];
+        // the shield-efficiency hold (0.5.11, research ai_behaviour_1106 SF-5, AttackAIModule): only the main group the
+        // AI fires by hand is held back against a facing shield, by a vote of how flux-efficient each weapon is there
+        // against what the captain tolerates; autofire groups always fire
+        float holdAt = personality == 1 ? 0.75f : personality == 2 ? 1f : 0.9f;
         // shields go down in the same mix of sustained fire and capacity dumps (the AI opens every group while its
         // flux is all hard, to force an overload), so kinetic and HE are judged on the same footing
         for (int i = 0; i < n; i++) {
@@ -704,33 +796,61 @@ final class JAOModel {
             if (effB[i] <= 0f) continue;
             float sm = SHIELD_MULT[w.dmg] * w.shieldMultExtra;
             float vsShield = effB[i] * sm;
-            // the AI holds flux-inefficient weapons against shields once it is above 40% flux (mechanics 3.6)
-            if (!w.fireWhenInefficient && !w.wing && w.dps > 0f && t.shieldEff * sm < 0.5f * (e[i].flux / Math.max(1f, e[i].dps))) vsShield *= 0.5f;
+            if (!w.fireWhenInefficient && !w.wing && w.dps > 0f && mainId != null && mainId.equals(w.id)) {
+                float r = t.shieldEff * sm / Math.max(0.05f, e[i].flux / Math.max(1f, e[i].dps));
+                vsShield *= 1f - 0.6f * clamp((holdAt - r) / 0.6f, 0f, 1f);
+            } else if (mainId == null && !w.fireWhenInefficient && !w.wing && w.dps > 0f && t.shieldEff * sm < 0.5f * (e[i].flux / Math.max(1f, e[i].dps))) {
+                vsShield *= 0.5f; // callers without the main group (old rule)
+            }
             if (w.soft) soft += vsShield; else hard += vsShield;
             if (w.shieldDebuff > 1f) debuff = Math.max(debuff, w.shieldDebuff);
             armorExtra += w.armorExtraPerHit * w.hitsPerSec;
             arc += w.arcDps;
         }
-        // missiles: kinetic ones go into shields, the rest after the shield is down
+        // finite missiles one by one (0.5.11, research ai_behaviour_1106 MI-1/MI-2): the share of the pool that reaches
+        // this target (torpedoes by its size), then the same armor math as guns; the old summed pool at a flat 0.5
+        // against armor under-rated HE torpedoes about 2.4x and over-rated fragmentation missiles about 13x
         float missileWindow = Math.max(10f, p.fightSeconds);
+        float[] mRate = new float[n];
+        for (int i = 0; i < n; i++) {
+            W w = fits.get(i).w;
+            if (e[i].pool <= 0f || e[i].dps > 0f) continue;
+            mRate[i] = e[i].pool * e[i].rel * missileUse(w, ts) * pdSurvival(w) / missileWindow;
+        }
+        // free-fire missiles (deep magazines: Annihilators, Swarmers, Pilums) go whenever the target is in range, mostly
+        // into a raised shield (the shield AI faces incoming missiles); conserved ones wait for an opening (research
+        // ai_behaviour_1106 Q1, MI-3). Non-kinetic free-fire rate splits between shield and armor
+        float[] mShield = new float[n];
+        if (t.shield) {
+            for (int i = 0; i < n; i++) {
+                W w = fits.get(i).w;
+                if (mRate[i] <= 0f || w.dmg == KIN || w.shieldMultExtra > 1f || !freeFire(w)) continue;
+                mShield[i] = mRate[i] * FREE_FIRE_SHIELD;
+                mRate[i] -= mShield[i];
+            }
+        }
         float t1 = 0f;
         if (t.shield) {
             float rate = (hard + Math.max(0f, soft - t.diss)) * t.shieldEff * debuff;
-            rate += missileShield(fits, e, missileWindow, missileHit);
+            for (int i = 0; i < n; i++) {
+                W w = fits.get(i).w;
+                if (mRate[i] > 0f && (w.dmg == KIN || w.shieldMultExtra > 1f)) rate += mRate[i] * SHIELD_MULT[w.dmg] * w.shieldMultExtra;
+                rate += mShield[i] * SHIELD_MULT[w.dmg] * t.shieldEff;
+            }
             t1 = rate <= 0.01f ? 600f : Math.min(600f, 0.6f * t.cap / rate);
         }
         // armor: pooled armor from A down to 0.2A in steps
         float t2 = 0f, a = t.armor, floor = t.armor * MIN_ARMOR;
-        float missileArmor = (pool + (t.size >= 1 ? poolStrike : 0f)) / missileWindow;
         int steps = 8;
         float chunk = t.armor * 0.8f / steps;
         for (int k = 0; k < steps; k++) {
             float pa = Math.max(a, floor);
-            float rate = armorExtra + 0.5f * missileArmor;
+            float rate = armorExtra;
             for (int i = 0; i < n; i++) {
-                if (effB[i] <= 0f) continue;
                 W w = fits.get(i).w;
                 float am = ARMOR_MULT[w.dmg];
+                if (mRate[i] > 0f) rate += mRate[i] * am * armorFactor(w.hit * am, pa);
+                if (effB[i] <= 0f) continue;
                 rate += 0.8f * effB[i] * am * armorFactor(w.hit * am, pa);
             }
             t2 += rate <= 0.01f ? 600f / steps : chunk / rate;
@@ -738,10 +858,11 @@ final class JAOModel {
         }
         t2 = Math.min(600f, t2 * 1.5f);
         // hull, through the leftover armor
-        float hullRate = arc + 0.5f * missileArmor;
+        float hullRate = arc;
         for (int i = 0; i < n; i++) {
-            if (effB[i] <= 0f) continue;
             W w = fits.get(i).w;
+            if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
+            if (effB[i] <= 0f) continue;
             hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
         }
         float t3 = hullRate <= 0.01f ? 600f : Math.min(600f, t.hull / hullRate);
@@ -749,15 +870,95 @@ final class JAOModel {
     }
 
     /**
+     * Share of a finite missile's pool fired at a target of size ts (0 frigate .. 3 capital). STRIKE weapons follow the
+     * AI's gates (research ai_behaviour_1106 MI-2): unguided torpedoes go only at slow, non-strafing destroyers and up,
+     * guided ones at anything but frigates. Other missiles hit smaller targets less (SIZE_HIT).
+     */
+    static float missileUse(W w, int ts) {
+        int s = Math.max(0, Math.min(3, ts));
+        if (w.strike) return (w.guided || w.guidedPoor ? STRIKE_USE_GUIDED : STRIKE_USE_UNGUIDED)[s];
+        return 0.5f + 0.5f * SIZE_HIT[s];
+    }
+
+    static final float[] STRIKE_USE_UNGUIDED = {0.05f, 0.3f, 0.7f, 0.95f}, STRIKE_USE_GUIDED = {0.05f, 0.95f, 1f, 1f};
+
+    /**
+     * Share of missiles that get past the target's point defense, by missile hit points (0.5.11): 50-HP rockets
+     * (Annihilator, Swarmer) about 0.67, a 150-HP Harpoon 0.86, a 500-HP Reaper 0.95. Before, an Annihilator rack's
+     * 10,000 damage on paper beat a Harpoon rack's 2,250 in 71 mounts of the reference run; the community rates them C+
+     * and A+.
+     */
+    static float pdSurvival(W w) {
+        if (w.wing || w.projHP <= 0f) return 1f;
+        return 1f / (1f + PD_KILL * 100f / w.projHP);
+    }
+
+    static final float PD_KILL = 0.25f;
+
+    /**
+     * Whether one point-defense weapon can kill a missile before it lands (0.5.11): the AI's PD picks a random missile
+     * in range (research ai_behaviour_1106 Q4), so a weapon must kill a ~300-HP missile (Sabot, Atropos) in the ~1 s a
+     * 400-speed missile spends per 400 units of its range. Burst PD 0.9, Vulcan and Flak about 1, LR PD and PD lasers
+     * a third: the community's 2-3 Burst PD per cruiser, where the model had filled small mounts with LR PD lasers.
+     */
+    static float pdKill(float dps, float range) {
+        return clamp(dps * Math.max(0.5f, range / 400f) / 300f, 0.2f, 1f);
+    }
+
+    /** Missiles the AI fires freely rather than saving for an opening: deep magazines (20+ shots), not STRIKE. */
+    static boolean freeFire(W w) {
+        return !w.strike && w.pool > 0f && w.hit > 0f && w.pool / w.hit >= 20f;
+    }
+
+    /** Share of a free-fire missile's non-kinetic damage that lands on a raised shield, against a shielded target. */
+    static final float FREE_FIRE_SHIELD = 0.6f;
+
+    /**
+     * Whether a turret keeps up with a target of size ts (research ai_behaviour_1106 AIM-2): a frigate orbiting at 600 su
+     * crosses about 19 degrees a second, a destroyer 9, a cruiser 5, a capital 3; large turrets turn 7-12. A bow-facing
+     * mount also gets half the ship's own turn. Beams need the barrel on target too but no lead, so half the effect;
+     * hardpoints, missiles and wings aren't limited here (the ship aims hardpoints by turning).
+     */
+    static float track(Fit f, Ship s, int ts) {
+        W w = f.w;
+        if (w.wing || w.cls == MIS || f.hardpoint || w.turnRate <= 0f) return 1f;
+        float turn = w.turnRate * (w.beam ? s.beamTurnMult : s.turnMult) + (f.front ? 0.5f * s.turnRate : 0f);
+        float k = clamp(turn / CROSSING[Math.max(0, Math.min(3, ts))], TRACK_MIN, 1f);
+        return w.beam ? 0.5f + 0.5f * k : k;
+    }
+
+    static final float[] CROSSING = {19f, 9f, 5f, 3f};
+    /** Turn rate (degrees a second) at and below which extra handling counts fully. */
+    static final float TURN_REF = 20f;
+
+    /** Grievous69's tier letters as numbers (research meta_report 8): SS 10 .. F 1; 0 = unknown. */
+    static float tierScore(String tier) {
+        if (tier == null) return 0f;
+        String t = tier.trim().toUpperCase(java.util.Locale.ROOT);
+        String[] k = {"SS", "S+", "S-", "S", "A+", "A-", "A", "B+", "B-", "B", "C+", "C-", "C", "D", "F"};
+        float[] v = {10f, 9.5f, 8.5f, 9f, 8f, 7f, 7.5f, 6.5f, 5.5f, 6f, 5f, 4f, 4.5f, 3f, 1f};
+        for (int i = 0; i < k.length; i++) if (t.startsWith(k[i])) return v[i];
+        return 0f;
+    }
+
+    /** Weight of the community tier on a weapon's value: about 2% per tier step around B. */
+    static final float TIER_WEIGHT = 0.08f;
+
+    static float tierPrior(float score) { return 1f + TIER_WEIGHT * (score - 6f) / 4f; }
+    static final float TRACK_MIN = 0.35f;
+
+    /**
      * Kinetic missiles into shields, with the same hit chances as against armor (0.5.8: they counted every round as a hit
      * whatever the target's size or the missile's guidance, so kinetic rockets ran the fleet's anti-shield up to 70%).
      */
     static float missileShield(List<Fit> fits, Eff[] e, float window, float sizeHit) {
+        int ts = 0;
+        for (int k = 0; k < SIZE_HIT.length; k++) if (Math.abs(SIZE_HIT[k] - sizeHit) < 1e-4f) ts = k;
         float r = 0f;
         for (int i = 0; i < fits.size(); i++) {
             W w = fits.get(i).w;
             if (e[i].pool <= 0f || e[i].dps > 0f) continue;
-            float hit = e[i].rel * (w.strike ? sizeHit : 0.5f + 0.5f * sizeHit);
+            float hit = e[i].rel * missileUse(w, ts);
             if (w.dmg == KIN || w.shieldMultExtra > 1f) r += e[i].pool * hit * SHIELD_MULT[w.dmg] * w.shieldMultExtra / window;
         }
         return r;
@@ -765,7 +966,9 @@ final class JAOModel {
 
     // ------------------------------------------------------------------ vents and capacitors
 
-    /** Vents to cover the weapon load (+10%), then capacitors, then any OP left to vents. Returns {vents, caps}. */
+    static final float VENT_TARGET = 1.25f;
+
+    /** Vents to cover the weapon load (+25%), then capacitors, then any OP left to vents. Returns {vents, caps}. */
     static int[] fluxFill(Ship s, List<Fit> fits, int opLeft) {
         float load = 0f;
         for (Fit f : fits) {
@@ -774,7 +977,9 @@ final class JAOModel {
             float fl = w.flux * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * s.rofMult[w.cls];
             load += w.pd ? 0.5f * fl : fl;
         }
-        float want = load * 1.1f + (s.shield ? s.upkeep : 0f) - (s.diss - interferenceLoss(s, fits));
+        // the AI vents only in safe windows long enough to empty its flux, and never with a missile inbound, so AI ships
+        // want dissipation past their load before capacity (0.5.11, research ai_behaviour_1106 SF-2: 1.25, was 1.1)
+        float want = load * VENT_TARGET + (s.shield ? SHIELD_UPTIME * s.upkeep : 0f) - (s.diss - interferenceLoss(s, fits));
         int v = Math.max(0, Math.min(Math.min(s.maxVents, opLeft), (int) Math.ceil(want / 10f)));
         if (s.phase) v = Math.min(v, Math.max(0, opLeft / 2)); // phase ships lean on capacitors
         int c = Math.max(0, Math.min(s.maxCaps, opLeft - v));

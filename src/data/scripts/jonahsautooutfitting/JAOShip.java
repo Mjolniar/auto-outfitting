@@ -131,6 +131,8 @@ final class JAOShip implements JAOSearch.World {
             s.maneuver = (float) Math.sqrt(Math.max(0.05f, turn) * Math.max(0.05f, accel));
         }
         s.ppt = st.getPeakCRDuration().computeEffective(hull.getNoCRLossTime());
+        s.turnRate = st.getMaxTurnRate().getModifiedValue();
+        s.baseTurn = hull.getEngineSpec() == null ? 0f : hull.getEngineSpec().getMaxTurnRate();
         bonus(s, JAOModel.BAL, st.getBallisticWeaponRangeBonus());
         bonus(s, JAOModel.ENE, st.getEnergyWeaponRangeBonus());
         bonus(s, JAOModel.MIS, st.getMissileWeaponRangeBonus());
@@ -184,9 +186,18 @@ final class JAOShip implements JAOSearch.World {
         s.deployCr = JAOModel.clamp(st.getCRPerDeploymentPercent().computeEffective(deploy), 0f, 1f);
         if (Global.getSettings().computeNumFighterBays(work) > 0) {
             float dmodEffect = dyn(st, "dmod_effect_mult");
+            float wingRange = st.getFighterWingRange().computeEffective(1f);
+            // Defensive Targeting Array sets wing range to 0: the wings stay at the ship, priced by role in the model
+            if (wingRange <= 0.05f) { s.dta = true; wingRange = 1f; }
             s.deck = JAOModel.deckFactor(mult(st.getFighterRefitTimeMult().getModifiedValue()), dyn(st, "replacement_rate_decrease_mult"),
-                    dyn(st, "replacement_rate_increase_mult"), st.getFighterWingRange().computeEffective(1f), JAOCompat.wingMult(work, dmodEffect));
+                    dyn(st, "replacement_rate_increase_mult"), wingRange, JAOCompat.wingMult(work, dmodEffect));
         }
+        // weapon-boost systems the AI fires whenever those weapons are in range (research ai_behaviour_1106 SYS-2/3):
+        // Accelerated Ammo Feeder doubles ballistic rate at half flux per shot for 5 s in about 17 (+29% ballistic),
+        // High Energy Focus about +7.5% energy damage
+        String sys = hull.getShipSystemId();
+        if ("ammofeed".equals(sys)) { s.rofMult[JAOModel.BAL] *= JAOModel.AMMO_FEED; s.fluxMult[JAOModel.BAL] /= JAOModel.AMMO_FEED; } // same flux per second
+        else if ("highenergyfocus".equals(sys)) s.dmgMult[JAOModel.ENE] *= JAOModel.ENERGY_FOCUS;
         s.turnMult = mult(st.getWeaponTurnRateBonus().computeEffective(1f));
         s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
         s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
