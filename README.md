@@ -48,6 +48,10 @@ S-mods are off unless you tick **Build in s-mods** in the Autofit panel, and sto
 
 For the code side, the full design notes are in [design.md](docs/design.md). It's long.
 
+## Permissions
+
+Use it however you want. Modpacks, reuploads, forks, copying the whole thing, building on it, all fine, no need to ask or credit me. Just don't sell it. See [LICENSE](LICENSE).
+
 ## Building it yourself
 
 JDK 17, sources in `src/`:
