@@ -620,6 +620,14 @@ class JAOOptimizer {
     static final String[] FLEET_WIDE = {TREASURE_HUNT, "surveying_equipment", "hiressensors",
             "augmentedengines", "adf_AttunedEngines", "stardust_EnhancedEngines", "yunru_drive_optimisation"};
 
+    /**
+     * What a civilian ship's OP buys once the logistics limit is reached (0.5.18, user 11/06: "a massive overflow of
+     * points"): the only hullmods outside the limit that matter to a ship that never fights. Reinforced Bulkheads (more
+     * hull, and a disabled ship is almost always recoverable, so an Atlas with s-mods isn't lost), then Blast Doors (more
+     * hull, fewer crew lost). Vents and capacitors stay off.
+     */
+    static final String[] SURVIVAL = {"reinforcedhull", "blast_doors"};
+
     /** Salvage and survey ships (Salvage Rig: designation, or the built-in Salvage Gantry). */
     static boolean salvageRig(ShipHullSpecAPI hull) {
         String d = hull.getDesignation() == null ? "" : hull.getDesignation().toLowerCase(java.util.Locale.ROOT);
@@ -639,8 +647,8 @@ class JAOOptimizer {
      * (maxLogisticsHullmods, built-in and s-modded ones don't count). With "Build in s-mods" ticked and the civilian
      * s-mods setting on, keepers (cruisers, capitals, salvage rigs) first build in the fleet-wide ones (FLEET_WIDE; story
      * points on Confirm only), which leaves the ordinary slots for the ship's own job. Logistics hullmods need a
-     * spaceport, so away from one only the existing ones stay. No vents or capacitors (user 11/06: useless on a ship
-     * that never fights); leftover OP stays free.
+     * spaceport, so away from one only the existing ones stay. The OP the logistics limit leaves goes to SURVIVAL
+     * (Reinforced Bulkheads, Blast Doors); no vents or capacitors (user 11/06: useless on a ship that never fights).
      */
     private void runLogistics(ShipHullSpecAPI hull, long t0) {
         // the fleet plan refits from bare like every other ship (only hullmods the refit rules here allow come off)
@@ -659,6 +667,7 @@ class JAOOptimizer {
             for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
                 if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
+                if (current.getPermaMods().contains(id)) continue; // s-mods stay
                 if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                 current.removeMod(id);
             }
@@ -678,8 +687,7 @@ class JAOOptimizer {
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec != null && spec.hasUITag("Logistics") && !order.contains(id) && !id.equals("converted_fighterbay")) order.add(id);
         }
-        int limit;
-        try { limit = Global.getSettings().getInt("maxLogisticsHullmods"); } catch (Throwable t) { limit = 2; }
+        int limit = JAOShip.maxLogistics(delegate.getFleetMember());
         // s-mods (user 11/06): with "Build in s-mods" ticked and the civilian s-mods setting on, keepers build in the
         // fleet-wide hullmods, in a single refit and in Optimize fleet alike (story points only on Confirm)
         boolean smodsOn = JAOSettings.civilianSmods && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS));
@@ -699,25 +707,33 @@ class JAOOptimizer {
             mods.add(id);
             smods.add(id);
         }
-        for (String id : order) {
+        // the ship's own job and the rest of logisticsOrder, then (user 11/06: "a massive overflow of points") hullmods
+        // that keep a ship that never fights from being lost when it's caught, with the OP the logistics limit leaves
+        List<String> picks = new ArrayList<>(order);
+        for (String id : SURVIVAL) if (!picks.contains(id)) picks.add(id);
+        for (String id : picks) {
             if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
+            if (current.getPermaMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden()) continue;
-            world.setSMods(smods);
-            if (!logisticsAllowed(world, id, mods, skipped)) continue;
             boolean logi = spec.hasUITag("Logistics");
             int counted = 0;
-            for (String m : mods) { HullModSpecAPI o = Global.getSettings().getHullModSpec(m); if (o != null && o.hasUITag("Logistics") && !smods.contains(m) && !current.getSMods().contains(m)) counted++; }
+            for (String m : mods) {
+                HullModSpecAPI o = Global.getSettings().getHullModSpec(m);
+                if (o != null && o.hasUITag("Logistics") && !smods.contains(m) && !current.getPermaMods().contains(m)) counted++;
+            }
+            if (logi && counted >= limit) continue;
             int cost = spec.getCostFor(hull.getHullSize());
             int used = current.computeOPCost(plugin.stats());
             for (String m : mods) if (!current.hasHullMod(m) && !smods.contains(m)) used += Global.getSettings().getHullModSpec(m).getCostFor(hull.getHullSize());
             if (used + cost > hullOp) continue;
-            if (logi && counted >= limit) continue;
+            world.setSMods(smods);
+            if (!logisticsAllowed(world, id, mods, skipped)) continue;
             mods.add(id);
         }
         for (String m : mods) if (!smods.contains(m) && !current.hasHullMod(m)) current.addMod(m);
         int built = smods.isEmpty() ? 0 : buildIn(smods, real, hull);
-        // no vents or capacitors: a ship that never fights has no use for them (user 11/06); leftover OP stays free
+        // no vents or capacitors: a ship that never fights has no use for them (user 11/06)
         current.setNumFluxVents(0);
         current.setNumFluxCapacitors(0);
         current.getWeaponGroups().clear();

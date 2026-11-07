@@ -338,6 +338,17 @@ final class JAOShip implements JAOSearch.World {
         return roles.trim().equals("HULL");
     }
 
+    /** Ordinary logistics hullmods this ship may carry: the game's maxLogisticsHullmods with the ship's own modifiers (skills). */
+    static int maxLogistics(FleetMemberAPI member) {
+        int base;
+        try { base = Global.getSettings().getInt("maxLogisticsHullmods"); } catch (Throwable t) { base = 2; }
+        try {
+            if (member != null) return Math.round(member.getStats().getDynamic()
+                    .getMod(com.fs.starfarer.api.impl.campaign.ids.Stats.MAX_LOGISTICS_HULLMODS_MOD).computeEffective(base));
+        } catch (Throwable ignored) { }
+        return base;
+    }
+
     @Override
     public boolean canAdd(String mod, Set<String> mods) {
         String key = key(mods) + "|" + mod;
@@ -359,10 +370,16 @@ final class JAOShip implements JAOSearch.World {
         if (row != null) for (String other : row.optString("incompatible", "").split(" ")) if (!other.isEmpty() && (mods.contains(other) || work.hasHullMod(other))) return false;
         if (mod.equals(HullMods.INTEGRATED_TARGETING_UNIT) && mods.contains(HullMods.DEDICATED_TARGETING_CORE)) return false;
         if (mod.equals(HullMods.DEDICATED_TARGETING_CORE) && mods.contains(HullMods.INTEGRATED_TARGETING_UNIT)) return false;
-        if (spec.hasUITag("Logistics")) {
+        // the game's limit on logistics hullmods counts only ordinary ones: built-in hullmods and s-mods don't (0.5.18;
+        // before, an Atlas with cargo holds and a drive field built in had no room left for anything ordinary)
+        if (spec.hasUITag("Logistics") && !smods.contains(mod) && !originalPerma.contains(mod)) {
             int n = 0;
-            for (String m : mods) { HullModSpecAPI o = Global.getSettings().getHullModSpec(m); if (o != null && o.hasUITag("Logistics")) n++; }
-            if (n >= 2) return false;
+            for (String m : mods) {
+                if (m.equals(mod) || hull.isBuiltInMod(m) || originalPerma.contains(m) || smods.contains(m)) continue;
+                HullModSpecAPI o = Global.getSettings().getHullModSpec(m);
+                if (o != null && o.hasUITag("Logistics")) n++;
+            }
+            if (n >= maxLogistics(delegate.getFleetMember())) return false;
         }
         setMods(mods);
         // the refit screen's ship when this is its ship; a stand-in for ships the fleet plan fits off screen
