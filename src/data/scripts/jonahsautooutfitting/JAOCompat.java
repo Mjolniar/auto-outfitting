@@ -280,6 +280,16 @@ final class JAOCompat {
      * CAPITAL_SHIP). 0.5.12: Integrated Targeting Unit from destroyers up; Grievous69's and GrumpyThumper's 0.98 guides
      * (research builds_update_1106 4.2) say +10% range isn't worth its OP on a frigate.
      */
+    /**
+     * jao_rules not_on_phase rows: hullmods never put on phase hulls (0.5.15: Heavy Armor; phase ships survive by
+     * phasing, experts spend their OP on capacitors and Phase Anchor or Adaptive Phase Coils, and the model can't see
+     * phasing well enough to rule it out on its own).
+     */
+    static boolean notOnPhase(String id, com.fs.starfarer.api.combat.ShipHullSpecAPI hull) {
+        if (hull == null || !(hull.isPhase() || hull.getShieldType() == com.fs.starfarer.api.combat.ShieldAPI.ShieldType.PHASE)) return false;
+        return JAORatings.ruleMatches("not_on_phase", id);
+    }
+
     static boolean tooSmall(String id, com.fs.starfarer.api.combat.ShipAPI.HullSize size) {
         if (size == null) return false;
         for (String[] r : JAORatings.rules()) {

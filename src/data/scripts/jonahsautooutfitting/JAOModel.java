@@ -56,6 +56,9 @@ final class JAOModel {
         }
         float perHit = ARMOR_EHP_SCALE * (t + s.hull / Math.max(1e-4f, hr * ht));
         float linear = s.hull / ht + KA[Math.max(0, Math.min(3, s.size))] * a0 / at;
+        // phase ships survive by not being hit, not by tanking (0.5.15: the per-hit curve put Heavy Armor on Dooms,
+        // Harbingers and Ziggurats, where experts take Phase Anchor or Adaptive Phase Coils, Hardened Subsystems, caps)
+        if (s.phase) return linear;
         return ARMOR_SHAPE * perHit + (1f - ARMOR_SHAPE) * linear;
     }
 
@@ -97,6 +100,12 @@ final class JAOModel {
      * 60/120/180/300 flux/s by size at full uptime, builds_update_1106 4.2).
      */
     static final float SHIELD_UPTIME = 0.6f;
+    /**
+     * Seconds of dissipation a shield gets back inside one exchange of fire. 0.5.15 tried 20 (research meta_report 1:
+     * Flux Distributor beats capacitors only past about 27 s): Flux Distributor barely moved (61% -> 57% of the experts'
+     * hulls, theirs 19%) and Stabilized Shields fell below the experts' rate, so it stays 30.
+     */
+    static final float SHIELD_REGEN_SECONDS = 30f;
     /**
      * Hard damage a ship of each size takes per second while engaged (research ai_behaviour_1106 SF-6: 150 / 300 / 500 /
      * 800), and the share of it its shield blocks (the rest hits armor while the shield is down or flanked, or misses).
@@ -326,6 +335,8 @@ final class JAOModel {
         float maneuver = 1f;
         /** The ship's own max turn rate, degrees per second (0 = unknown), and the hull's before hullmods. */
         float turnRate, baseTurn;
+        /** The hull's own flux capacity (phase ships: what capacitors add to it lets them phase longer). 0 = unknown. */
+        float baseCap;
         int vents, caps, maxVents, maxCaps;
         float[] rangePct = new float[3], rangeFlat = new float[3], rangeMult = {1f, 1f, 1f};
         float beamPct, beamFlat, beamMult = 1f, threshold = Float.MAX_VALUE, pastThreshold = 1f;
@@ -386,7 +397,7 @@ final class JAOModel {
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
             s.interferenceMult = interferenceMult; s.noVent = noVent;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
-            s.turnRate = turnRate; s.baseTurn = baseTurn; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
+            s.turnRate = turnRate; s.baseTurn = baseTurn; s.baseCap = baseCap; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             return s;
@@ -716,10 +727,12 @@ final class JAOModel {
             float eF = Math.max(0.05f, s.shieldEff * s.shieldTaken);
             tank = (0.5f + 0.4f * clamp((1f - eF) / 0.4f, 0f, 1f)) * (float) Math.sqrt(Math.min(1f, s.arc / 180f));
             if (s.armor >= 1000f) tank *= 0.8f;
-            shieldHp = tank * (SHIELD_USABLE * s.cap + 30f * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
+            shieldHp = tank * (SHIELD_USABLE * s.cap + SHIELD_REGEN_SECONDS * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
         float ehp = armorHullEhp(s) + shieldHp;
-        if (s.phase) ehp *= 1.3f; // phase ships avoid much of the damage; refined later
+        // phase ships avoid much of the damage, longer the more flux they have to phase on (0.5.15: experts max their
+        // capacitors; a flat x1.3 made Heavy Armor the best use of their OP)
+        if (s.phase) ehp *= 1f + PHASE_EHP * (float) Math.sqrt(Math.max(0.5f, s.baseCap > 0f ? s.cap / s.baseCap : 1f));
         // peak time against a whole battle (several engagements), not one fight: a cut peak time (Safety
         // Overrides x0.33) costs combat readiness unless Hardened Subsystems offsets it
         float battle = Math.max(180f, 2f * p.fightSeconds);
@@ -1043,6 +1056,8 @@ final class JAOModel {
     static final float[] CROSSING = {19f, 9f, 5f, 3f};
     /** Turn rate (degrees a second) at and below which extra handling counts fully. */
     static final float TURN_REF = 20f;
+    /** Phase ships' survival bonus at their stock flux capacity (grows with the square root of added capacity). */
+    static final float PHASE_EHP = 0.3f;
 
     /** Grievous69's tier letters as numbers (research meta_report 8): SS 10 .. F 1; 0 = unknown. */
     static float tierScore(String tier) {
