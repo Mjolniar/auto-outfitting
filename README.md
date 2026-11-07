@@ -12,6 +12,7 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 - It scores loadouts by how the game's AI actually fights, read from the game's own combat code. That covers:
   - **Missiles:** HE torpedoes and rockets are priced against armor the same way guns are. Unguided torpedoes are only fired at slow, big targets. Free-firing rockets mostly spend themselves on raised shields. Enemy point defense shoots weak missiles down: about a third of 50-HP rockets, but few 500-HP Reapers.
   - **Shields and flux:** shields only use 80% of flux capacity. Shield upkeep only runs while the shield is up. AI ships get dissipation to 1.25x their weapons' flux before capacitors.
+  - **Armor:** armor cuts every hit by hit / (hit + armor), so it shrugs off small arms and matters most on ships that already have a lot of it. Survival is worked out against a mix of incoming fire, not as plain hit points. Heavy Armor goes on heavily armored hulls like the Onslaught and Paragon rather than everywhere.
   - **Staying in the fight:** fire on the shield fills a ship's flux until the AI backs off to vent. Hardened Shields, capacitors and faster venting keep it engaged longer, so Hardened Shields counts as the solid default experts call it.
   - **Aim:** only the main weapon group is held back against shields. Large slow turrets can't track frigates.
   - **Point defense:** it's rated by whether one weapon can kill a missile in time, so Burst PD wins over LR PD.

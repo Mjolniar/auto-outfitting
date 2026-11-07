@@ -439,9 +439,12 @@ final class JAOSearch {
             if (keep != null) take(keep);
             s.pick = keep;
             scored.sort((a, b) -> Float.compare(v.get(b), v.get(a)) != 0 ? Float.compare(v.get(b), v.get(a)) : a.w.id.compareTo(b.w.id));
+            // the best PAIR_CANDS weapons, every source of each (one owned copy may already sit in another mount while a
+            // blueprint can still build one: source-neutral like pickBest)
+            Set<String> ids = new LinkedHashSet<>();
+            for (Cand c : scored) if (ids.size() < PAIR_CANDS) ids.add(c.w.id);
             List<Cand> kept = new ArrayList<>();
-            Set<String> ids = new HashSet<>();
-            for (Cand c : scored) if (ids.add(c.w.id) && kept.size() < PAIR_CANDS) kept.add(c);
+            for (Cand c : s.cands) if (ids.contains(c.w.id)) kept.add(c);
             top.put(s, kept);
         }
         float base = objective(), bestV = base * 1.002f;
@@ -453,12 +456,17 @@ final class JAOSearch {
                 Cand oa = a.pick, ob = b.pick;
                 if (oa != null) give(oa);
                 if (ob != null) give(ob);
+                Set<String> doneA = new HashSet<>();
                 for (Cand ca : top.get(a)) {
-                    if (!take(ca)) continue;
+                    if (doneA.contains(ca.w.id) || !take(ca)) continue;
+                    doneA.add(ca.w.id);
                     a.pick = ca;
+                    Set<String> doneB = new HashSet<>();
                     for (Cand cb : top.get(b)) {
-                        if (ca == oa && cb == ob) continue;
+                        if (doneB.contains(cb.w.id)) continue;
+                        if (ca.w.id.equals(oa == null ? null : oa.w.id) && cb.w.id.equals(ob == null ? null : ob.w.id)) continue;
                         if (!take(cb)) continue;
+                        doneB.add(cb.w.id);
                         b.pick = cb;
                         float v = objective();
                         if (v > bestV) { bestV = v; bestA = a; bestB = b; bestCa = ca; bestCb = cb; }

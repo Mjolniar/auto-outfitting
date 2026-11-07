@@ -19,6 +19,51 @@ final class JAOModel {
     static final int BAL = 0, ENE = 1, MIS = 2;
     static final float MAX_DR = 0.85f, MIN_ARMOR = 0.05f, ENGAGE_SECONDS = 30f, REACH_SAT = 1100f;
     static final float[] KA = {10f, 15f, 20f, 25f};
+    /**
+     * Reference incoming fire for the survival term (0.5.14): {damage type, hit strength, share}. Kinetic guns, HE guns,
+     * heavy HE (torpedoes, Hellbores), energy, fragmentation small arms.
+     */
+    static final float[][] INCOMING_MIX = {{KIN, 120f, 0.30f}, {HE, 350f, 0.20f}, {HE, 1000f, 0.10f}, {EN, 200f, 0.30f}, {FRAG, 60f, 0.10f}};
+    /** Keeps the average vanilla hull's armor-and-hull survival where the old linear term had it (234 hulls). */
+    static final float ARMOR_EHP_SCALE = 0.614f;
+
+    /**
+     * Armor and hull as effective hit points against INCOMING_MIX (0.5.14). The armor pool (KA x rating, standing for the
+     * grid's cells) wears down while each hit is cut by the armor still standing, hit / (hit + armor), floor 15%; then
+     * the hull takes hits through the 5% that never goes. The old term (hull + KA x armor) was linear, so armor only
+     * counted as hit points: Heavy Armor went on 7% of the experts' hulls against their 28%, and armor's real worth, the
+     * small arms it shrugs off, never showed. Now Heavy Armor counts most on hulls that are already well armored.
+     */
+    static float armorHullEhp(Ship s) {
+        float a0 = Math.max(0f, s.armor), at = Math.max(0.1f, s.armorTaken), ht = Math.max(0.1f, s.hullTaken);
+        float pool = KA[Math.max(0, Math.min(3, s.size))] * a0, t = 0f;
+        int steps = 10;
+        if (pool > 0f) {
+            for (int k = 0; k < steps; k++) {
+                float cur = a0 * (1f - (k + 0.5f) / steps * (1f - MIN_ARMOR));
+                float rate = 0f;
+                for (float[] m : INCOMING_MIX) {
+                    int dt = (int) m[0];
+                    rate += m[2] * ARMOR_MULT[dt] * armorFactor(m[1] * ARMOR_MULT[dt], cur);
+                }
+                t += pool / steps / Math.max(1e-4f, rate * at);
+            }
+        }
+        float floor = a0 * MIN_ARMOR, hr = 0f;
+        for (float[] m : INCOMING_MIX) {
+            int dt = (int) m[0];
+            hr += m[2] * armorFactor(m[1] * ARMOR_MULT[dt], floor);
+        }
+        float perHit = ARMOR_EHP_SCALE * (t + s.hull / Math.max(1e-4f, hr * ht));
+        float linear = s.hull / ht + KA[Math.max(0, Math.min(3, s.size))] * a0 / at;
+        return ARMOR_SHAPE * perHit + (1f - ARMOR_SHAPE) * linear;
+    }
+
+    /**
+     * Weight of the per-hit armor curve against the old linear term. 1 put Heavy Armor on 43% of the experts' hulls
+     * (their builds: 28%; the linear term alone: 7%), phase ships included.
+     */
+    static final float ARMOR_SHAPE = 0.5f;
     /** Point defense a ship needs: about 1 / 2 / 3 / 4.5 Burst PD lasers (research weapon_eval d.13; was 3.6x that). */
     /**
      * Point defense floor by hull size (dps x hit share x arc x reach x pdKill). 0.5.11 tried 60/130/250/400 (about
@@ -673,8 +718,7 @@ final class JAOModel {
             if (s.armor >= 1000f) tank *= 0.8f;
             shieldHp = tank * (SHIELD_USABLE * s.cap + 30f * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
-        float ka = KA[Math.max(0, Math.min(3, s.size))];
-        float ehp = s.hull / Math.max(0.1f, s.hullTaken) + ka * s.armor / Math.max(0.1f, s.armorTaken) + shieldHp;
+        float ehp = armorHullEhp(s) + shieldHp;
         if (s.phase) ehp *= 1.3f; // phase ships avoid much of the damage; refined later
         // peak time against a whole battle (several engagements), not one fight: a cut peak time (Safety
         // Overrides x0.33) costs combat readiness unless Hardened Subsystems offsets it
