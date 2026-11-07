@@ -12,6 +12,7 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
 - It scores loadouts by how the game's AI actually fights, read from the game's own combat code. That covers:
   - **Missiles:** HE torpedoes and rockets are priced against armor the same way guns are. Unguided torpedoes are only fired at slow, big targets. Free-firing rockets mostly spend themselves on raised shields. Enemy point defense shoots weak missiles down: about a third of 50-HP rockets, but few 500-HP Reapers.
   - **Shields and flux:** shields only use 80% of flux capacity. Shield upkeep only runs while the shield is up. AI ships get dissipation to 1.25x their weapons' flux before capacitors.
+  - **Staying in the fight:** fire on the shield fills a ship's flux until the AI backs off to vent. Hardened Shields, capacitors and faster venting keep it engaged longer, so Hardened Shields counts as the solid default experts call it.
   - **Aim:** only the main weapon group is held back against shields. Large slow turrets can't track frigates.
   - **Point defense:** it's rated by whether one weapon can kill a missile in time, so Burst PD wins over LR PD.
   - **Carriers:** they escort only when at least two thirds of their wings are fighters, interceptors or support. The shortest-range wing caps how far all of them strike. Defensive Targeting Array changes what each fighter role is worth.
@@ -42,6 +43,7 @@ Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds t
   - **malfunctions**: Ill-Advised Modifications' weapon malfunctions.
 - After Confirm, any spare OP goes into vents and capacitors: capacitors first on carriers, phase ships, support ships and missile boats.
 - Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
+- The search runs twice, filling the biggest mounts first and then the smallest first, and keeps the better result. It also tries pairs of big mounts and trades between hullmods, so one early pick can't lock a ship into a weaker fit. A mount is only left empty when filling it costs more than about 2%.
 - Every other goal keeps the game's own autofit.
 
 ## The fleet plan

@@ -52,6 +52,38 @@ final class JAOModel {
      * 60/120/180/300 flux/s by size at full uptime, builds_update_1106 4.2).
      */
     static final float SHIELD_UPTIME = 0.6f;
+    /**
+     * Hard damage a ship of each size takes per second while engaged (research ai_behaviour_1106 SF-6: 150 / 300 / 500 /
+     * 800), and the share of it its shield blocks (the rest hits armor while the shield is down or flanked, or misses).
+     */
+    static final float[] INCOMING = {150f, 300f, 500f, 800f};
+    static final float SHIELD_BLOCK = 0.35f;
+    /** Hard flux level the AI backs off at to vent, and seconds lost per break besides the vent itself. */
+    static final float DUTY_HARD = 0.6f, DUTY_OVERHEAD = 5f;
+
+    /**
+     * Share of a fight a shielded ship stays engaged (0.5.13, research ai_behaviour_1106 SF-6): incoming fire fills its
+     * shield's flux to DUTY_HARD in t_e = DUTY_HARD x capacity / incoming flux, then it backs off and vents for t_r =
+     * DUTY_HARD x capacity / venting rate (2x dissipation x vent rate; Safety Overrides can't vent, so plain dissipation)
+     * + DUTY_OVERHEAD. Hardened Shields fill it more slowly, capacitors give more room, dissipation and Resistant Flux
+     * Conduits shorten the break. Experts call Hardened Shields a safe default on every shielded ship and say the AI
+     * needs some capacitors (Grievous69's 0.98 guide); the model had valued Hardened Shields only as shield HP. Charging
+     * incoming fire against the guns' flux budget instead (tried first) pushed every fit to flux-cheap weapons.
+     */
+    static float duty(Ship s, float diss) {
+        if (!s.shield) return 1f;
+        float hold = DUTY_HARD * Math.max(1f, s.cap);
+        float te = hold / Math.max(1f, incomingShieldFlux(s));
+        float vent = s.noVent ? Math.max(1f, diss) : Math.max(1f, 2f * diss * Math.max(0.1f, s.ventRate));
+        float tr = hold / vent + DUTY_OVERHEAD;
+        return te / (te + tr);
+    }
+
+    /** Flux per second the shield takes from incoming fire: what the guns can't spend (Hardened Shields x0.8). */
+    static float incomingShieldFlux(Ship s) {
+        if (!s.shield) return 0f;
+        return INCOMING[Math.max(0, Math.min(3, s.size))] * SHIELD_BLOCK * Math.max(0.05f, s.shieldEff * s.shieldTaken);
+    }
     /** Ship systems the AI fires whenever their weapons are in range: Accelerated Ammo Feeder, High Energy Focus (SYS-2/3). */
     static final float AMMO_FEED = 1.29f, ENERGY_FOCUS = 1.075f;
     static final float BURST_SHARE = 0.5f, BURST_CAP = 0.4f, BURST_SECONDS = 10f, FLUX_LIMIT = 1.75f, FLUX_SOFT = 1.4f, FLUX_SOFT_EXP = 0.3f;
@@ -639,7 +671,7 @@ final class JAOModel {
             float eF = Math.max(0.05f, s.shieldEff * s.shieldTaken);
             tank = (0.5f + 0.4f * clamp((1f - eF) / 0.4f, 0f, 1f)) * (float) Math.sqrt(Math.min(1f, s.arc / 180f));
             if (s.armor >= 1000f) tank *= 0.8f;
-            shieldHp = tank * (SHIELD_USABLE * s.cap + 30f * Math.max(0f, diss - s.upkeep - 0.5f * load)) / eF;
+            shieldHp = tank * (SHIELD_USABLE * s.cap + 30f * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
         float ka = KA[Math.max(0, Math.min(3, s.size))];
         float ehp = s.hull / Math.max(0.1f, s.hullTaken) + ka * s.armor / Math.max(0.1f, s.armorTaken) + shieldHp;
@@ -752,13 +784,16 @@ final class JAOModel {
         float malf = 1f - clamp(MALFUNCTION_COST * s.malfunction, 0f, 0.5f);
         // EMP resistance and faster venting (Resistant Flux Conduits; 0.5.12, "absolute necessity on any battleship" late
         // game against Remnant, Threat and Omega EMP, research builds_update_1106 4.2): small, larger on big hulls
-        float resist = (1f + EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - s.empTaken, 0f, 1f)) * (s.noVent ? 1f : 1f + VENT_W * clamp(s.ventRate - 1f, 0f, 1f));
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * (1f + s.extra);
+        // (faster venting counts through duty())
+        float resist = 1f + EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - s.empTaken, 0f, 1f);
+        float stay = duty(s, diss);
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * stay * (1f + s.extra);
         if (out != null) {
             if (plague > 0f) out.put("plague", plague);
             if (s.maxCr != CR_BASE || plague > 0f) { out.put("maxCr", s.maxCr - plague / 100f); out.put("crStart", startCr); }
             if (s.deck != 1f) out.put("deck", s.deck);
             if (malf < 1f) out.put("malf", malf);
+            if (s.shield) out.put("stay", stay);
             out.put("score", score); out.put("ttk", ttk); out.put("t1", t1s / wsum); out.put("t2", t2s / wsum); out.put("t3", t3s / wsum);
             out.put("ehp", ehp); out.put("uptime", uptime); out.put("load", load); out.put("budget", budget); out.put("reng", reng);
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
@@ -897,7 +932,6 @@ final class JAOModel {
 
     /** Score per point of EMP damage avoided, by hull size; per point of extra vent rate. */
     static final float[] EMP_W = {0f, 0.01f, 0.025f, 0.05f};
-    static final float VENT_W = 0.03f;
     /** Times a gun's charges refill and empty again in a fight (lulls between engagements, overload windows). */
     static final float MAG_REFILLS = 3f;
 
