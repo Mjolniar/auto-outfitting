@@ -81,7 +81,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (!s.civilian && dmods(s.member) > 0) dmodShips++;
         if (dmodShips > 0) notes.append(dmodShips).append(dmodShips == 1 ? " ship has" : " ships have")
                 .append(" d-mods: each is fitted for its own armor, flux, speed, max CR, flight deck and turrets. ");
-        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons, no s-mods). ");
+        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons or flux")
+                .append(job.smods && JAOSettings.civilianSmods ? "; cruisers, capitals and salvage rigs build in fleet-wide ones). " : "). ");
         if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
         if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
 

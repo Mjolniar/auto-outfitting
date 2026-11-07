@@ -3,8 +3,9 @@
 {
 	"jao_enabled":true,
 	"jao_roles":true,               # build each ship for its fleet role (skirmisher, flanker, line, anchor, carrier ...)
-	"jao_civilianLogistics":true,
-	"jao_fleetBalance":true,        # complement the rest of the fleet (fighter roles, anti-shield / anti-armor)   # civilian ships get campaign hullmods and no weapons
+	"jao_civilianLogistics":true,   # civilian ships get campaign hullmods, no weapons, no vents or capacitors
+	"jao_civilianSmods":true,       # with Build in s-mods ticked, civilian cruisers, capitals and salvage rigs build in fleet-wide hullmods (Treasure Hunt, surveying, sensors, burn)
+	"jao_fleetBalance":true,        # complement the rest of the fleet (fighter roles, anti-shield / anti-armor)
 	"jao_style":"Auto",            # Auto, Balanced, Anti-shield, Anti-armor, Hull killer
 	"jao_allStyles":false,
 	"jao_range":"Auto",            # Auto, Long, Close

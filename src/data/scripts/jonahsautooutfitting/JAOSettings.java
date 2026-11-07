@@ -12,7 +12,7 @@ public class JAOSettings {
     public static final String MOD = "jonahs_auto_outfitting", LUNA = "lunalib", FILE = "data/config/jonahs_auto_outfitting.json";
     static final Logger LOG = Global.getLogger(JAOSettings.class);
 
-    public static boolean enabled = true, roles = true, civilianLogistics = true, productionButton = true, allowDrawbacks, allStyles, specialWeapons = true, preferRare, cheatItems, communityTiers = true, keepPriority = true, logistics, debug, smodWait = true, fleetBalance = true;
+    public static boolean enabled = true, roles = true, civilianLogistics = true, civilianSmods = true, productionButton = true, allowDrawbacks, allStyles, specialWeapons = true, preferRare, cheatItems, communityTiers = true, keepPriority = true, logistics, debug, smodWait = true, fleetBalance = true;
     public static JAOStyle style = JAOStyle.AUTO;
     /** 0 auto, 1 long, 2 close. */
     public static int range;
@@ -50,6 +50,7 @@ public class JAOSettings {
         allStyles = bool("jao_allStyles", false);
         roles = bool("jao_roles", true);
         civilianLogistics = bool("jao_civilianLogistics", true);
+        civilianSmods = bool("jao_civilianSmods", true);
         productionButton = bool("jao_productionButton", true);
         fleetBalance = bool("jao_fleetBalance", true);
         productionBudget = clamp(dbl("jao_productionBudget", 0.5f), 0.05f, 1f);
@@ -103,7 +104,7 @@ public class JAOSettings {
 
     /** One log line with the current options. */
     static String summary() {
-        return (enabled ? "Optimal goal on" : "Optimal goal off") + ", style " + style.label + (roles ? ", fleet roles" : "") + (civilianLogistics ? ", civilian logistics fits" : "") + (fleetBalance ? ", fleet balance" : "") + (allStyles ? " (+ one goal per style)" : "")
+        return (enabled ? "Optimal goal on" : "Optimal goal off") + ", style " + style.label + (roles ? ", fleet roles" : "") + (civilianLogistics ? ", civilian logistics fits" + (civilianSmods ? " with fleet-wide s-mods" : "") : "") + (fleetBalance ? ", fleet balance" : "") + (allStyles ? " (+ one goal per style)" : "")
                 + ", range " + (range == 1 ? "long" : range == 2 ? "close" : "auto") + ", fight " + (int) fightSeconds + "s"
                 + ", special weapons " + specialWeapons + (preferRare ? ", rare bonus " + rareBonus : "") + (cheatItems ? ", cheat-only items allowed" : "") + (communityTiers ? "" : ", no community tiers") + ", PD floor " + pdFloor + ", logistics " + logistics + ", drawbacks " + (allowDrawbacks ? "allowed" : "never") + ", SO " + (safetyOverrides == 0 ? "never" : safetyOverrides == 1 ? "frigates/destroyers" : "when best")
                 + ", s-mods up to " + smodCount + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"

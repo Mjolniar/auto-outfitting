@@ -73,7 +73,7 @@ It lists what changes on each ship: weapons, wings, hullmods on and off, and s-m
 - What isn't used again goes to that storage.
 - Hullmods change only where the refit rules allow (spaceport hullmods only at a spaceport).
 - S-mods only while **Build in s-mods** is ticked in the Autofit panel, the same box as a single Optimal fit (off by default). Then each new s-mod costs a story point, never below the story points you keep in reserve, and the panel lists them before you apply.
-- Civilian ships (freighters, tankers, liners, salvage and survey ships) get their campaign fit: cargo, fuel or berths, burn speed, sensors, surveying, salvage and the like, within the game's logistics limit, no weapons and never s-mods. Their weapons and LPCs go back into the stock for the warships.
+- Civilian ships (freighters, tankers, liners, salvage and survey ships) get their campaign fit: cargo, fuel or berths, then Treasure Hunt Package (with the Treasure Hunt mod), burn speed, sensors, surveying and the like, within the game's logistics limit. No weapons, vents or capacitors. With Build in s-mods ticked, the ones that stay in your fleet for good (cruisers and capitals like the Atlas and Prometheus, and salvage rigs) build in the hullmods that help the whole fleet: Treasure Hunt Package, Surveying Equipment, High Resolution Sensors, then burn speed. Built-in ones don't count against the logistics limit, so cargo or fuel still fits. Their weapons and LPCs go back into the stock for the warships.
 
 Fleet analysis also has an Optimize fleet button.
 
@@ -118,7 +118,8 @@ LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without Lu
 |---|---|---|
 | Add the Optimal goal | on | The Optimal entry in every ship's autofit list. |
 | Fit for each ship's fleet role | on | Builds each ship for its job: skirmisher frigates, flankers, line cruisers, capital anchors, carriers, battle carriers, support, phase, missile boats. |
-| Civilian ships: fit for the campaign | on | Freighters, tankers, liners, salvage and survey ships get no weapons and campaign hullmods (cargo/fuel/berths, burn, sensors, profile, survey, salvage, treasure hunting, supplies); built in on cruisers and capitals with Build in s-mods. |
+| Civilian ships: fit for the campaign | on | Freighters, tankers, liners, salvage and survey ships get no weapons, vents or capacitors, and campaign hullmods instead (cargo/fuel/berths, treasure hunting, burn, profile, sensors, survey, supplies). |
+| Civilian ships: build in fleet-wide hullmods | on | With Build in s-mods ticked, civilian cruisers, capitals and salvage rigs build in Treasure Hunt Package, Surveying Equipment, High Resolution Sensors, then burn speed, in a single refit and in Optimize fleet (story points only on Confirm). |
 | Balance with the fleet | on | Fighter roles and wings the fleet already has count for less, and with Auto or Balanced each ship leans toward the damage the fleet is short of: the rest of the fleet plan in Optimize fleet and Order fleet weapons, the fleet as it stands for one Optimal fit. |
 | Build style | Auto | Auto, Balanced, Anti-shield, Anti-armor, Hull killer. |
 | One goal per style | off | Adds an Optimal goal for each style, so ships can differ. |

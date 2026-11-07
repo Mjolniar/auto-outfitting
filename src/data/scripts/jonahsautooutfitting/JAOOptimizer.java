@@ -581,16 +581,15 @@ class JAOOptimizer {
 
     /**
      * Campaign hullmods in order of value for this kind of civilian ship. Freighters want cargo, tankers fuel, liners
-     * berths, salvage and survey rigs their gear; all of them then burn speed, sensor profile, sensors, treasure
-     * hunting, supply use and corona protection. Hullmods from mods the list doesn't know come after it.
+     * berths, salvage and survey rigs their gear; all of them then treasure hunting, burn speed, sensor profile,
+     * sensors, supply use and corona protection. Hullmods from mods the list doesn't know come after it.
      */
     static List<String> logisticsOrder(ShipHullSpecAPI hull) {
-        String d = hull.getDesignation() == null ? "" : hull.getDesignation().toLowerCase(java.util.Locale.ROOT);
         java.util.EnumSet<com.fs.starfarer.api.combat.ShipHullSpecAPI.ShipTypeHints> h = hull.getHints();
         List<String> out = new ArrayList<>();
-        if (d.contains("salvage") || d.contains("survey") || hull.getBuiltInMods().contains("salvage_gantry")) {
+        if (salvageRig(hull)) {
             out.add("surveying_equipment");
-            out.add("spinloki.TreasureHunt.data.hullmods.THTreasureHuntPackage");
+            out.add(TREASURE_HUNT);
         } else if (h.contains(com.fs.starfarer.api.combat.ShipHullSpecAPI.ShipTypeHints.TANKER) || hull.getFuel() > hull.getCargo()) {
             out.add("auxiliary_fuel_tanks");
         } else if (h.contains(com.fs.starfarer.api.combat.ShipHullSpecAPI.ShipTypeHints.LINER)
@@ -599,19 +598,49 @@ class JAOOptimizer {
         } else {
             out.add("expanded_cargo_holds");
         }
-        for (String id : new String[]{"augmentedengines", "adf_AttunedEngines", "stardust_EnhancedEngines", "IndEvo_augfield",
-                "insulatedengine", "hiressensors", "spinloki.TreasureHunt.data.hullmods.THTreasureHuntPackage", "surveying_equipment",
+        // Treasure Hunt Package right after the ship's own job (user 11/06: getting the nanoforges and other colony items
+        // quickly is very valuable; it adds up across the fleet)
+        for (String id : new String[]{TREASURE_HUNT, "augmentedengines", "adf_AttunedEngines", "stardust_EnhancedEngines", "IndEvo_augfield",
+                "insulatedengine", "hiressensors", "surveying_equipment",
                 "efficiency_overhaul", "solar_shielding", "stardust_EnvironmentalShielding", "militarized_subsystems"}) {
             if (!out.contains(id)) out.add(id);
         }
         return out;
     }
 
+    static final String TREASURE_HUNT = "spinloki.TreasureHunt.data.hullmods.THTreasureHuntPackage";
+
+    /**
+     * Fleet-wide campaign hullmods, best first: what civilian ships that stay in the fleet build in (user 11/06: "I would
+     * just build for S-mods that are fleet-wide augments"). Treasure Hunt Package (1/2/4/8 by hull size) and Surveying
+     * Equipment (5/10/20/40) add up across the whole fleet and double as s-mods; High Resolution Sensors adds to the
+     * fleet's sensor range with diminishing returns (built in, it frees a logistics slot); then burn speed, since the
+     * fleet moves at its slowest ship, which is usually a freighter.
+     */
+    static final String[] FLEET_WIDE = {TREASURE_HUNT, "surveying_equipment", "hiressensors",
+            "augmentedengines", "adf_AttunedEngines", "stardust_EnhancedEngines", "yunru_drive_optimisation"};
+
+    /** Salvage and survey ships (Salvage Rig: designation, or the built-in Salvage Gantry). */
+    static boolean salvageRig(ShipHullSpecAPI hull) {
+        String d = hull.getDesignation() == null ? "" : hull.getDesignation().toLowerCase(java.util.Locale.ROOT);
+        return d.contains("salvage") || d.contains("survey") || hull.getBuiltInMods().contains("repair_gantry");
+    }
+
+    /**
+     * Civilian ships that stay in the fleet for good and are worth story points: cruisers and capitals (Atlas, Prometheus,
+     * Colossus, Phaeton) and salvage or survey rigs of any size (user 11/06).
+     */
+    static boolean keeper(ShipHullSpecAPI hull) {
+        return hull.getHullSize().ordinal() >= HullSize.CRUISER.ordinal() || salvageRig(hull);
+    }
+
     /**
      * Civilian fit: no weapons or wings, campaign hullmods in logisticsOrder up to the game's logistics limit
-     * (maxLogisticsHullmods, built-in and s-modded ones don't count), and with "Build in s-mods" ticked the best of
-     * them built in on cruisers and capitals (story points on Confirm only), which frees room for more. Logistics
-     * hullmods need a spaceport, so away from one only the existing ones stay. Leftover OP goes to vents/capacitors.
+     * (maxLogisticsHullmods, built-in and s-modded ones don't count). With "Build in s-mods" ticked and the civilian
+     * s-mods setting on, keepers (cruisers, capitals, salvage rigs) first build in the fleet-wide ones (FLEET_WIDE; story
+     * points on Confirm only), which leaves the ordinary slots for the ship's own job. Logistics hullmods need a
+     * spaceport, so away from one only the existing ones stay. No vents or capacitors (user 11/06: useless on a ship
+     * that never fights); leftover OP stays free.
      */
     private void runLogistics(ShipHullSpecAPI hull, long t0) {
         // the fleet plan refits from bare like every other ship (only hullmods the refit rules here allow come off)
@@ -651,12 +680,25 @@ class JAOOptimizer {
         }
         int limit;
         try { limit = Global.getSettings().getInt("maxLogisticsHullmods"); } catch (Throwable t) { limit = 2; }
-        boolean big = hull.getHullSize().ordinal() >= HullSize.CRUISER.ordinal();
-        // Optimize fleet never spends story points on civilian ships (user 11/06: "maybe just have it skip the s-mods")
-        int smodRoom = big && !planning && plugin.option(JAOAutofitPlugin.SMODS) ? smodLimit(new int[4]) : 0;
+        // s-mods (user 11/06): with "Build in s-mods" ticked and the civilian s-mods setting on, keepers build in the
+        // fleet-wide hullmods, in a single refit and in Optimize fleet alike (story points only on Confirm)
+        boolean smodsOn = JAOSettings.civilianSmods && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS));
+        int smodRoom = smodsOn && keeper(hull) ? smodLimit(new int[4]) : 0;
         Set<String> mods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
         Set<String> smods = new LinkedHashSet<>();
         List<String> skipped = new ArrayList<>();
+        for (String id : FLEET_WIDE) {
+            if (smods.size() >= smodRoom) break;
+            if (!available.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
+            if (current.getSMods().contains(id) || current.getPermaMods().contains(id)) continue;
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            if (spec == null || spec.isHidden() || spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.Tags.HULLMOD_NO_BUILD_IN)) continue;
+            world.setSMods(smods);
+            // one already fitted as an ordinary hullmod is simply built in
+            if (!mods.contains(id) && !logisticsAllowed(world, id, mods, skipped)) continue;
+            mods.add(id);
+            smods.add(id);
+        }
         for (String id : order) {
             if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
@@ -665,23 +707,19 @@ class JAOOptimizer {
             if (!logisticsAllowed(world, id, mods, skipped)) continue;
             boolean logi = spec.hasUITag("Logistics");
             int counted = 0;
-            for (String m : mods) { HullModSpecAPI o = Global.getSettings().getHullModSpec(m); if (o != null && o.hasUITag("Logistics") && !smods.contains(m)) counted++; }
-            boolean asSmod = smods.size() < smodRoom && !spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.Tags.HULLMOD_NO_BUILD_IN);
-            int cost = asSmod ? 0 : spec.getCostFor(hull.getHullSize());
+            for (String m : mods) { HullModSpecAPI o = Global.getSettings().getHullModSpec(m); if (o != null && o.hasUITag("Logistics") && !smods.contains(m) && !current.getSMods().contains(m)) counted++; }
+            int cost = spec.getCostFor(hull.getHullSize());
             int used = current.computeOPCost(plugin.stats());
             for (String m : mods) if (!current.hasHullMod(m) && !smods.contains(m)) used += Global.getSettings().getHullModSpec(m).getCostFor(hull.getHullSize());
             if (used + cost > hullOp) continue;
-            if (logi && !asSmod && counted >= limit) continue;
+            if (logi && counted >= limit) continue;
             mods.add(id);
-            if (asSmod) smods.add(id);
         }
         for (String m : mods) if (!smods.contains(m) && !current.hasHullMod(m)) current.addMod(m);
         int built = smods.isEmpty() ? 0 : buildIn(smods, real, hull);
-        int left = Math.max(0, hullOp - current.computeOPCost(plugin.stats()));
-        int maxV = plugin.getMaxVents(hull.getHullSize()), maxC = plugin.getMaxCaps(hull.getHullSize());
-        int vents = Math.min(left, maxV);
-        current.setNumFluxVents(vents);
-        current.setNumFluxCapacitors(Math.min(left - vents, maxC));
+        // no vents or capacitors: a ship that never fights has no use for them (user 11/06); leftover OP stays free
+        current.setNumFluxVents(0);
+        current.setNumFluxCapacitors(0);
         current.getWeaponGroups().clear();
         current.setSource(VariantSource.REFIT);
         boolean docked = false;
