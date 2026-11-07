@@ -145,6 +145,7 @@ final class JAOShip implements JAOSearch.World {
         s.ppt = st.getPeakCRDuration().computeEffective(hull.getNoCRLossTime());
         s.turnRate = st.getMaxTurnRate().getModifiedValue();
         s.baseTurn = hull.getEngineSpec() == null ? 0f : hull.getEngineSpec().getMaxTurnRate();
+        s.baseCap = hull.getFluxCapacity();
         bonus(s, JAOModel.BAL, st.getBallisticWeaponRangeBonus());
         bonus(s, JAOModel.ENE, st.getEnergyWeaponRangeBonus());
         bonus(s, JAOModel.MIS, st.getMissileWeaponRangeBonus());
@@ -181,6 +182,9 @@ final class JAOShip implements JAOSearch.World {
         // as an s-mod the Autoloader waits 10 s after a reload instead of 5 (its s-mod penalty)
         if (work.hasHullMod("missile_autoloader")) s.ammoMult *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
         if (work.hasHullMod("phase_anchor") && s.phase) s.extra += 0.12f;
+        // Adaptive Phase Coils (0.98a): a phased ship keeps its speed to 50% more hard flux, so it can phase in, fire and
+        // get out; experts take it or Phase Anchor on every phase ship (research meta_report 5, builds_update_1106)
+        if (work.hasHullMod("adaptive_coils") && s.phase) s.extra += ADAPTIVE_COILS;
         // Shield Conversion - Omni on slow low-tech front-shield hulls (0.5.12; research builds_update_1106 2.5, several
         // sources incl. Grievous69's 0.98 guide): the AI swings the omni shield onto torpedoes and big shells and lets the
         // armor take small arms. AI behaviour the stats can't show (they only see the arc -30%), so a flat bonus
@@ -313,7 +317,7 @@ final class JAOShip implements JAOSearch.World {
     @Override
     public void setSMods(Set<String> s) { smods = new java.util.LinkedHashSet<>(s); }
 
-    static final float OMNI_BONUS = 0.04f;
+    static final float OMNI_BONUS = 0.04f, ADAPTIVE_COILS = 0.10f;
 
     static boolean lowTech(ShipHullSpecAPI h) {
         String m = h.getManufacturer();
@@ -322,7 +326,7 @@ final class JAOShip implements JAOSearch.World {
 
     /** Listener hullmods the model has its own numbers for (see ship()). */
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(
-            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
+            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "adaptive_coils", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
 
     /** Hull-only hullmods (roles HULL or CR in jao_hullmods.csv, or the vanilla padding mods) and Flux Distributor/Coil. */
     @Override
