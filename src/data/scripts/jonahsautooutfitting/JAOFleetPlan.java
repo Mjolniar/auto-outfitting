@@ -55,7 +55,7 @@ final class JAOFleetPlan {
         final java.util.Set<Integer> scripted = new java.util.TreeSet<>();
         /** What the player should know about this ship's plan (bay rules, penalty hullmods its scripts add). */
         final List<String> notes = new ArrayList<>();
-        /** A civilian hull: the logistics fit (campaign hullmods, no weapons, no s-mods), planned once, outside the fleet's balance. */
+        /** A civilian hull: the logistics fit (campaign hullmods, no weapons, fleet-wide s-mods on keepers), planned once, outside the fleet's balance. */
         boolean civilian;
 
         ShipPlan(FleetMemberAPI member) {
@@ -176,8 +176,10 @@ final class JAOFleetPlan {
 
     /**
      * A civilian ship's logistics fit (user 11/06: "it could automatically do the attuned drive field, surveying equipment,
-     * salvage gantries"): the same campaign hullmods a single Optimal fit gives it, from bare, no weapons and no s-mods.
-     * Takes nothing from the stock (what it carries goes back into it for the warships) and is planned once.
+     * salvage gantries"): the same campaign hullmods a single Optimal fit gives it, from bare, no weapons. With s-mods
+     * asked for and the civilian s-mods setting on, keepers (cruisers, capitals, salvage rigs) build in the fleet-wide
+     * ones (user 11/06, JAOOptimizer.FLEET_WIDE), out of the same story points as the warships. Takes nothing from the
+     * stock (what it carries goes back into it for the warships) and is planned once.
      */
     private void planCivilian(ShipPlan s) {
         if (s.plan != null || s.failed) return;
@@ -186,7 +188,12 @@ final class JAOFleetPlan {
             PlanDelegate d = delegate(s.member, hullmods);
             JAOOptimizer o = new JAOOptimizer(plugin, v, d, JAOSettings.style, false, true);
             o.logistics = true;
+            o.planSmods = smods;
+            o.storyPoints = storyPoints;
             o.run();
+            int newSmods = Math.max(0, v.getSMods().size() - variantOf.apply(s.member).getSMods().size());
+            s.newSmods = newSmods;
+            storyPoints -= newSmods;
             JAOCompat.Probe probe = JAOCompat.settle(v, true);
             s.plan = v;
             s.used.clear();

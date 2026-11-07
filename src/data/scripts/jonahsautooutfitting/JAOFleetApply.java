@@ -40,7 +40,8 @@ import java.util.TreeMap;
  *  - New s-mods (only while the Autofit panel's "Build in s-mods" box is ticked) cost a story point each through the game's own build-in (bonus
  *    XP, playthrough log); the plan never counts on more story points than you have above the reserve.
  *  - The ship on the refit screen is changed through the screen's own copy, then the screen is synced and saved.
- * Civilian ships (with the logistics fit setting on) get that fit: campaign hullmods, no weapons, never s-mods.
+ * Civilian ships (with the logistics fit setting on) get that fit: campaign hullmods, no weapons, no vents or capacitors;
+ * with s-mods asked for and the civilian s-mods setting on, cruisers, capitals and salvage rigs build in fleet-wide ones.
  */
 final class JAOFleetApply {
     final JAOFleetPlan fleet;
