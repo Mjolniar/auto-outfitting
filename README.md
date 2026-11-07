@@ -1,150 +1,60 @@
 # Jonah's Auto Outfitting
 
 > [!WARNING]
-> **AI-generated.** This mod was written with an AI assistant. Work in progress: it fits ships, but its scoring is still being
-> tuned, and not every change has been tested in game. Report problems as [issues](https://github.com/Mjolniar/jonahs-auto-outfitting/issues),
-> with `starsector-core/starsector.log` if you can.
+> **AI-generated.** Mod, docs and build checks written by AI coding agents. Every version is checked offline (compile, bytecode checks, a few hundred test fits on vanilla hulls), but a lot of the newer changes haven't been tried in a real game yet. Expect bugs. If something looks off, throw it in the [issues](https://github.com/Mjolniar/jonahs-auto-outfitting/issues) with `starsector-core/starsector.log` and your modlist if you can.
 
-Adds an **Optimal** goal to the refit screen's autofit list. Picking it builds the strongest loadout the ship can have from what you actually own (cargo, storage, and the market if you tick those boxes in the autofit panel):
+The game's autofit doesn't really know which weapons are good. It copies the ship's stock loadout and grabs whatever has the highest tag, so you end up with junk in big mounts and the same wing in every bay. I had Claude Code make this so the autofit button actually builds the strongest ship it can from the stuff I own.
 
-- Weapons are scored on real combat numbers: damage against shields, armor and hull, flux cost, range, hit strength against armor, ammo, and scripted special effects. OP cost and the game's autofit tiers aren't used to rank weapons.
-- The loadout is balanced to finish a kill: break the shield, strip the armor, kill the hull. Build styles can lean on one layer instead.
-- It scores loadouts by how the game's AI actually fights, read from the game's own combat code. That covers:
-  - **Missiles:** HE torpedoes and rockets are priced against armor the same way guns are. Unguided torpedoes are only fired at slow, big targets. Free-firing rockets mostly spend themselves on raised shields. Enemy point defense shoots weak missiles down: about a third of 50-HP rockets, but few 500-HP Reapers.
-  - **Shields and flux:** shields only use 80% of flux capacity. Shield upkeep only runs while the shield is up. AI ships get dissipation to 1.25x their weapons' flux before capacitors.
-  - **Armor:** armor cuts every hit by hit / (hit + armor), so it shrugs off small arms and matters most on ships that already have a lot of it. Survival is worked out against a mix of incoming fire, not as plain hit points. Heavy Armor goes on heavily armored hulls like the Onslaught and Paragon rather than everywhere.
-  - **Free wings:** a 0-OP wing like Mining Pods is valued at what it actually does (about 2 OP of Xyphos), and drones that sit in front of the carrier with nothing but point-defense guns count as point defense. They still fill a bay when the OP is better spent elsewhere.
-  - **Phase ships:** Adaptive Phase Coils and Phase Anchor are valued, survival grows with the flux capacity they phase on, and Heavy Armor is never put on them (rule `not_on_phase` in `data/config/jao_rules.csv`).
-  - **Staying in the fight:** fire on the shield fills a ship's flux until the AI backs off to vent. Hardened Shields, capacitors and faster venting keep it engaged longer, so Hardened Shields counts as the solid default experts call it.
-  - **Aim:** only the main weapon group is held back against shields. Large slow turrets can't track frigates.
-  - **Point defense:** it's rated by whether one weapon can kill a missile in time, so Burst PD wins over LR PD.
-  - **Carriers:** they escort only when at least two thirds of their wings are fighters, interceptors or support. The shortest-range wing caps how far all of them strike. Defensive Targeting Array changes what each fighter role is worth.
-  - **Ship systems:** Accelerated Ammo Feeder and High Energy Focus add to ballistic and energy weapons on their hulls.
-  - **Handling:** extra turning counts most on slow hulls that aim hardpoints by turning, not on nimble frigates.
-  - **Officers:** a ship without an officer is fitted for the personality your doctrine's aggression slider gives it (Command > Doctrine), not always Steady.
-  - **Charged guns:** Autopulse, Thermal Pulse Cannon, Storm Needler and the like count the burst from their stored charges, not just their recharge rate. Expanded Magazines (more charges; as an s-mod, faster recharge too) is valued on those ships.
-  - **Hullmods the experts recommend:** Resistant Flux Conduits (EMP resistance, faster venting) counts on big ships. Shield Conversion - Omni gets a small bonus on slow, low-tech, front-shielded ships (Onslaught, Legion, Dominator, Enforcer), where the AI uses it to block torpedoes and big shells. Integrated Targeting Unit is never put on frigates.
-- Weapon groups: after the game makes its own groups, a broadside ship (a Conquest, say) gets each side's matching weapons in their own group so it fires the side that bears, and a missile boat's guided launchers are linked to fire as one volley.
-- Guns past the ship's sustained flux still count: they fire in burst windows (overloads, flanks) paid from flux capacity, so mounts get real weapons, not 1-OP fillers or small guns in big mounts.
-- Loadouts stay coherent: matched sets of the same weapon, one range band, within the game's 7 weapon groups. Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
-- Hullmods are chosen for the ship and its weapons (range mods only with guns that use them, missile mods only with missiles, and so on), then the remaining OP goes into vents and capacitors.
-- Fighters are rated against the community's top pick for their role: Broadsword (fighters), Dagger (bombers), Spark or Wasp (interceptors), Xyphos or Sarissa (support). Each wing is compared on:
-  - firepower per OP (for bombers, armor damage or shield breaking, times how reliably the payload hits);
-  - toughness per OP;
-  - point defense;
-  - sortie time (refit plus the trip out and back).
+It adds an **Optimal** option to the autofit list on the refit screen. Click it and it works out the best weapons, fighters, hullmods, vents and capacitors for that ship from your cargo and storage (and the market, if you tick that). Everything is scored on real combat numbers and on how the game's AI actually flies the ship, not on OP cost.
 
-  A wing can match the reference on each but not beat it, so no cheap wing takes every bay. Wings that stay by their carrier (Sarissa, ARMAA Gunhed) count as support.
-- Carriers that carry bombers don't get interceptors: the game never sends a bomber carrier's fighters to escort, so the interceptors couldn't screen it.
-- Line ships on the Auto or Balanced style carry both kinetic and an armor-cracker.
-- The fleet is treated as one team. Fighter roles the fleet already has plenty of, and wings already flying elsewhere, count for less. With the Auto or Balanced style, each ship leans toward the damage the fleet is short of (anti-shield or anti-armor).
-- Weapon OP costs are read from the ship's live stats, so hullmod discounts count (Valkyrian Bryncore, for example). The Bryncore's +100 range on Valkyrian weapons is counted too.
-- Every ship is fitted for its own numbers, d-mods included. Armor, hull, flux, speed, shields, range and peak time come from the ship's live stats. On top of those, the fit also accounts for:
-  - **max CR** (Degraded Life Support, Faulty Automated Systems, Increased Maintenance, skills), run through the game's CR rules: the AI aims worse as CR falls, and ships below 50% and 40% fight worse and malfunction;
-  - **the flight deck**: Damaged Flight Deck's longer refits, Malfunctioning Comms' shorter fighter range and Defective Manufactory's weaker craft make that carrier's wings worth less, and Expanded Deck Crew's faster replacement makes them worth more;
-  - **turrets**: Damaged Weapon Mounts' slower turning and extra recoil cost point defense and accuracy, and Advanced Turret Gyros helps point defense;
-  - **malfunctions**: Ill-Advised Modifications' weapon malfunctions.
-- After Confirm, any spare OP goes into vents and capacitors: capacitors first on carriers, phase ships, support ships and missile boats.
-- Optional: tick **Build in s-mods** in the autofit panel and the Optimal fit also builds in the hullmods worth a story point most, judged by re-optimising the whole ship around each one. Story points are only spent when you press Confirm, never by the preview.
-- The search runs twice, filling the biggest mounts first and then the smallest first, and keeps the better result. It also tries pairs of big mounts and trades between hullmods, so one early pick can't lock a ship into a weaker fit. A mount is only left empty when filling it costs more than about 2%.
-- Every other goal keeps the game's own autofit.
+There are also fleet buttons that fit your whole fleet together, order the weapons you're missing, and show you where the fleet is weak.
 
-## The fleet plan
+## Install
 
-Three buttons on the refit screen work on the whole fleet at once: **Order fleet weapons** and **Optimize fleet**, stacked next to Autofit, and **Fleet analysis** in the next free spot (also linked from the Optimize fleet panel).
+1. Grab the zip from the [latest release](https://github.com/Mjolniar/jonahs-auto-outfitting/releases/latest) and extract it into `Starsector/mods/`.
+2. Enable **Jonah's Auto Outfitting** in the launcher. Nothing else is required. LunaLib is optional and gives you an in-game settings menu.
 
-The first two buttons share one fleet plan, which works like this:
-- Every combat ship is planned together, from one shared stock, biggest ships first.
-- Each ship leans toward what the rest of the plan lacks:
-  - **anti-shield**: how fast the fleet fills enemy flux bars; kinetic counts fully, energy half, HE a quarter, fragmentation an eighth;
-  - **armor-cracking**: hits strong enough to get through armor;
-  - **fighter roles**: aiming for about 35% fighters, 35% bombers, 10% interceptors and 20% support.
-- Then each ship is planned again with all the others in view, at most two more passes. A ship only changes if the new plan is clearly better.
-- The plan doesn't depend on what your ships carry now. Every ship is planned from bare, so the same fleet, stock and blueprints always give the same plan.
+Starsector 0.98a. It's fine to add to an existing save, and fine to take out again.
 
-The plan runs a little each frame with a progress line. A big fleet takes a few seconds.
+## Quick start
 
-### Optimize fleet
+1. Open the refit screen, pick a ship and hit **Autofit**.
+2. Click **Optimal** in the row of goals. The preview shows the new fit, and nothing changes until you press **Confirm**.
+3. For the whole fleet at once, use **Optimize fleet** next to the Autofit button. It lists every change first, then **Apply to all ships** does it.
+4. Short on good weapons? **Order fleet weapons** lists what custom production would have to build for the best fleet and queues it for you.
 
-Plans every combat ship from what you have here: what the ships carry, your fleet cargo, and your storage at the market you're docked at. Nothing is bought.
+S-mods are off unless you tick **Build in s-mods** in the Autofit panel, and story points are only spent when you confirm.
 
-It lists what changes on each ship: weapons, wings, hullmods on and off, and s-mods with their story points. It also shows the fleet's anti-shield, armor-cracking and fighter mix before and after. **Apply to all ships** then refits every ship:
-- Weapons and LPCs come off into cargo, and each ship takes its plan from cargo, then storage.
-- What isn't used again goes to that storage.
-- Hullmods change only where the refit rules allow (spaceport hullmods only at a spaceport).
-- S-mods only while **Build in s-mods** is ticked in the Autofit panel, the same box as a single Optimal fit (off by default). Then each new s-mod costs a story point, never below the story points you keep in reserve, and the panel lists them before you apply.
-- Civilian ships (freighters, tankers, liners, salvage and survey ships) get their campaign fit: cargo, fuel or berths, then Treasure Hunt Package (with the Treasure Hunt mod), burn speed, sensors, surveying and the like, within the game's logistics limit, then Reinforced Bulkheads and Blast Doors with the OP that's left (so a ship that gets caught is almost always recoverable). No weapons, vents or capacitors. With Build in s-mods ticked, the ones that stay in your fleet for good (cruisers and capitals like the Atlas and Prometheus, and salvage rigs) build in the hullmods that help the whole fleet: Treasure Hunt Package, Surveying Equipment, High Resolution Sensors, then burn speed. Built-in ones don't count against the logistics limit, so cargo or fuel still fits. Their weapons and LPCs go back into the stock for the warships.
+## What it does
 
-Fleet analysis also has an Optimize fleet button.
+- Picks weapons by what they actually do: damage against shields, armor and hull, flux, range, ammo and special effects.
+- Fits each ship for its job (skirmisher, line ship, carrier, phase ship, missile boat...) and for its own stats, d-mods and CR included.
+- Rates fighter wings against the community's go-to wing for each role, so one cheap wing doesn't take every bay.
+- Plans the fleet as a team: enough anti-shield and armor-cracking, a good fighter mix, no twenty copies of the same wing.
+- Gives freighters, tankers and salvage ships a campaign fit instead of guns: cargo or fuel, Treasure Hunt Package, burn speed, sensors.
+- Follows other mods' own rules (Seeker's plague ships, Emergent Threats' drones, Yunru's installers and more).
+- Leaves every other autofit goal alone. Only Optimal is this mod.
 
-### Order fleet weapons
+## Guides
 
-The same fleet plan, but with every weapon and fighter blueprint you know in unlimited supply. It lists what custom production would have to build, with costs and the ships using each item, and adds it when you press **Queue all**.
+- **[Getting started](docs/getting-started.md)**: installing, your first fit, the Autofit panel boxes, and what to do if something looks wrong.
+- **[How a ship gets fitted](docs/how-it-fits.md)**: what it looks at when it picks weapons, wings and hullmods.
+- **[The fleet buttons](docs/fleet-tools.md)**: Optimize fleet, Order fleet weapons and Fleet analysis.
+- **[Civilian ships](docs/civilian-ships.md)**: the campaign fit, and building fleet-wide hullmods into your Atlas or Prometheus.
+- **[S-mods and story points](docs/s-mods.md)**: when it builds hullmods in, and how to keep it from spending points you want to keep.
+- **[Other mods](docs/other-mods.md)**: what it does with the mods it knows about, and the data files you can edit.
+- **[Settings](docs/settings.md)**: every setting and what it does.
+- **[Patch notes](docs/changelog.md)**: every version so far.
 
-Owned items count as stock and are used first: cargo, every storage, what's on your ships, and what's already on order. So pressing it again only orders what's still missing. If the order is over the budget, the biggest ships' items are ordered first and the rest is ordered the next time you press it.
+For the code side, the full design notes are in [design.md](docs/design.md). It's long.
 
-With Ashes of the Domain: Vaults of Knowledge, the order goes into AoTD's production (its Custom production screen). Each unit is paid when it's finished, and AoTD takes resources from your colonies every month: Heavy Armaments for every item, Ships for LPCs, Electronic Components for most. The order panel lists them, says which colony makes each, and flags anything no colony makes, since those items wait for it. With Jonah's Colony Manager 2.39 or later, its Special project supply plans a producer for those goods. It only does that for goods no colony makes: a good your colonies make little of just slows the order. Without AoTD, the order goes into the game's custom production: paid each month as items are built, and it needs Heavy Industry or Orbital Works. Nothing is charged when you press Queue all.
+## Building it yourself
 
-### Fleet analysis
+JDK 17, sources in `src/`:
 
-Shows:
-- your fleet's firepower by damage type, with anti-shield and armor-cracking against their aims;
-- fighter bays by role, with the most common wings;
-- recommendations: anti-shield or anti-armor shortfalls, fighter roles leaning one way, carriers mixing interceptors with bombers, ships short of point defense, mixed range bands and empty mounts;
-- one line per ship.
+```
+javac --release 17 -cp "<core jars>;<optional mod jars>" -d build <all .java files under src>
+jar cf jars/jonahsautooutfitting.jar -C build data
+```
 
-It changes nothing; its **Optimize fleet** button opens the fleet plan.
-
-## Other mods' rules
-
-Some mods change a ship's loadout from their own scripts. The Optimal fit and the fleet plan follow them:
-- **Seeker's plague hulls** (the Guru and the other Cultist ships, the Plague Bearers) only fly Seeker's plague LPCs: Fire Ant, Pillbug and Beetle. Any other wing gets thrown back into cargo as soon as the ship is shown, so none is planned there. Without plague LPCs those bays stay empty, and the plan says so.
-- **Plague weapons and LPCs** (the Coda Launcher, Charger, Assault Revolver, Dainsleif and the rest) take 3, 6 or 12 points of max CR each on any other hull, a third less with Hardened Subsystems. They're priced by the game's CR rules from the ship's own max CR. On a healthy 70% ship a Coda Launcher costs about 1% and a 12-point weapon about 6%. Ships above 70% from skills pay a bit more, since they lose their bonus. Ships already short of CR, from d-mods for example, pay more, and much more once the plague would push them toward 50% or 40%. On plague hulls they're free.
-- **Trinity Worlds** ships only fly their Nimbus drones. The carriers with an Enhanced Control Node (the Maquech) fly anything, but an empty bay gets Nimbus drones at 10 OP each, and the plan counts that.
-- **Wings you can't buy or drop** (Nimbus drones, Emergent Threats kites and Terminators, Arma bits) stay in the bay they're in. They're never taken off, moved to another ship or picked from cargo.
-- **Hullmods that convert a ship** are never added: Yunru's "Install:" hullmods turn into permanent hullmods or use up AI cores and lobsters once the ship is shown. A free hullmod only goes on when it helps.
-- **Joke and built-in parts** stay out: Yunru's "Let's Bayblade!" (turn rate x50 on any ship) is never added, and weapons priced at 0 OP (some hull's built-in gun or a fighter's) never go in ordinary mounts. Extra speed and handling only count up to half again the speed and twice the handling.
-- **Missiles**: a launcher counts for what it can fire within the fight length. Unguided rockets land less often than guided missiles (slow ones less again), and rockets that can hit your own ships, such as Yunru's gyrojets, Annihilators, Hammers and Reapers, count for less the harder each one hits. That holds against shields as well as armor.
-- **Inverted Reverse Thrusters** (Yunru) roughly doubles speed but the ship can't fly backwards, so it counts as a hullmod with a drawback: only with "Allow hullmods with drawbacks" on.
-- Before any planned ship is refitted, its hullmods' scripts run once on a copy. Drones they add go into the plan, and the OP they take comes out of vents and capacitors.
-
-The rules live in `data/config/jao_rules.csv`.
-
-## Settings
-
-LunaLib's settings menu, or `data/config/jonahs_auto_outfitting.json` without LunaLib.
-
-| Setting | Default | What it does |
-|---|---|---|
-| Add the Optimal goal | on | The Optimal entry in every ship's autofit list. |
-| Fit for each ship's fleet role | on | Builds each ship for its job: skirmisher frigates, flankers, line cruisers, capital anchors, carriers, battle carriers, support, phase, missile boats. |
-| Civilian ships: fit for the campaign | on | Freighters, tankers, liners, salvage and survey ships get no weapons, vents or capacitors, and campaign hullmods instead (cargo/fuel/berths, treasure hunting, burn, profile, sensors, survey, supplies), then Reinforced Bulkheads and Blast Doors. |
-| Civilian ships: build in fleet-wide hullmods | on | With Build in s-mods ticked, civilian cruisers, capitals and salvage rigs build in Treasure Hunt Package, Surveying Equipment, High Resolution Sensors, then burn speed, in a single refit and in Optimize fleet (story points only on Confirm). |
-| Balance with the fleet | on | Fighter roles and wings the fleet already has count for less, and with Auto or Balanced each ship leans toward the damage the fleet is short of: the rest of the fleet plan in Optimize fleet and Order fleet weapons, the fleet as it stands for one Optimal fit. |
-| Build style | Auto | Auto, Balanced, Anti-shield, Anti-armor, Hull killer. |
-| One goal per style | off | Adds an Optimal goal for each style, so ships can differ. |
-| Range | Auto | Auto, Long, Close. |
-| Fight length | 90 s | Short fights favour burst and missiles; long ones favour flux efficiency. A launcher counts for at most what it can fire in this time, so more ammo only helps launchers that empty sooner. Raise it if your battles run long. |
-| Value special weapons | on | Counts scripted effects on top of the plain numbers. |
-| Lean on community weapon ratings | on | When two weapons score about the same, the one the community rates higher for AI ships wins (Grievous69's 0.98a tier lists: Burst PD over LR PD, HVD over Gauss). It moves a weapon's value by about 5% at most. Vanilla weapons only; other mods can add rows to `data/config/jao_weapon_tiers.csv`. |
-| Prefer rare weapons | off | Rarer weapons get a bonus (Rare weapon bonus, 15%) on top of their measured strength. |
-| Use items you can only get with cheats | off | Off: weapons and LPCs that have no blueprint, that no NPC faction knows and no ship in any mod carries (what console `allweapons` adds, like Yunru's gyrojets) are left out of fits, Optimize fleet and fleet orders. Omega, Threat and Dweller gear always counts. |
-| Respect priority weapons | on | Your faction doctrine's priority marks win ties. |
-| Point defense floor | 1 | Minimum point defense for the ship's size. |
-| Never use these weapons | (none) | Weapon ids or patterns the Optimal fit skips, e.g. `stardust_*`. |
-| Allow hullmods with drawbacks | off | Off: only hullmods that make nothing worse, including supply, recovery and deployment costs. On: drawbacks are weighed against the gains. |
-| Safety Overrides | Frigates and destroyers | Never / Frigates and destroyers / When it scores best (needs drawbacks allowed). Counted with its costs: range past 450, peak time, no venting. |
-| Allow logistics hullmods | off | Cargo, fuel, sensor and burn hullmods. |
-| S-mods per ship | 3 | With the autofit box **Build in s-mods** ticked: most hullmods built in per ship (within its limit). |
-| Minimum gain per s-mod | 2% | Each s-mod must make the ship at least this much stronger. |
-| Wait for the best hullmods | on | Keep open only the slots a clearly better, not-yet-known hullmod would take; the rest get the best you have. |
-| Most days to hold a slot | 30 | After this, the ship builds the best you have in the held slots. |
-| How much better to wait for | 10% | |
-| Story points to keep | 0 | Never spends below this. |
-| Order weapons for fleet button | on | The refit screen's fleet buttons (Order fleet weapons, Fleet analysis, Optimize fleet). |
-| Production budget | 50% | Share of your credits one fleet order may cost; the rest of the plan is ordered next time. |
-| Log every fit | off | Scores and reasons in starsector.log. |
-
-## Requirements
-
-Starsector 0.98a. LunaLib optional.
+Core jars from `starsector-core`: `starfarer.api.jar`, `starfarer_obf.jar`, `fs.common_obf.jar`, `log4j-1.2.9.jar`, `json.jar`, `lwjgl.jar`, `lwjgl_util.jar`. Optional: LunaLib (plus LazyLib's Kotlin runtime) and Ashes of the Domain (Vaults of Knowledge and Theory of Toolbox).
