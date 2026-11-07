@@ -241,9 +241,13 @@ public class JAORatings {
         w.bomber = r.role == JAOModel.W_BOMBER;
         w.dmg = r.dmg;
         w.hit = r.hit;
-        w.dps = JAOModel.wingValue(r.op, r.axes, wingRefs()[r.role]);
-        w.pd = w.interceptor;
-        w.wingPd = w.interceptor ? 0f : r.pdShare;
+        float[] ref = wingRefs()[r.role], axes = r.axes;
+        float op = r.op;
+        if (r.free) { op = JAOModel.freeWingOp(r.axes, ref); axes = JAOModel.perOp(r.axes, op); }
+        w.dps = JAOModel.wingValue(op, axes, ref);
+        boolean home = spec.getRange() <= 0f || spec.hasTag("stay_in_front_of_ship");
+        w.pd = w.interceptor || JAOModel.pdDrone(home, r.role, r.pdShare);
+        w.wingPd = w.pd ? 0f : r.pdShare;
         w.rarity = Math.min(1f, Math.max(Math.max(0f, 1f - Math.min(1f, spec.getRarity())), spec.getTier() / 3f));
         w.crCost = JAOCompat.plagueCost(w.id);
         return w;
@@ -253,6 +257,8 @@ public class JAORatings {
     private static final class WingRaw {
         float[] axes = new float[4];
         float hit, pdShare, op = 10f;
+        /** 0 OP: axes are absolute (op 1), priced in makeWing by JAOModel.freeWingOp. */
+        boolean free;
         int dmg = JAOModel.EN, role;
         String name;
     }
@@ -298,7 +304,10 @@ public class JAORatings {
                 if (v.getHullSpec().getEngineSpec() != null && v.getHullSpec().getEngineSpec().getMaxSpeed() > 0f) speed = v.getHullSpec().getEngineSpec().getMaxSpeed();
             }
         }
-        try { float o = spec.getOpCost(null); if (o > 0f) r.op = o; } catch (Throwable ignored) { }
+        float o = -1f;
+        try { o = spec.getOpCost(null); } catch (Throwable ignored) { }
+        if (o > 0f) r.op = o;
+        else if (o == 0f) { r.free = true; r.op = 1f; }
         // a 1000-OP gate (Seeker's plague LPCs cost 1008-1012 and their hulls take 1000 off): rated at the OP past it,
         // or the wing's value would dwarf everything on the ship
         if (r.op >= 1000f) r.op = Math.max(1f, r.op % 1000f);

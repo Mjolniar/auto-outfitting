@@ -245,6 +245,38 @@ final class JAOModel {
         return WING_VALUE_PER_OP * Math.max(1f, op) * wingQuality(raw, ref);
     }
 
+    /**
+     * A 0-OP wing (Mining Pods, the Dustkeepers' Brattice, Dajeil drones) has no price to rate it at. Until 0.5.16 it
+     * was rated as if it cost 10 OP, so a free Mining Pod scored about like a Broadsword and took bays on real carriers
+     * (user 11/06: "they do pretty much nothing"). Its fair price is the most OP at which it still matches its role's
+     * reference wing per OP on both firepower and durability, between 1 and FREE_WING_MAX_OP: a Mining Pod's four
+     * mining lasers are worth about 2 OP of Xyphos. abs = WingParts.axes at op 1 (absolute firepower and durability).
+     */
+    static final float FREE_WING_MAX_OP = 10f;
+
+    static float freeWingOp(float[] abs, float[] ref) {
+        float op = FREE_WING_MAX_OP;
+        if (ref != null) for (int i = 0; i < 2; i++) if (ref[i] > 0f) op = Math.min(op, abs[i] / ref[i]);
+        return clamp(op, 1f, FREE_WING_MAX_OP);
+    }
+
+    /** WingParts.axes taken at op 1, per OP at this price. */
+    static float[] perOp(float[] abs, float op) {
+        float[] out = abs.clone();
+        out[0] /= Math.max(1f, op);
+        out[1] /= Math.max(1f, op);
+        return out;
+    }
+
+    /**
+     * Drones that never leave the carrier (wing range 0 or stay_in_front_of_ship) and carry only point-defense guns
+     * (Mining Pods): point defense on the front of the ship, so they count like PD weapons, mostly against missiles
+     * and fighters and against ships a quarter of the time (research ai_behaviour_1106 CF-5).
+     */
+    static boolean pdDrone(boolean home, int role, float pdShare) {
+        return home && role != W_INTERCEPTOR && pdShare >= 0.99f;
+    }
+
     /** Per column, the value at fraction p of the sorted rows; null when there are none. */
     static float[] percentile(List<float[]> rows, float p) {
         if (rows == null || rows.isEmpty()) return null;
