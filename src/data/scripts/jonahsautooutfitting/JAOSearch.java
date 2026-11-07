@@ -185,6 +185,42 @@ final class JAOSearch {
         List<Slot> order = new ArrayList<>(slots);
         order.sort(Comparator.comparingInt((Slot s) -> s.bay ? 1 : 0).thenComparing((Slot s) -> -s.size)
                 .thenComparing(s -> s.front ? 0 : 1).thenComparing(s -> s.id));
+        // two starts (0.5.13): biggest mounts first, then smallest first; the better result stands. With flux tight a
+        // flux-hungry gun taken first in a big mount can trap the whole fit (a Medusa scored a third less than its own
+        // earlier fit); filling small mounts first leaves the big ones to choose within what's left
+        Set<String> startMods = new LinkedHashSet<>(mods);
+        improve(order);
+        float first = objective();
+        Map<Slot, Cand> firstPicks = new HashMap<>();
+        for (Slot s : slots) firstPicks.put(s, s.pick);
+        Set<String> firstMods = new LinkedHashSet<>(mods);
+        clear(startMods);
+        List<Slot> small = new ArrayList<>(slots);
+        small.sort(Comparator.comparingInt((Slot s) -> s.bay ? 1 : 0).thenComparing((Slot s) -> s.size)
+                .thenComparing(s -> s.front ? 0 : 1).thenComparing(s -> s.id));
+        improve(small);
+        if (objective() < first) {
+            clear(startMods);
+            for (Slot s : slots) {
+                Cand c = firstPicks.get(s);
+                if (s.fixed == null && c != null && take(c)) s.pick = c;
+            }
+            mods.addAll(firstMods);
+        }
+        // 4. never leave ordnance points unspent, nor a mount empty for a small modelled gain
+        spendLeftover(order);
+        fillEmpty(order);
+        // 5. the same weapon from a cheaper source when one is still in stock (owned before bought or built)
+        for (Slot s : order) {
+            if (s.fixed != null || s.pick == null || s.pick.price <= 0f) continue;
+            for (Cand c : s.cands) {
+                if (c.price < s.pick.price && c.w.id.equals(s.pick.w.id) && take(c)) { give(s.pick); s.pick = c; break; }
+            }
+        }
+    }
+
+    /** Greedy fill in this mount order, then hullmods, swaps, hullmod trades and mount pairs until nothing improves. */
+    private void improve(List<Slot> order) {
         // 1. greedy weapons and wings. Per-ship coverage judges whole loadouts only: a half-filled ship has no missiles
         // yet, so it would chase armor-crackers in the big mounts and run out of OP for the small ones
         boolean cover = params.coverage;
@@ -198,22 +234,30 @@ final class JAOSearch {
             if (removeMods()) changed = true;
             if (!changed) break;
         }
-        // 3b. hullmod trades the steps above can't see (0.5.11): a costly hullmod taken early (Heavy Armor on a Conquest)
-        // can block a better one (Dedicated Targeting Core) when neither removing the first nor adding the second alone helps
+        // 3b. hullmod trades the steps above can't see: a costly hullmod taken early (Heavy Armor on a Conquest) can
+        // block a better one (Dedicated Targeting Core) when neither removing the first nor adding the second alone helps
         for (int round = 0; round < 3 && swapMods(); round++) {
             for (Slot s : order) if (s.fixed == null) pickBest(s, true);
             addMods();
             removeMods();
         }
-        // 4. never leave ordnance points unspent
-        spendLeftover(order);
-        // 5. the same weapon from a cheaper source when one is still in stock (owned before bought or built)
-        for (Slot s : order) {
-            if (s.fixed != null || s.pick == null || s.pick.price <= 0f) continue;
-            for (Cand c : s.cands) {
-                if (c.price < s.pick.price && c.w.id.equals(s.pick.w.id) && take(c)) { give(s.pick); s.pick = c; break; }
-            }
+        // 3c. two big mounts at once (0.5.13)
+        for (int round = 0; round < 2 && pairSwap(order); round++) {
+            for (Slot s : order) if (s.fixed == null) pickBest(s, true);
+            addMods();
+            removeMods();
         }
+    }
+
+    /** Empties every choosable mount (stock given back) and resets the hullmods to these. */
+    private void clear(Set<String> to) {
+        for (Slot s : slots) {
+            if (s.fixed != null || s.pick == null) continue;
+            give(s.pick);
+            s.pick = null;
+        }
+        mods.clear();
+        mods.addAll(to);
     }
 
     /** OP left once vents and capacitors are filled (only when both are at their maximum). */
@@ -340,6 +384,104 @@ final class JAOSearch {
             mods.add(best);
             any = true;
         }
+    }
+
+    /** Modelled score a weapon may cost to fill an empty mount (the user 11/02: empty-looking mounts). */
+    static final float FILL_TOLERANCE = 0.02f;
+
+    /**
+     * Fills each mount still empty with its best weapon when that costs at most FILL_TOLERANCE of the score (its OP comes
+     * out of vents and capacitors): the duel model can't see what an empty mount loses in a fleet battle (0.5.13: an
+     * Enforcer left a medium mount empty for hullmods).
+     */
+    void fillEmpty(List<Slot> order) {
+        for (Slot s : order) {
+            if (s.fixed != null || s.bay || s.pick != null || s.cands.isEmpty()) continue;
+            float base = objective(), bestV = base * (1f - FILL_TOLERANCE);
+            Cand best = null;
+            for (Cand c : s.cands) {
+                if (!take(c)) continue;
+                s.pick = c;
+                float v = objective();
+                s.pick = null;
+                give(c);
+                if (v >= bestV) { bestV = v; best = c; }
+            }
+            if (best != null && take(best)) s.pick = best;
+        }
+    }
+
+    /** Candidates tried per mount in pairSwap: the best few by what each scores alone in that mount. */
+    static final int PAIR_CANDS = 4;
+
+    /**
+     * Tries every pair of medium and large mounts with their best PAIR_CANDS candidates each (by what each scores alone
+     * in its mount, the rest as fitted) and takes the best pair that beats the current fit. Returns true if it changed.
+     */
+    boolean pairSwap(List<Slot> order) {
+        List<Slot> big = new ArrayList<>();
+        for (Slot s : order) if (s.fixed == null && !s.bay && s.size >= 1 && !s.cands.isEmpty()) big.add(s);
+        if (big.size() < 2) return false;
+        Map<Slot, List<Cand>> top = new HashMap<>();
+        for (Slot s : big) {
+            Cand keep = s.pick;
+            if (keep != null) give(keep);
+            List<Cand> scored = new ArrayList<>();
+            Map<Cand, Float> v = new HashMap<>();
+            for (Cand c : s.cands) {
+                if (!take(c)) continue;
+                s.pick = c;
+                v.put(c, objective());
+                s.pick = null;
+                give(c);
+                scored.add(c);
+            }
+            if (keep != null) take(keep);
+            s.pick = keep;
+            scored.sort((a, b) -> Float.compare(v.get(b), v.get(a)) != 0 ? Float.compare(v.get(b), v.get(a)) : a.w.id.compareTo(b.w.id));
+            List<Cand> kept = new ArrayList<>();
+            Set<String> ids = new HashSet<>();
+            for (Cand c : scored) if (ids.add(c.w.id) && kept.size() < PAIR_CANDS) kept.add(c);
+            top.put(s, kept);
+        }
+        float base = objective(), bestV = base * 1.002f;
+        Slot bestA = null, bestB = null;
+        Cand bestCa = null, bestCb = null;
+        for (int i = 0; i < big.size(); i++) {
+            for (int j = i + 1; j < big.size(); j++) {
+                Slot a = big.get(i), b = big.get(j);
+                Cand oa = a.pick, ob = b.pick;
+                if (oa != null) give(oa);
+                if (ob != null) give(ob);
+                for (Cand ca : top.get(a)) {
+                    if (!take(ca)) continue;
+                    a.pick = ca;
+                    for (Cand cb : top.get(b)) {
+                        if (ca == oa && cb == ob) continue;
+                        if (!take(cb)) continue;
+                        b.pick = cb;
+                        float v = objective();
+                        if (v > bestV) { bestV = v; bestA = a; bestB = b; bestCa = ca; bestCb = cb; }
+                        b.pick = null;
+                        give(cb);
+                    }
+                    a.pick = null;
+                    give(ca);
+                }
+                if (oa != null) take(oa);
+                if (ob != null) take(ob);
+                a.pick = oa;
+                b.pick = ob;
+            }
+        }
+        if (bestA == null) return false;
+        if (bestA.pick != null) give(bestA.pick);
+        if (bestB.pick != null) give(bestB.pick);
+        take(bestCa);
+        take(bestCb);
+        bestA.pick = bestCa;
+        bestB.pick = bestCb;
+        return true;
     }
 
     /** Replaces one hullmod with another when the trade beats both (best trade first). Returns true if one was made. */
