@@ -2,6 +2,15 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.19 - 2026-11-11
+
+- **Empty mounts:** an empty or under-used mount now costs up to 1.0 of the fit score, up from 0.5. In the offline check with every mod's weapons in stock, the share of mount size left empty went from 17% to 7%. With vanilla weapons it went from 4% to 1%. The modelled cost is about 1% of offense and survival on the stock reference ships.
+- **Tahlan Shipworks and Diable Avionics weapons:** the script effects of 38 weapons are counted: extra damage per hit, explosions, EMP arcs and flux effects. Project Silk is rated on the damage its arcs deal, 0.75 of its listed damage. Its shot itself deals no damage.
+- **Effects file:** `jao_weapon_effects.csv` has 8 new columns: extraDamage, extraType, extraChance, extraOnShields, extraPerSecond, damageMult, fluxMult and selfFluxPerShot. The file's header explains each one.
+- **Tahlan hullmods:** Legio Infernalis ships get no Unstable Injector, and the Stahlherz and Glanzwurf get no Safety Overrides. Their built-in hullmods remove those when the ship is shown, so the OP went unused. New rule kind `removed_by` in `jao_rules.csv`.
+- **Manannan (Tahlan):** never used. Until its quest flag is set, firing it in the campaign disables the weapon, deals 50,000 damage to its own ship and sets off an explosion that hits every ship within 10,000, friendly ones included.
+- **Ship Mastery System:** turn off its "S-mod autofit option" in the LunaLib settings. With it on, Ship Mastery's autofit replaces the Optimal fit on the refit screen.
+
 ## 0.5.18 - 2026-11-06
 
 - **Civilian ships use all their OP.** S-mods and built-in hullmods were being counted against the limit of two logistics hullmods, which the game itself doesn't do. So an Atlas with cargo holds and a drive field built in got Treasure Hunt Package and nothing else, with 40 of its 65 OP unused. The count now matches the game's, skills that raise the limit included.

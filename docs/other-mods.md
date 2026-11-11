@@ -20,6 +20,10 @@ Some mods change ships from their own scripts, though, and the fit has to play a
 | **MagicLib** | Weapon interference penalties are read from every mod that sets them. |
 | **Random Assortment of Things**, **Vice** and other installers | Alterations, work orders and anything that uses up an item or story point is never added. |
 | **LunaLib** | In-game settings menu, plus an Order weapons for fleet entry in its refit menu. |
+| **Tahlan Shipworks** | Legio Infernalis hulls get no Unstable Injector, and the Stahlherz and Glanzwurf get no Safety Overrides. Their built-in hullmods remove those. The Manannan is never used: until its quest flag is set, firing it disables it and damages every ship nearby, friendly ones included. Script effects of 31 weapons are counted. Project Silk is rated on the damage its arcs deal, 0.75 of its listed damage. |
+| **Diable Avionics** | The Versant and Virtuous weapon selectors sit in built-in slots and are left alone. Script effects of 7 weapons are counted. |
+| **Ship Mastery System** | Turn off its "S-mod autofit option" in LunaLib. With it on, Ship Mastery's autofit replaces the Optimal fit on the refit screen. Its s-mod slots count toward the s-mod limit. |
+| **Extra System Reloaded (Oddisz Edition)** | Its upgrade hullmod stays on through every refit, and the upgrades count in the scores. |
 
 ## Rules for any mod
 
@@ -36,7 +40,7 @@ All in `data/config/` in the mod folder. You can edit them, and the last three c
 | File | What's in it | Other mods can add rows |
 |---|---|---|
 | `jao_rules.csv` | The rules above: slots filled by scripts, hullmods to never add or remove, plague costs, bay-only wings, hull roles and so on. The file's header explains each kind. | No, edit this mod's copy |
-| `jao_weapon_effects.csv` | Special effects the plain stats miss: EMP arcs, extra armor damage, shield debuffs, payload beams. | Yes |
+| `jao_weapon_effects.csv` | Script effects the plain stats miss: EMP arcs, extra damage per hit, extra armor damage, shield debuffs, payload beams, and weapons whose real damage or flux differs from their listed numbers. | Yes |
 | `jao_weapon_tiers.csv` | The community AI tier for each vanilla weapon, used by **Lean on community weapon ratings**. | Yes |
 | `jao_hullmods.csv` | What each hullmod is good for and when. | Yes |
 
@@ -48,6 +52,7 @@ Some handy rule kinds in `jao_rules.csv`:
 | `never_add` | `never_add,rat_*` | Never adds these hullmods. |
 | `not_on_phase` | `not_on_phase,heavyarmor` | Never puts these hullmods on phase ships. |
 | `min_size` | `min_size,targetingunit,DESTROYER` | Smallest hull size a hullmod is worth on (this one keeps ITU off frigates). |
+| `removed_by` | `removed_by,tahlan_lirefit,unstable_injector` | Hulls with the first hullmod built in never get the second one. The first one's script removes it. |
 | `role` | `role,<hull id>,Carrier` | Forces a hull's fleet role. |
 
 Next up: [Settings](settings.md).

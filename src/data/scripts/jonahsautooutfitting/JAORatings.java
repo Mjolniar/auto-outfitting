@@ -193,8 +193,21 @@ public class JAORatings {
     private static void applyEffects(JAOModel.W w) {
         JSONObject row = effects().get(w.id);
         if (row == null) return;
+        applyEffectRow(w, row);
+    }
+
+    /** One jao_weapon_effects.csv row onto a weapon model (also used by the offline checks). */
+    static void applyEffectRow(JAOModel.W w, JSONObject row) {
         w.ownedOnly = row.optBoolean("ownedOnly", false) || "TRUE".equalsIgnoreCase(row.optString("ownedOnly"));
         if (!JAOSettings.specialWeapons) return;
+        // 0.5.19: share of its listed damage the weapon really deals (Tahlan's Project Silk: the shot is a gas cloud and
+        // its chained arcs deal 0.75 of it; Diable's Hexafire: more damage at higher own flux), and its flux cost
+        float dm = num(row, "damageMult");
+        if (dm > 0f && dm != 1f) {
+            w.dps *= dm; w.hit *= dm; w.burst *= dm; w.pool *= dm; w.poolRate *= dm; w.burstDps *= dm;
+        }
+        float fm = num(row, "fluxMult");
+        if (fm > 0f && fm != 1f) w.flux *= fm;
         float sm = num(row, "shieldDamageMult");
         if (sm > 0f) w.shieldMultExtra = sm;
         float shotsPerSec = w.hit > 0f && w.dps > 0f && !w.beam ? w.dps / w.hit : 1f;
@@ -210,6 +223,26 @@ public class JAORatings {
         float debuff = num(row, "targetShieldTakenMult");
         if (debuff > 0f) w.shieldDebuff = debuff;
         if ("TRUE".equalsIgnoreCase(row.optString("softFluxOnShields"))) w.soft = true;
+        // 0.5.19: extra damage per hit from the weapon's script (explosions, applyDamage, fragments), as a share of the
+        // weapon's own damage; beams and weapons without a hit size have none
+        float extra = num(row, "extraDamage"), extraRate = num(row, "extraPerSecond");
+        if (extra > 0f && w.beam && extraRate > 0f && w.dps > 0f) {
+            // beams: extra hits per second of firing (Tahlan's Strahlhammer: one HE explosion per beam per burst)
+            w.extraHit = extra;
+            w.extraFrac = extra * extraRate / w.dps;
+            w.extraDmg = dmg(row.optString("extraType", "").trim().toUpperCase(java.util.Locale.ROOT));
+            w.extraShields = "TRUE".equalsIgnoreCase(row.optString("extraOnShields"));
+        } else if (extra > 0f && w.hit > 0f && !w.beam) {
+            String ch = row.optString("extraChance", "").trim();
+            float extraChance = ch.isEmpty() ? 1f : Math.max(0f, Math.min(1f, num(row, "extraChance")));
+            w.extraHit = extra;
+            w.extraFrac = extra * extraChance / w.hit;
+            w.extraDmg = dmg(row.optString("extraType", "").trim().toUpperCase(java.util.Locale.ROOT));
+            w.extraShields = "TRUE".equalsIgnoreCase(row.optString("extraOnShields"));
+        }
+        // 0.5.19: flux the weapon's script puts on its own ship per shot (Tahlan's Project Taffeta), added to its flux/s
+        float self = num(row, "selfFluxPerShot");
+        if (self > 0f && !w.beam) w.flux += self * shotsPerSec;
     }
 
     // ------------------------------------------------------------------ fighter wings

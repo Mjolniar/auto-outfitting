@@ -1,34 +1,75 @@
-weaponId,shieldDamageMult,armorExtraPerHit,arcChancePerHullHit,arcsPerSecond,arcDamage,arcEmp,arcPiercesShields,targetShieldTakenMult,softFluxOnShields,ownedOnly,note
+weaponId,shieldDamageMult,armorExtraPerHit,arcChancePerHullHit,arcsPerSecond,arcDamage,arcEmp,arcPiercesShields,targetShieldTakenMult,softFluxOnShields,ownedOnly,extraDamage,extraType,extraChance,extraOnShields,extraPerSecond,damageMult,fluxMult,selfFluxPerShot,note
 # Scripted effects the plain weapon stats miss (research mechanics_report.md 6.2). Read by JAOWeapons when "Value special weapons" is on.
 # shieldDamageMult: x damage vs shields. armorExtraPerHit: armor damage per hit that ignores armor reduction (can't hurt hull).
 # arcChancePerHullHit / arcsPerSecond: EMP arcs (energy damage + EMP); arcPiercesShields TRUE when they can pierce at high target hard flux.
 # targetShieldTakenMult: debuff on the target's shield while hit. softFluxOnShields: payload beams. ownedOnly: restricted/no-drop, used only if already in the pool.
-ioncannon,,,0.25,,25,400,FALSE,,,FALSE,Ion Cannon: 25% arc on hull/armor hits
-ionpulser,,,0.25,,90,600,FALSE,,,FALSE,Ion Pulser: 25% arc on hull/armor hits
-ionbeam,,,,1.0,50,400,TRUE,,,FALSE,Ion Beam: arc every 0.25-1.75 s of contact; pierces at target hard flux - 0.1
-tachyonlance,,,,4.0,375,500,TRUE,,,FALSE,Tachyon Lance: arc every 0.2-0.3 s at full beam (about 4 per burst)
-gravitonbeam,,,,,,,,1.05,,FALSE,"Graviton Beam: target shield damage taken x1.05 / 1.08 / 1.10 with 1 / 2 / 3+ beams"
-breach,,250,,,,,,,,FALSE,Breach SRM: +250 armor damage per non-shield hit ignoring armor reduction
-breachpod,,250,,,,,,,,FALSE,Breach SRM Pod: as Breach SRM
-miningblaster,,100,,,,,,,,FALSE,Mining Blaster: +100 armor damage per non-shield hit
-squall,2.5,,,,,,,,,FALSE,Squall: shield hits +150 base damage (100 -> 250 kinetic)
-sabot,,,0.25,,0,,FALSE,,,FALSE,Sabot: MIRV 5 x 200 kinetic; 25% EMP-only arc per hull hit
-sabotpod,,,0.25,,0,,FALSE,,,FALSE,Sabot SRM Pod: as Sabot
-sabot_single,,,0.25,,0,,FALSE,,,FALSE,Sabot SRM (Double): as Sabot
-pilum,,,1.0,,0,,TRUE,,,FALSE,Pilum second stage: EMP-only arc on hull hit or pierced shield
-pilum_large,,,1.0,,0,,TRUE,,,FALSE,Pilum Catapult: as Pilum
-gorgon,,,,,,,,,TRUE,FALSE,Gorgon DEM: payload burst beam (soft flux; hit strength 0.5 x payload dps)
-gorgonpod,,,,,,,,,TRUE,FALSE,Gorgon Pod: as Gorgon
-gazer,,,,,,,,1.05,TRUE,FALSE,Gazer DEM: graviton payload beam
-gazerpod,,,,,,,,1.05,TRUE,FALSE,Gazer Pod: as Gazer
-dragon,,,,,,,,,TRUE,FALSE,Dragonfire DEM torpedo: payload beam
-dragonpod,,,,,,,,,TRUE,FALSE,Dragonfire Pod: as Dragonfire
-hydra,,,,,,,,,TRUE,FALSE,Hydra MDEM: MIRV of payload beams
-guardian,,,,,,,,,,FALSE,Paladin PD: 100 frag explosion (r 75) when beams converge; PD only
-disintegrator,,1000,,,,,,,,TRUE,Disintegrator (Omega): 1000 armor damage over ~10 s per hull hit ignoring reduction
-riftbeam,,,,2.0,200,,FALSE,,,TRUE,Rift Beam (Omega): rift (200 energy) every 0.4-0.6 s near the target
-riftcascade,,,,,1000,,FALSE,,,TRUE,Rift Cascade (Omega): up to 5 rifts of 1000 energy along unused beam length
-shockrepeater,,,,,,,,,,TRUE,Shock Repeater (Omega): each shot becomes an EMP arc carrying its damage
-vpdriver,,,,,,,,,,TRUE,Volatile Particle Driver (Omega): 4-shot salvos while fewer than 4 shots in flight
-abyssal_glare,,,,0.8,200,,FALSE,,,TRUE,Abyssal Glare (Dweller): rifts of 200 about every 1.25 s per beam
-rift_lightning,,,,,500,1000,FALSE,,,TRUE,Rift Lightning (Dweller): spawns 500 energy / 1000 EMP minelayer
+# 0.5.19: extraDamage (extra damage per hit from the script: explosions, applyDamage, fragments), extraType, extraChance (0..1, blank = 1), extraOnShields (TRUE: also on shield hits),
+#   extraPerSecond (beams: extra hits per second of firing), damageMult (share of its listed damage the weapon really deals), fluxMult (on its flux cost), selfFluxPerShot (flux its script puts on its own ship per shot).
+ioncannon,,,0.25,,25,400,FALSE,,,FALSE,,,,,,,,,Ion Cannon: 25% arc on hull/armor hits
+ionpulser,,,0.25,,90,600,FALSE,,,FALSE,,,,,,,,,Ion Pulser: 25% arc on hull/armor hits
+ionbeam,,,,1.0,50,400,TRUE,,,FALSE,,,,,,,,,Ion Beam: arc every 0.25-1.75 s of contact; pierces at target hard flux - 0.1
+tachyonlance,,,,4.0,375,500,TRUE,,,FALSE,,,,,,,,,Tachyon Lance: arc every 0.2-0.3 s at full beam (about 4 per burst)
+gravitonbeam,,,,,,,,1.05,,FALSE,,,,,,,,,"Graviton Beam: target shield damage taken x1.05 / 1.08 / 1.10 with 1 / 2 / 3+ beams"
+breach,,250,,,,,,,,FALSE,,,,,,,,,Breach SRM: +250 armor damage per non-shield hit ignoring armor reduction
+breachpod,,250,,,,,,,,FALSE,,,,,,,,,Breach SRM Pod: as Breach SRM
+miningblaster,,100,,,,,,,,FALSE,,,,,,,,,Mining Blaster: +100 armor damage per non-shield hit
+squall,2.5,,,,,,,,,FALSE,,,,,,,,,Squall: shield hits +150 base damage (100 -> 250 kinetic)
+sabot,,,0.25,,0,,FALSE,,,FALSE,,,,,,,,,Sabot: MIRV 5 x 200 kinetic; 25% EMP-only arc per hull hit
+sabotpod,,,0.25,,0,,FALSE,,,FALSE,,,,,,,,,Sabot SRM Pod: as Sabot
+sabot_single,,,0.25,,0,,FALSE,,,FALSE,,,,,,,,,Sabot SRM (Double): as Sabot
+pilum,,,1.0,,0,,TRUE,,,FALSE,,,,,,,,,Pilum second stage: EMP-only arc on hull hit or pierced shield
+pilum_large,,,1.0,,0,,TRUE,,,FALSE,,,,,,,,,Pilum Catapult: as Pilum
+gorgon,,,,,,,,,TRUE,FALSE,,,,,,,,,Gorgon DEM: payload burst beam (soft flux; hit strength 0.5 x payload dps)
+gorgonpod,,,,,,,,,TRUE,FALSE,,,,,,,,,Gorgon Pod: as Gorgon
+gazer,,,,,,,,1.05,TRUE,FALSE,,,,,,,,,Gazer DEM: graviton payload beam
+gazerpod,,,,,,,,1.05,TRUE,FALSE,,,,,,,,,Gazer Pod: as Gazer
+dragon,,,,,,,,,TRUE,FALSE,,,,,,,,,Dragonfire DEM torpedo: payload beam
+dragonpod,,,,,,,,,TRUE,FALSE,,,,,,,,,Dragonfire Pod: as Dragonfire
+hydra,,,,,,,,,TRUE,FALSE,,,,,,,,,Hydra MDEM: MIRV of payload beams
+guardian,,,,,,,,,,FALSE,,,,,,,,,Paladin PD: 100 frag explosion (r 75) when beams converge; PD only
+disintegrator,,1000,,,,,,,,TRUE,,,,,,,,,Disintegrator (Omega): 1000 armor damage over ~10 s per hull hit ignoring reduction
+riftbeam,,,,2.0,200,,FALSE,,,TRUE,,,,,,,,,Rift Beam (Omega): rift (200 energy) every 0.4-0.6 s near the target
+riftcascade,,,,,1000,,FALSE,,,TRUE,,,,,,,,,Rift Cascade (Omega): up to 5 rifts of 1000 energy along unused beam length
+shockrepeater,,,,,,,,,,TRUE,,,,,,,,,Shock Repeater (Omega): each shot becomes an EMP arc carrying its damage
+vpdriver,,,,,,,,,,TRUE,,,,,,,,,Volatile Particle Driver (Omega): 4-shot salvos while fewer than 4 shots in flight
+abyssal_glare,,,,0.8,200,,FALSE,,,TRUE,,,,,,,,,Abyssal Glare (Dweller): rifts of 200 about every 1.25 s per beam
+rift_lightning,,,,,500,1000,FALSE,,,TRUE,,,,,,,,,Rift Lightning (Dweller): spawns 500 energy / 1000 EMP minelayer
+# 0.5.19 (modscan_1111, read from the scripts' bytecode): Tahlan Shipworks and Diable Avionics. Scripts that only change visuals have no row
+tahlan_silk,,,,,,,,,,,,,,,,0.75,,,Tahlan Project Silk: the shot is a gas cloud and deals no damage; chained arcs deal 1500 + 750 of the listed 3000 on a lone target (SilkBoltScript)
+tahlan_cashmere,,,,,,,,,,,375,ENERGY,,TRUE,,,,,"Tahlan Project Cashmere: 10 arcs of 75 energy per hit to random ships, missiles or asteroids within 500 (allies too); 750 on a lone target, counted as half"
+tahlan_velvet,,,,,,,,,,,,,,,,,0.7,,Tahlan Project Velvet: its flux cost falls to 50% after 5 s of continuous fire (VelvetScript); counted as 0.7
+tahlan_taffeta,,,,,,,,,,,50,KINETIC,,TRUE,,,,100,Tahlan Project Taffeta: 20 shrapnel of 5 kinetic around each hit (about half hit; 50); its own ship gains 0-200 soft flux per shot (average 100)
+tahlan_eradicator,,,,4,100,0,FALSE,,,,,,,,,,,,Tahlan Deathgaze Assault Laser: an arc of 100 energy every 0.25 s of beam contact on hull (none on shields)
+tahlan_strahlhammer,,,,,,,,,,,500,HIGH_EXPLOSIVE,,FALSE,0.625,,,,Tahlan Strahlhammer: one 250 HE explosion per beam per burst on hull (2 beams; burst cycle 1.6 s); none on shields
+tahlan_ethniu,,,,,,,,,,,250,HIGH_EXPLOSIVE,,FALSE,0.5,,,,Tahlan Strahlblick: one 250 HE explosion per burst on hull (burst cycle 2.0 s); none on shields
+tahlan_titanomachy,,,,1,50,250,FALSE,,,,,,,,,,,,Tahlan Titanomachy: 2 arcs/s of 50 energy and 250 EMP while its own ship is above 50% flux; counted as 1 per second
+tahlan_ppa,,,0.8,,100,100,TRUE,,,,,,,,,,,,Tahlan PEPPA Cannon: 0.8 shield-piercing arcs of 100 fragmentation and 100 EMP per hull hit
+tahlan_vesuvio,,,0.2,,100,100,TRUE,,,,,,,,,,,,Tahlan Vesuvio Magcannon: 20% chance per hull hit of a shield-piercing arc of 100 energy and 100 EMP
+tahlan_ryza,,,,,,,,,,,120,ENERGY,,TRUE,,,,,Tahlan Ryza-type Plasma Cannon: an energy explosion of 120 (core) at every hit
+tahlan_mezoa,,,,,,,,,,,80,ENERGY,,TRUE,,,,,Tahlan Mezoa-type Plasma Gun: an energy explosion of 80 (core) at every hit
+tahlan_porph,,,,,,,,,,,200,FRAGMENTATION,,TRUE,,,,,Tahlan Porphyrion Blaster Cannon: a fragmentation explosion of 200 (core) at every hit
+tahlan_sturmkanone_m2,,,,,,,,,,,100,FRAGMENTATION,,TRUE,,,,,Tahlan Sturmkanone Mk.2: a fragmentation explosion of 100 (core) at every hit
+tahlan_anumis,,,,,,,,,,,100,ENERGY,,TRUE,,,,,Tahlan Anumis Superheavy Cannon: +100 energy and 100 EMP at every hit
+tahlan_gardas,,,,,,,,,,,400,FRAGMENTATION,,FALSE,,,,,Tahlan Gardas Hyperrail Cannon: +400 fragmentation per hull hit
+tahlan_hagelsturm,,,,,,,,,,,75,FRAGMENTATION,0.1,FALSE,,,,,Tahlan Hagelsturm: 10% chance per hull hit of +75 fragmentation
+tahlan_stahlhagel_zwilling,,,,,,,,,,,37.5,FRAGMENTATION,0.1,FALSE,,,,,Tahlan Stahlhagel Zwilling: 10% chance per hull hit of +37.5 fragmentation
+tahlan_styrix,,,,,,,,,,,60,ENERGY,,FALSE,,,,,Tahlan Styrix Kinetic Driver: +20 to 100 energy (average 60) per hull hit
+tahlan_astrix,,,,,,,,,,,50,ENERGY,,TRUE,,,,,Tahlan Numeon Heavy Cannon: +50 energy and 50 EMP at every hit
+tahlan_atrapos,,,,,,,,,,,198,FRAGMENTATION,,FALSE,,,,,Tahlan Gardion Superrail Cannon: +198 fragmentation per hull hit
+tahlan_fusor,,,,,,,,,,,6,HIGH_EXPLOSIVE,,FALSE,,,,,Tahlan Overcharged Fusion Torch: +2 to 10 HE (average 6) per hull hit
+tahlan_praxus,,,,,,,,,,,20,FRAGMENTATION,,TRUE,,,,,Tahlan Praxus Rotary Nailer: a fragmentation explosion of 20 at every hit
+tahlan_kriegsmesser,,,,,,,,,,,400,ENERGY,,TRUE,,,,,Tahlan Kriegsmesser: 5 energy explosions of 64 to 100 at every hit (about 400)
+tahlan_hekaton,,,,,,,,,,,700,ENERGY,,FALSE,,,,,Tahlan Hekaton torpedo: +400 energy and 400 EMP per hit plus 0 to 3 shield-piercing arcs of 200 energy (average 1.5) on hull hits; counted as 700 on hull hits
+tahlan_hekaton_rack,,,,,,,,,,,700,ENERGY,,FALSE,,,,,As tahlan_hekaton
+tahlan_hekaton_fighter,,,,,,,,,,,700,ENERGY,,FALSE,,,,,As tahlan_hekaton
+tahlan_hekaton_repeater,,,,,,,,,,,700,ENERGY,,FALSE,,,,,As tahlan_hekaton
+tahlan_massresonance_sml,,,,,,,,,,,918,HIGH_EXPLOSIVE,,TRUE,,,,,Tahlan Hades II MR torpedo: +3000 x target outline area / 70000 HE per hit; 918 is the Eagle (Wolf 122; Onslaught 2694)
+tahlan_massresonance_med,,,,,,,,,,,918,HIGH_EXPLOSIVE,,TRUE,,,,,As tahlan_massresonance_sml
+tahlan_massresonance_lrg,,,,,,,,,,,918,HIGH_EXPLOSIVE,,TRUE,,,,,As tahlan_massresonance_sml
+diableavionics_hexafire,,,,,,,,,,,,,,,,1.4,,,Diable Hexafire: damage x (1 + min(own flux; 0.75) / 0.75): x1 at 0 flux; x2 at 75%; counted as x1.4
+diableavionics_hexafire2,,,,,,,,,,,,,,,,1.4,,,As diableavionics_hexafire
+diableavionics_artdeux,,,,,,,,,,,80,FRAGMENTATION,0.5,TRUE,,,,,Diable Artdeux Twin Cannon: +80 fragmentation per hit at chance 0.2 + 0.8 x own flux level; counted as 0.5
+diableavionics_magicboxPod,,,,,,,,,,,200,FRAGMENTATION,,TRUE,,,,,Diable Magicbox PD Pod: a fragmentation explosion of 200 at every hit
+diableavionics_winee,,,0.25,,25,400,FALSE,,,,,,,,,,,,Diable Winee EMPR: the vanilla Ion Cannon effect (25% arc on hull hits)
+diableavionics_nocturneDEMpod,,,,,,,,,TRUE,,750,FRAGMENTATION,,FALSE,,,,,Diable Nocturne DEM: payload kinetic beam 1600 dps for 0.9 s (soft flux) and about 6 shield-piercing arcs of 250 fragmentation on hull; arcs counted as 750
+diableavionics_nocturneDEM_small,,,,,,,,,TRUE,,750,FRAGMENTATION,,FALSE,,,,,As diableavionics_nocturneDEMpod

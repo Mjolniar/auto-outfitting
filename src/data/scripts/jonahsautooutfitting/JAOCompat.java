@@ -290,6 +290,23 @@ final class JAOCompat {
         return JAORatings.ruleMatches("not_on_phase", id);
     }
 
+    /**
+     * jao_rules removed_by rows: built-in hullmod id (or pattern) -> hullmods its script takes off the ship when the
+     * game shows it, split by ;. Planning one would leave its OP unused. 0.5.19: Tahlan's Infernalis Drives (Legio
+     * hulls) removes Unstable Injector; the Silberherz cores (Stahlherz, Glanzwurf) remove Safety Overrides.
+     */
+    static boolean removedByHull(String id, com.fs.starfarer.api.combat.ShipHullSpecAPI hull) {
+        if (hull == null || id == null) return false;
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("removed_by")) continue;
+            boolean hit = false;
+            for (String m : r[2].split(";")) if (JAORatings.glob(m.trim(), id)) { hit = true; break; }
+            if (!hit) continue;
+            for (String b : hull.getBuiltInMods()) if (JAORatings.glob(r[1], b)) return true;
+        }
+        return false;
+    }
+
     static boolean tooSmall(String id, com.fs.starfarer.api.combat.ShipAPI.HullSize size) {
         if (size == null) return false;
         for (String[] r : JAORatings.rules()) {

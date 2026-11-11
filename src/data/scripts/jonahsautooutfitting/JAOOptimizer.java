@@ -551,7 +551,8 @@ class JAOOptimizer {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
-            if (JAOCompat.neverAdd(id) || JAOCompat.tooSmall(id, current.getHullSize()) || JAOCompat.notOnPhase(id, current.getHullSpec())) continue;
+            if (JAOCompat.neverAdd(id) || JAOCompat.tooSmall(id, current.getHullSize()) || JAOCompat.notOnPhase(id, current.getHullSpec())
+                    || JAOCompat.removedByHull(id, current.getHullSpec())) continue;
             if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
             if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
                     || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) continue;
@@ -697,7 +698,7 @@ class JAOOptimizer {
         List<String> skipped = new ArrayList<>();
         for (String id : FLEET_WIDE) {
             if (smods.size() >= smodRoom) break;
-            if (!available.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
+            if (!available.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id) || JAOCompat.removedByHull(id, hull)) continue;
             if (current.getSMods().contains(id) || current.getPermaMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.Tags.HULLMOD_NO_BUILD_IN)) continue;
@@ -712,7 +713,8 @@ class JAOOptimizer {
         List<String> picks = new ArrayList<>(order);
         for (String id : SURVIVAL) if (!picks.contains(id)) picks.add(id);
         for (String id : picks) {
-            if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)) continue;
+            if (!available.contains(id) || mods.contains(id) || hull.getBuiltInMods().contains(id) || JAOCompat.neverAdd(id)
+                    || JAOCompat.removedByHull(id, hull)) continue;
             if (current.getPermaMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden()) continue;
@@ -776,7 +778,7 @@ class JAOOptimizer {
         for (String id : new TreeSet<>(delegate.getAvailableHullmods())) {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id)) continue;
             boolean fleet = id.equals("ecm") || id.equals("nav_relay") || id.equals("escort_package") || (flagship && id.equals("operations_center"));
-            if (!fleet || JAOCompat.neverAdd(id)) continue;
+            if (!fleet || JAOCompat.neverAdd(id) || JAOCompat.removedByHull(id, current.getHullSpec())) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || (spec.hasUITag("Logistics") && !JAOSettings.logistics)) continue;
             out.add(id);

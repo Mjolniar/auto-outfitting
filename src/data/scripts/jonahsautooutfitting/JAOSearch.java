@@ -149,9 +149,12 @@ final class JAOSearch {
     /**
      * A mount left empty or under-used although something in stock could fill it loses what the duel model can't
      * see (flank coverage, second targets, fighters, soaking hits), so it costs this share of the score at full
-     * emptiness.
+     * emptiness. 0.5.19: 0.5 -> 1.0. With Tahlan and Diable in the pool, big hulls took one strong large gun plus
+     * maximum capacitors over filling their mounts (all-mods check: 17% of mount size empty; vanilla 4%). At 1.0:
+     * 8% and 1%, at about 1% of modelled offense and survival on the 161 stock references. 1.25 put plain PD and
+     * Antimatter Blasters on the Medusa. Not final: the offline checks set it with -DemptyCost.
      */
-    static final float EMPTY_COST = 0.5f;
+    static float EMPTY_COST = 1.0f;
     /** OP a weapon needs to count as using a small / medium / large mount fully (a 1-OP flare in a small mount is a quarter). */
     static final float[] MOUNT_OP = {4f, 8f, 16f};
 
@@ -387,7 +390,7 @@ final class JAOSearch {
     }
 
     /** Modelled score a weapon may cost to fill an empty mount (the user 11/02: empty-looking mounts). */
-    static final float FILL_TOLERANCE = 0.02f;
+    static float FILL_TOLERANCE = 0.02f;
 
     /**
      * Fills each mount still empty with its best weapon when that costs at most FILL_TOLERANCE of the score (its OP comes
