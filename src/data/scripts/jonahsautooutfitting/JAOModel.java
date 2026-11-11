@@ -329,6 +329,11 @@ final class JAOModel {
         float turnRate;
         /** Scripted extras (jao_weapon_effects.csv). */
         float shieldMultExtra = 1f, armorExtraPerHit, hitsPerSec, arcDps, shieldDebuff = 1f;
+        /** Scripted extra damage per hit (explosions, applyDamage, fragments; 0.5.19): extra damage per point of the
+         *  weapon's own damage, the size of one extra hit, its damage type, and whether it also lands on shields. */
+        float extraFrac, extraHit;
+        int extraDmg = EN;
+        boolean extraShields;
         /** 0..1 rarity score (only used with Prefer rare weapons). */
         float rarity;
         /** MagicLib interference: dissipation lost per other interference weapon on the ship (20/40/80). */
@@ -940,6 +945,8 @@ final class JAOModel {
                 vsShield *= 0.5f; // callers without the main group (old rule)
             }
             if (w.soft) soft += vsShield; else hard += vsShield;
+            // scripted extra damage that also lands on shields follows the hits that were fired (hard flux)
+            if (w.extraFrac > 0f && w.extraShields && sm > 0f) hard += vsShield / sm * w.extraFrac * SHIELD_MULT[w.extraDmg];
             if (w.shieldDebuff > 1f) debuff = Math.max(debuff, w.shieldDebuff);
             armorExtra += w.armorExtraPerHit * w.hitsPerSec;
             arc += w.arcDps;
@@ -973,6 +980,7 @@ final class JAOModel {
                 W w = fits.get(i).w;
                 if (mRate[i] > 0f && (w.dmg == KIN || w.shieldMultExtra > 1f)) rate += mRate[i] * SHIELD_MULT[w.dmg] * w.shieldMultExtra;
                 rate += mShield[i] * SHIELD_MULT[w.dmg] * t.shieldEff;
+                if (w.extraFrac > 0f && w.extraShields) rate += mShield[i] * w.extraFrac * SHIELD_MULT[w.extraDmg] * t.shieldEff;
             }
             t1 = rate <= 0.01f ? 600f : Math.min(600f, 0.6f * t.cap / rate);
         }
@@ -987,6 +995,10 @@ final class JAOModel {
                 W w = fits.get(i).w;
                 float am = ARMOR_MULT[w.dmg];
                 if (mRate[i] > 0f) rate += mRate[i] * am * armorFactor(w.hit * am, pa);
+                if (w.extraFrac > 0f) {
+                    float ae = ARMOR_MULT[w.extraDmg];
+                    rate += (mRate[i] + 0.8f * Math.max(0f, effB[i])) * w.extraFrac * ae * armorFactor(w.extraHit * ae, pa);
+                }
                 if (effB[i] <= 0f) continue;
                 rate += 0.8f * effB[i] * am * armorFactor(w.hit * am, pa);
             }
@@ -999,6 +1011,7 @@ final class JAOModel {
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
+            if (w.extraFrac > 0f) hullRate += (mRate[i] + Math.max(0f, effB[i])) * w.extraFrac * armorFactor(w.extraHit * ARMOR_MULT[w.extraDmg], floor);
             if (effB[i] <= 0f) continue;
             hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
         }

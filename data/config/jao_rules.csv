@@ -10,6 +10,7 @@ kind,id,value,note
 #                  cargo; removed from cargo and storage), never_add_ui (hullmod UI tag: hullmods with it are never added),
 #       min_size (hullmod id or pattern -> smallest hull size it's worth on: FRIGATE, DESTROYER, CRUISER, CAPITAL_SHIP),
 #       not_on_phase (hullmod id or pattern: never put on phase hulls),
+#       removed_by (built-in hullmod id or pattern -> hullmods its script removes when the ship is shown, split by ;; never added to hulls that have it),
 #       never_use (weapon id or pattern the Optimal fit never picks; the setting "Never use these weapons" adds to it),
 #       role (hull id or pattern -> Skirmisher, Flanker, Line, Anchor, Carrier, Battle carrier, Support, Phase, Missile boat, Civilian)
 skip_slots,odyssey_ix,WS TORP,ET-IX: code-placed torpedo (slot is BUILT_IN; guard only)
@@ -66,3 +67,8 @@ never_add,roider_midas2,,
 never_add,roider_midas3,,
 never_remove,ix_dawnstar_*,,IX: Dawnstar fire modes the player picks (the script rolls a new one if they go)
 never_add,yunru_bayblade,,Yunru joke hullmod: turn rate x50 on any ship (its spinning-ship check is commented out)
+# 0.5.19 (modscan_1111): hullmods a hull's built-in script removes
+removed_by,tahlan_lirefit,unstable_injector,Tahlan: Infernalis Drives (Legio Infernalis hulls) removes Unstable Injector
+removed_by,tahlan_silberherz,safetyoverrides,Tahlan: Silberherz Core (Stahlherz) removes Safety Overrides
+removed_by,tahlan_silberherz_minor,safetyoverrides,Tahlan: Silberherz Subcore (Glanzwurf) removes Safety Overrides
+never_use,tahlan_manannan,,Tahlan: until the Scathach quest flag is set; firing it in the campaign disables it; its ship takes 50000 energy and an explosion of radius 10000 hits every ship; friendly ones too
