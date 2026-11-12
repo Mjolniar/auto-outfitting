@@ -173,6 +173,14 @@ abstract class JAOStubShip implements com.fs.starfarer.api.combat.ShipAPI {
     public boolean isStationModule() { return false; }
     public boolean areAnyEnemiesInRange() { return false; }
     public void blockCommandForOneFrame(com.fs.starfarer.api.combat.ShipCommand a0) { }
+    // added by hand for 0.98.5a (new abstract methods in ShipAPI); they compile on 0.98a too, where they're extra methods.
+    // 0.98.5a also drops isBeingIgnored() (above), which stays here for 0.98a.
+    public java.util.List<com.fs.starfarer.api.combat.ShipCommand> getBlockedCommands2() { return new java.util.ArrayList<>(); }
+    public java.util.List<com.fs.starfarer.api.combat.ShipCommand> getCommands2() { return new java.util.ArrayList<>(); }
+    public boolean isWasHulk() { return false; }
+    public void setWasHulk(boolean a0) { }
+    public boolean isReallyPhaseShip() { return false; }
+    public boolean isBeingIgnored(boolean a0) { return false; }
     public float getMaxTurnRate() { return 0f; }
     public float getTurnAcceleration() { return 0f; }
     public float getTurnDeceleration() { return 0f; }
