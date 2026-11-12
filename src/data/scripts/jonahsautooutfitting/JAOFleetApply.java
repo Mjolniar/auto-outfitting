@@ -193,7 +193,7 @@ final class JAOFleetApply {
         Map<String, Integer> off = new TreeMap<>(), used = new TreeMap<>();
         int missing = 0, built = 0, ships = 0;
         List<JAOFleetPlan.ShipPlan> todo = new ArrayList<>();
-        for (Change c : changes) if (c.any()) todo.add(c.ship);
+        for (Change c : changes) if (c.any() && !c.ship.locked) todo.add(c.ship);
         // 1. everything off the planned ships into cargo (each item as it comes off, so nothing is lost if one fails)
         for (JAOFleetPlan.ShipPlan s : todo) {
             try {

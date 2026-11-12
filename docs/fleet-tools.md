@@ -6,7 +6,21 @@ Three buttons on the refit screen work on the whole fleet at once:
 - **Order fleet weapons** orders what the best fleet would need.
 - **Fleet analysis** shows where the fleet is weak.
 
-Order fleet weapons and Optimize fleet are stacked next to the Autofit button. Fleet analysis goes in the next free spot, and the Optimize fleet panel links to it too. You can turn all three off with the **Order weapons for fleet button** setting.
+A fourth button, **Lock this ship**, keeps the ship on screen out of the first two. See [Locked ships](#locked-ships).
+
+Order fleet weapons and Optimize fleet are stacked next to the Autofit button. Fleet analysis and Lock this ship go in the next free spots, and the Optimize fleet panel links to Fleet analysis too. You can turn all four off with the **Order weapons for fleet button** setting.
+
+## Locked ships
+
+**Lock this ship** on the refit screen locks the ship shown there. On a locked ship the button reads **Unlock this ship**.
+
+A locked ship:
+- keeps its weapons, wings, hullmods, vents and capacitors when you press Optimize fleet;
+- gets nothing ordered by Order fleet weapons;
+- keeps what it carries; those weapons and LPCs are not used for other ships;
+- still counts toward the fleet's balance, so the other ships are planned around it.
+
+The Autofit button's **Optimal** fit still works on a locked ship. Locks are saved with the game.
 
 ## The fleet plan
 

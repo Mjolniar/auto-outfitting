@@ -49,8 +49,9 @@ The refit screen also gets three buttons for the whole fleet:
 - **Optimize fleet** fits every ship together from what you have, shows you each change, then applies it.
 - **Order fleet weapons** works out what custom production would need to build for the best fleet, and queues it.
 - **Fleet analysis** shows where the fleet is weak. It doesn't change anything.
+- **Lock this ship** keeps the ship on screen as it is when you use Optimize fleet or Order fleet weapons. Press it again to unlock.
 
-The first two sit next to the Autofit button, and Fleet analysis goes in the next free spot. If you have LunaLib, its refit menu (the small icon by the OP readout) has Order weapons for fleet too. All of it is in [The fleet buttons](fleet-tools.md).
+The first two sit next to the Autofit button, and Fleet analysis and Lock this ship go in the next free spots. If you have LunaLib, its refit menu (the small icon by the OP readout) has Order weapons for fleet too. All of it is in [The fleet buttons](fleet-tools.md).
 
 ## If something looks wrong
 

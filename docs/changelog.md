@@ -2,6 +2,10 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.21 - 2026-11-11
+
+- **Locked ships:** a new **Lock this ship** button on the refit screen locks the ship shown there. Optimize fleet and Order fleet weapons leave a locked ship as it is, order nothing for it, and don't use what it carries for other ships. It still counts toward the fleet's balance. Press **Unlock this ship** to undo. The Autofit button's Optimal fit still works on locked ships. Locks are saved with the game as a plain list, so removing the mod stays safe. See [The fleet buttons](fleet-tools.md#locked-ships).
+
 ## 0.5.20 - 2026-11-11
 
 - **Settings page crash:** opening Auto Outfitting's page in the LunaLib settings menu crashed the game. Two setting descriptions had a single % sign ("Lean on community weapon ratings" and "Rare weapon bonus"). LunaLib reads % as a formatting code, so they now use %%. The build now checks every setting text for this.
