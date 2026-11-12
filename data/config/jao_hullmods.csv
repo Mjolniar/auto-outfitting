@@ -37,8 +37,8 @@ neural_integrator,vanilla,SPECIAL,FALSE,context,FALSE,,Player feature; skip in o
 frontemitter,vanilla,SHIELD,TRUE,stats,FALSE,adaptiveshields,"Good on omni ships that fight head-on (narrow omni arcs). Bad on ships that rely on turning the shield (carriers, kiting ships)."
 adaptiveshields,vanilla,SHIELD,TRUE,stats,FALSE,frontemitter,Situational. Useful on front-shield carriers or broadside ships; usually negative on brawlers. Great when S-modded (no arc penalty).
 operations_center,vanilla,SPECIAL,FALSE,context,FALSE,,No value on non-flagships. Only consider when fitting the flagship and CP matter.
-phase_anchor,vanilla,FLUX SPECIAL,TRUE,listener,FALSE,adaptive_coils,phase cloak activation free; x2 dissipation and weapon recharge while phased; one emergency dive
-recovery_shuttles,vanilla,FIGHTER LOGISTICS,FALSE,none,FALSE,,No combat value. Only for crew-starved campaigns. 3/6/9/15 OP.
+phase_anchor,vanilla,FLUX SPECIAL,TRUE,listener,FALSE,adaptive_coils,phase cloak activation free; x2 (0.98a) or x1.5 (0.98.5a) dissipation and weapon recharge while phased; one emergency dive
+recovery_shuttles,vanilla,FIGHTER LOGISTICS,FALSE,none,FALSE,,"No combat value. 3/6/9/15 OP. 0.98.5a: a Logistics hullmod (takes a logistics slot, needs a spaceport and a fighter bay); recovers up to 10/20/40/80 lost fighter pilots after battle, fleet-wide."
 reinforcedhull,vanilla,HULL,TRUE,stats,FALSE,,Decent filler for armor/hull tanks; very good for rare/irreplaceable hulls (recovery guarantee). Low combat value per OP on shield tanks.
 fluxbreakers,vanilla,FLUX,TRUE,stats,FALSE,,Moderate on high-tech/flux-hungry ships that vent often; good vs Remnant/ion-heavy enemies. Cheap (3/6/9/15).
 safetyoverrides,vanilla,MOBILITY FLUX,TRUE,stats,FALSE,fluxshunt,"Very strong on short-range frigates/destroyers/cruisers built to brawl (e.g. Hyperion, Tempest, Medusa, Wolf, Hammerhead, Aurora). Terrible for long-range fire-support, carriers, and ships needing to "

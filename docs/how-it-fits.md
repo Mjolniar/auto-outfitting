@@ -76,13 +76,13 @@ It compares four things: firepower per OP (for bombers, armor damage or shield b
 ## Hullmods
 
 - Hullmods are picked for the ship and its weapons: range mods only with guns that use them, missile mods only with missiles, and so on. Then the remaining OP goes into vents and capacitors.
-- Hullmods with a drawback (supply cost, recovery cost, deployment cost, anything that makes something worse) are only used if you allow them in the settings.
-- **Safety Overrides** is only considered on frigates and destroyers by default, and counted with its costs (range past 450, peak time, no venting).
+- Hullmods with a drawback (supply cost, recovery cost, deployment cost, crew salary, anything that makes something worse) are only used if you allow them in the settings.
+- **Safety Overrides** is only considered on frigates and destroyers by default, and counted with its costs (range past 450, peak time, no venting). On 0.98.5a it also doubles the ship's crew salary and adds crew losses; these count as drawbacks and are not scored.
 - **Integrated Targeting Unit** never goes on frigates.
 - **Shield Conversion - Omni** gets a small bonus on slow, low-tech, front-shielded ships (Onslaught, Legion, Dominator, Enforcer), where the AI uses it to block torpedoes and big shells.
 - **Resistant Flux Conduits** counts for its EMP resistance and faster venting, mostly on big ships.
 - **Expanded Magazines** is valued on ships with charged guns.
-- **Phase ships** get Adaptive Phase Coils or Phase Anchor valued properly, their survival grows with the flux capacity they phase on, and Heavy Armor never goes on them.
+- **Phase ships** get Adaptive Phase Coils or Phase Anchor valued properly, their survival grows with the flux capacity they phase on, and Heavy Armor never goes on them. Phase Anchor's value follows the game's bonus to dissipation while phased: x2 on 0.98a, x1.5 on 0.98.5a.
 - Logistics hullmods (cargo, fuel, sensors, burn) stay off combat ships unless you allow them. Civilian ships are different, see [Civilian ships](civilian-ships.md).
 
 ## The ship itself
@@ -91,9 +91,9 @@ Every ship is fitted for its own numbers: armor, hull, flux, speed, shields, ran
 
 - **Max CR.** Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills are run through the game's CR rules. The AI aims worse as CR falls, and ships below 50% and 40% fight worse and malfunction.
 - **The flight deck.** Damaged Flight Deck, Malfunctioning Comms and Defective Manufactory make that carrier's wings worth less. Expanded Deck Crew makes them worth more.
-- **Turrets.** Damaged Weapon Mounts cost point defense and accuracy.
+- **Turrets.** Damaged Weapon Mounts cost point defense and accuracy. Weapon durability is not scored (Damaged Weapon Mounts lowers it on 0.98.5a).
 - **Malfunctions.** Ill-Advised Modifications' weapon malfunctions count.
-- **Officers.** A ship without an officer is fitted for the personality your doctrine's aggression slider gives it (Command > Doctrine), not always Steady.
+- **Officers.** A ship without an officer is fitted for the personality your doctrine's aggression slider gives it (Command > Doctrine). On 0.98.5a an inactive officer counts as no officer.
 - **Ship systems.** Accelerated Ammo Feeder and High Energy Focus add to the ballistic and energy weapons on their hulls.
 - **Handling.** Extra turning counts most on slow hulls that aim their hardpoints by turning, not on nimble frigates.
 

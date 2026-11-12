@@ -30,7 +30,7 @@ The defaults are meant to work as they are. The ones people usually change are *
 | Respect priority weapons | On | Your faction doctrine's priority marks win ties. |
 | Point defense floor | 1 | Minimum point defense for the ship's size. 0 means none required. |
 | Never use these weapons | (none) | Weapon ids or patterns, separated by commas. `stardust_*` skips every Stardust Ventures weapon. |
-| Allow hullmods with drawbacks | Off | Off: only hullmods that make nothing worse, supply, recovery and deployment costs included. On: drawbacks are weighed against the gains. |
+| Allow hullmods with drawbacks | Off | Off: only hullmods that make nothing worse, supply, recovery, deployment and crew salary costs included. On: drawbacks are weighed against the gains. |
 | Safety Overrides | Frigates and destroyers | Never, Frigates and destroyers, or When it scores best (any hull, needs drawbacks allowed). |
 | Allow logistics hullmods | Off | Lets combat ships take cargo, fuel, sensor and burn hullmods. Civilian ships get theirs either way. |
 

@@ -2,6 +2,20 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.24 - 2026-11-12
+
+Starsector 0.98.5a balance and rule changes. The same jar works on 0.98a and 0.98.5a.
+
+- **Phase Anchor:** its value follows the game's dissipation and weapon recharge bonus while phased. 0.98a: x2, score bonus 0.12. 0.98.5a: x1.5, score bonus 0.09. Adaptive Phase Coils stays at 0.10.
+- **Crew salary:** with Allow hullmods with drawbacks off, a hullmod that raises a ship's crew salary or crew losses counts as a drawback. On 0.98.5a this covers Safety Overrides (doubled crew salary, extra crew losses by peak time used). Hullmods that change the crew a ship needs were already counted.
+- **Officers:** an inactive officer counts as no officer, and the ship is fitted for the doctrine personality. 0.98.5a allows more officers than the limit; only the limit are active.
+- **Recovery Shuttles:** a Logistics hullmod on 0.98.5a. The mod reads this from the game: it counts toward the logistics limit and stays off combat ships unless logistics hullmods are allowed. It has no combat value in the score.
+- **D-mods:** the 0.98.5a numbers for Degraded Shields, Faulty Power Grid, Malfunctioning Comms and Damaged Flight Deck come from the ship's live stats. Weapon durability is not scored, so Damaged Weapon Mounts' new durability penalty has no effect on the fit.
+- **Read from the game, no change needed:** hull, weapon and fighter stats; market and production prices, Survival mode multipliers included; skill effects on ship stats, such as Derelict Operations' hull bonus per d-mod.
+- **Not scored:** phase cloak cooldown, Phase Coil Instability, Field Modulation, Polarized Plating, Carrier Group, Fighter Uplink, and the new missile and burn drive AI.
+- **S-mods:** changing s-mods at a Heavy Industry colony is done in the game's own dialog. The mod does not remove s-mods.
+- **Hidden hullmods:** Low Maintenance and Manual Systems are hidden, and the mod leaves them as they are.
+
 ## 0.5.23 - 2026-11-12
 
 - **Starsector 0.98.5a:** the mod loads on 0.98.5a. The game's ship interface (ShipAPI) has six new methods in 0.98.5a, and the mod's internal stand-in ship, used to check hullmods on ships away from the refit screen, now has them. Checked by compiling against both 0.98a and 0.98.5a-RC4. It still works on 0.98a.
