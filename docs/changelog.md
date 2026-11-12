@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.25 - 2026-11-12
+
+- Version Checker: Added AutoOutfitting.version. TriOS and MagicLib show the installed and latest version.
+- Docs: Rewrote all docs at half length.
+- Mod info: Shorter description.
+
 ## 0.5.24 - 2026-11-12
 
 - Starsector 0.98.5a: Added support. The same jar works on 0.98a and 0.98.5a.
