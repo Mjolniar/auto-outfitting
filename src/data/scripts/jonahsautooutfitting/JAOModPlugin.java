@@ -34,7 +34,7 @@ public class JAOModPlugin extends BaseModPlugin {
     }
 
     /**
-     * One status line for Auto Colonies's Diagnostics page, in sector memory under "$jonahs_status_" + mod id,
+     * One status line for Auto Colonies' Diagnostics page, in sector memory under "$jonahs_status_" + mod id,
      * so neither mod needs the other's classes. Written on load and whenever the settings change.
      */
     static void publishStatus() {

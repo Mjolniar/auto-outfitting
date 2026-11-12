@@ -248,7 +248,7 @@ final class JAOFleetPlanner {
                 List<String> none = JAOProduction.unmade(waits);
                 Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: AoTD production waits for " + JAOProduction.describe(waits)
                         + (none.isEmpty() ? "" : "; no colony makes " + none + (JAOProduction.colonyManagerSupplies()
-                        ? " (Colony Manager's Special project supply plans producers for them)" : "")));
+                        ? " (Auto Colonies' Special project supply plans producers for them)" : "")));
             }
         } else {
             int items = 0;

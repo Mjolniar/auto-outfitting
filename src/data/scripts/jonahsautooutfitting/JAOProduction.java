@@ -64,7 +64,7 @@ final class JAOProduction {
 
     // ------------------------------------------------------------------ what AoTD's orders take from your colonies
 
-    /** Auto Colonies: from 2.39.0 its Special project supply plans producers for what AoTD's production orders take. */
+    /** Auto Colonies: from 0.2.39.0 its Special project supply plans producers for what AoTD's production orders take. */
     static final String CM_ID = "jonah_tweaks";
 
     /** AoTD only: commodity id -> units these items take from your colonies; empty without AoTD or if it can't be read. */
@@ -126,7 +126,7 @@ final class JAOProduction {
     }
 
     /**
-     * Auto Colonies 2.39.0 or later is enabled: its Special project supply (Settings, Items and AI cores) reads
+     * Auto Colonies 0.2.39.0 or later is enabled: its Special project supply (Settings, Items and AI cores) reads
      * AoTD's open production orders and plans a producer for every good no colony of yours makes, and its surplus
      * investment keeps back what the orders still owe. Found by mod id and version, so neither mod needs the other.
      */
@@ -135,7 +135,9 @@ final class JAOProduction {
             if (!Global.getSettings().getModManager().isModEnabled(CM_ID)) return false;
             String v = Global.getSettings().getModManager().getModSpec(CM_ID).getVersion().replaceFirst("^[^0-9]+", "");
             String[] p = v.split("[^0-9]+");
-            int major = Integer.parseInt(p[0]), minor = p.length > 1 ? Integer.parseInt(p[1]) : 0;
+            // Auto Colonies numbers with a leading 0 since 2026-11-11 (2.45.2 became 0.2.45.2, then 0.3.0.0): skip it
+            int at = p.length >= 3 && "0".equals(p[0]) ? 1 : 0;
+            int major = Integer.parseInt(p[at]), minor = p.length > at + 1 ? Integer.parseInt(p[at + 1]) : 0;
             return major > 2 || (major == 2 && minor >= 39);
         } catch (Throwable t) {
             return false;
