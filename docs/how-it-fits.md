@@ -1,61 +1,42 @@
 # How a ship gets fitted
 
-What the Optimal fit looks at when it builds a ship. You don't need any of this to use it, it's here if you want to know why it picked something.
-
-**Contents:** [The idea](#the-idea) · [Weapons](#weapons) · [Missiles](#missiles) · [Shields, flux and armor](#shields-flux-and-armor) · [Point defense](#point-defense) · [Fighters](#fighters) · [Hullmods](#hullmods) · [The ship itself](#the-ship-itself) · [Weapon groups](#weapon-groups) · [How it searches](#how-it-searches)
-
 ## The idea
 
-Killing a ship takes three steps: break its shield, strip its armor, then kill the hull. The fit spreads firepower so the ship can do all three, and scores every option by how fast the ship would actually do that in a fight, flown by the game's AI.
-
-The numbers come from the game's own combat code: how the AI aims, when it raises shields, when it backs off to vent, when it fires missiles. OP cost and the game's autofit tiers aren't used to rank anything.
-
-**Build style** (in the settings) changes the balance:
-- **Auto** picks per ship. It's the default.
-- **Balanced** covers all three layers. Line ships on Auto or Balanced always carry both kinetic and an armor-cracker.
-- **Anti-shield**, **Anti-armor** and **Hull killer** put most of the firepower into one layer and keep enough of the rest to finish the job.
-
-**Fleet role.** Each ship is fitted for its job, read from its designation and numbers: skirmisher frigates, flankers, line cruisers, capital anchors, carriers, battle carriers, support, phase ships and missile boats. The role sets who it mostly fights, firepower against staying alive, range, point defense and fighters.
-
-**The rest of the fleet** counts too. Fighter roles you already have plenty of, and wings already flying elsewhere, count for less. On Auto or Balanced, each ship leans toward whatever damage the fleet is short of.
+- Scoring: Options are scored by how fast the ship breaks shields, strips armor and kills hull, flown by the game's AI. OP cost and the game's autofit tiers do not rank anything.
+- Build style (setting): Auto picks per ship (default). Balanced covers all three layers. Anti-shield, Anti-armor and Hull killer put most firepower into one layer. Line ships on Auto or Balanced carry kinetic and an armor-cracker.
+- Fleet role: Read from designation and stats (skirmisher, flanker, line cruiser, capital anchor, carrier, battle carrier, support, phase ship, missile boat). It sets range, firepower against survival, point defense and fighters.
+- Fleet balance: Fighter roles and wings already in the fleet count for less. On Auto or Balanced each ship leans toward the damage the fleet lacks.
 
 ## Weapons
 
-- Each weapon is scored on damage against shields, armor and hull, flux cost, range, hit strength against armor, ammo and scripted special effects.
-- Loadouts stay coherent: matched sets of the same weapon, one range band, and no more than the game's 7 weapon groups.
-- Guns past the ship's sustained flux still count. They fire in bursts (when the enemy overloads, or on a flank) paid from flux capacity. So big mounts get real weapons, not 1-OP fillers or small guns.
-- Side and rear mounts that can't reach the main target get point defense or cheap flank cover.
-- **Aim:** only the main weapon group is held back against shields, and large slow turrets can't track frigates.
-- A mount is only left empty when filling it would make the ship more than about 2% worse.
-- Weapon OP costs come from the ship's live stats, so hullmod discounts count (Valkyrian Bryncore, for example, and its +100 range on Valkyrian weapons).
-- **Charged guns** like the Autopulse, Thermal Pulse Cannon and Storm Needler count the burst from their stored charges, not just their recharge rate.
-- **Community ratings** break near-ties: when two weapons score about the same, the one rated higher for AI ships in Grievous69's 0.98a tier lists wins. It moves a weapon's value by about 5% at most.
+- Scoring: Damage against shields, armor and hull, flux, range, armor penetration, ammo and scripted effects.
+- Loadout: Matched sets, one range band, at most 7 weapon groups.
+- Flux: Guns above sustained flux count as burst fire paid from flux capacity.
+- Side and rear mounts: Point defense or cheap flank cover when they cannot reach the main target.
+- Aim: Only the main group is held back against shields. Large slow turrets do not track frigates.
+- Empty mounts: Left empty only if filling makes the ship about 2% worse.
+- OP cost: Taken from live ship stats, so hullmod discounts count (Valkyrian Bryncore).
+- Charged guns: Autopulse, Thermal Pulse Cannon and Storm Needler count burst from stored charges.
+- Community ratings: Grievous69's 0.98a tier lists break near-ties by about 5% at most.
 
 ## Missiles
 
-- A launcher counts for what it can fire within the fight length (90 seconds by default). Extra ammo only helps launchers that would run dry before that.
-- HE torpedoes and rockets are priced against armor the same way guns are.
-- Unguided torpedoes only count against slow, big targets, since that's the only time the AI fires them.
-- Free-firing rockets mostly hit raised shields.
-- Enemy point defense shoots weak missiles down: about a third of 50-HP rockets, but few 500-HP Reapers.
-- Unguided rockets land less often than guided missiles. Rockets that can hit your own ships (Annihilators, Hammers, Reapers, Yunru's gyrojets) count for less the harder each one hits.
+- Launchers: Count what they fire within the fight length (90 seconds by default).
+- HE torpedoes and rockets: Priced against armor like guns.
+- Unguided torpedoes: Count only against slow, big targets.
+- Rockets: Mostly hit raised shields and land less often than guided missiles. Rockets that can hit your ships (Annihilator, Hammer, Reaper, Yunru gyrojets) count for less as each hit gets harder.
 
 ## Shields, flux and armor
 
-- The AI only uses about 80% of its flux on shields, shield upkeep only counts while the shield is up, and AI ships want dissipation to about 1.25x their weapons' flux before capacitors.
-- **Staying in the fight:** fire on the shield fills a ship's flux until the AI backs off to vent. Hardened Shields, capacitors and faster venting keep it in longer, so Hardened Shields counts as the solid default experts call it.
-- **Armor** cuts every hit by hit / (hit + armor). It shrugs off small arms and matters most on ships that already have a lot of it, so Heavy Armor goes on heavily armored hulls like the Onslaught and Paragon rather than everywhere.
-- Survival is worked out against a mix of incoming fire, not as plain hit points.
+- AI flux: The AI uses about 80% of its flux on shields. Upkeep counts only while the shield is up. Dissipation is wanted near 1.25x weapon flux before capacitors.
+- Armor: Each hit is cut by hit / (hit + armor). Heavy Armor goes on heavily armored hulls (Onslaught, Paragon).
 
 ## Point defense
 
-- Point defense is rated by whether one weapon can kill a missile in time, so Burst PD beats LR PD.
-- Every ship gets at least the point defense floor for its size (a setting, 1 by default).
-- Advanced Turret Gyros helps point defense. Damaged Weapon Mounts' slower turning hurts it.
+- Rating: By whether one weapon kills a missile in time. Burst PD beats LR PD.
+- Floor: Every ship gets the point defense floor for its size (setting, 1 by default).
 
 ## Fighters
-
-Each wing is compared with the community's top pick for its role:
 
 | Role | Reference wing |
 |---|---|
@@ -64,49 +45,38 @@ Each wing is compared with the community's top pick for its role:
 | Interceptors | Spark or Wasp |
 | Support | Xyphos or Sarissa |
 
-It compares four things: firepower per OP (for bombers, armor damage or shield breaking, times how reliably the payload lands), toughness per OP, point defense, and sortie time (refit plus the trip out and back). A wing can match the reference on each but not beat it, so no cheap wing takes every bay.
-
-- **Free wings** like Mining Pods are valued at what they actually do, about 2 OP worth of Xyphos. Drones that sit in front of the carrier with nothing but point-defense guns count as point defense.
-- **Wings that stay by their carrier** (Sarissa, ARMAA Gunhed) count as support.
-- **Carriers with bombers don't get interceptors.** The game never sends a bomber carrier's fighters to escort, so the interceptors couldn't screen it.
-- Carriers only escort when at least two thirds of their wings are fighters, interceptors or support, and the shortest-range wing caps how far all of them strike.
-- Defensive Targeting Array changes what each fighter role is worth.
-- Across the fleet, it aims for about 35% fighters, 35% bombers, 10% interceptors and 20% support.
+- Comparison: Wings are compared with the reference on firepower per OP, toughness per OP, point defense and sortie time. A wing can match but not beat it.
+- Free wings: Mining Pods are valued at about 2 OP of Xyphos. Point-defense-only drones count as point defense.
+- Carrier-bound wings: Sarissa and ARMAA Gunhed count as support.
+- Bomber carriers: No interceptors, since the game does not send their fighters to escort.
+- Escorts: Carriers escort only when two thirds of their wings are fighters, interceptors or support. The shortest-range wing caps strike range.
+- Fleet mix: About 35% fighters, 35% bombers, 10% interceptors, 20% support. Defensive Targeting Array changes role values.
 
 ## Hullmods
 
-- Hullmods are picked for the ship and its weapons: range mods only with guns that use them, missile mods only with missiles, and so on. Then the remaining OP goes into vents and capacitors.
-- Hullmods with a drawback (supply cost, recovery cost, deployment cost, crew salary, anything that makes something worse) are only used if you allow them in the settings.
-- **Safety Overrides** is only considered on frigates and destroyers by default, and counted with its costs (range past 450, peak time, no venting). On 0.98.5a it also doubles the ship's crew salary and adds crew losses; these count as drawbacks and are not scored.
-- **Integrated Targeting Unit** never goes on frigates.
-- **Shield Conversion - Omni** gets a small bonus on slow, low-tech, front-shielded ships (Onslaught, Legion, Dominator, Enforcer), where the AI uses it to block torpedoes and big shells.
-- **Resistant Flux Conduits** counts for its EMP resistance and faster venting, mostly on big ships.
-- **Expanded Magazines** is valued on ships with charged guns.
-- **Phase ships** get Adaptive Phase Coils or Phase Anchor valued properly, their survival grows with the flux capacity they phase on, and Heavy Armor never goes on them. Phase Anchor's value follows the game's bonus to dissipation while phased: x2 on 0.98a, x1.5 on 0.98.5a.
-- Logistics hullmods (cargo, fuel, sensors, burn) stay off combat ships unless you allow them. Civilian ships are different, see [Civilian ships](civilian-ships.md).
+- Selection: Matched to the ship and weapons. Remaining OP goes to vents and capacitors.
+- Drawbacks: Hullmods with supply, recovery, deployment or crew salary costs or other downsides are used only if allowed in settings.
+- Safety Overrides: Considered on frigates and destroyers by default. On 0.98.5a it also doubles crew salary and adds crew losses, counted as drawbacks and not scored.
+- Integrated Targeting Unit: Never on frigates.
+- Shield Conversion - Omni: Bonus on slow, low-tech, front-shielded ships (Onslaught, Legion, Dominator, Enforcer).
+- Phase ships: Adaptive Phase Coils and Phase Anchor are valued. Phase Anchor dissipation while phased: x2 on 0.98a, x1.5 on 0.98.5a. No Heavy Armor.
+- Logistics hullmods: Off combat ships unless allowed. See [Civilian ships](civilian-ships.md).
 
 ## The ship itself
 
-Every ship is fitted for its own numbers: armor, hull, flux, speed, shields, range and peak time come from its live stats, skills and d-mods included. On top of that:
-
-- **Max CR.** Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills are run through the game's CR rules. The AI aims worse as CR falls, and ships below 50% and 40% fight worse and malfunction.
-- **The flight deck.** Damaged Flight Deck, Malfunctioning Comms and Defective Manufactory make that carrier's wings worth less. Expanded Deck Crew makes them worth more.
-- **Turrets.** Damaged Weapon Mounts cost point defense and accuracy. Weapon durability is not scored (Damaged Weapon Mounts lowers it on 0.98.5a).
-- **Malfunctions.** Ill-Advised Modifications' weapon malfunctions count.
-- **Officers.** A ship without an officer is fitted for the personality your doctrine's aggression slider gives it (Command > Doctrine). On 0.98.5a an inactive officer counts as no officer.
-- **Ship systems.** Accelerated Ammo Feeder and High Energy Focus add to the ballistic and energy weapons on their hulls.
-- **Handling.** Extra turning counts most on slow hulls that aim their hardpoints by turning, not on nimble frigates.
+- Stats: Armor, hull, flux, speed, shields, range and peak time come from live stats, skills and d-mods.
+- Max CR: Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills run through the CR rules. Aim worsens as CR falls. Ships below 50% and 40% fight worse and malfunction.
+- Flight deck: Damaged Flight Deck, Malfunctioning Comms and Defective Manufactory lower wing value. Expanded Deck Crew raises it.
+- Turrets: Damaged Weapon Mounts cost point defense and accuracy. Weapon durability is not scored.
+- Officers: A ship without an officer is fitted for the personality from the doctrine aggression slider. On 0.98.5a an inactive officer counts as none.
 
 ## Weapon groups
 
-After the game makes its own weapon groups:
-- a broadside ship (a Conquest, say) gets each side's matching weapons in their own group, so it fires the side that bears;
-- a missile boat's guided launchers are linked to fire as one volley.
+- Broadside ships (Conquest): Each side's matching weapons get their own group.
+- Missile boats: Guided launchers link as one volley.
 
 ## How it searches
 
-- It runs twice, filling the biggest mounts first and then the smallest first, and keeps the better result.
-- It tries swapping pairs of big mounts and trading one hullmod for another, so one early pick can't lock the ship into a weaker fit.
-- The same ship with the same stock gets the same fit every click.
-
-Next up: [The fleet buttons](fleet-tools.md).
+- Passes: Biggest mounts first, then smallest first. The better result is kept.
+- Local changes: Swaps pairs of big mounts and trades one hullmod for another.
+- Result: The same ship and stock give the same fit.
