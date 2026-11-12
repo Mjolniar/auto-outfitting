@@ -1,42 +1,24 @@
 # S-mods and story points
 
-Story points are worth a lot in a normal playthrough, so the mod never spends them unless you tell it to.
-
-## Turning it on
-
-Tick **Build in s-mods (story points, permanent)** in the Autofit panel. It's off by default, and the game remembers the box per save.
-
-- **Single Optimal fit:** the preview shows the s-mods it would build. Points are only spent when you press **Confirm**, never by the preview.
-- **Optimize fleet:** uses the same box. The panel lists every new s-mod and its story point before you press **Apply to all ships**, and says whether s-mods are on.
-
-The mod does not change s-mods already on your ships. On 0.98.5a the game can change a ship's s-mods for credits at your colony with Heavy Industry; that is done in the game's own dialog.
+- Default: Story points are not spent unless Build in s-mods (story points, permanent) is ticked in the Autofit panel. The game saves the box per save.
+- Single Optimal fit: The preview shows s-mods. Points are spent on Confirm only.
+- Optimize fleet: Uses the same box and lists each new s-mod before Apply to all ships.
+- Existing s-mods: Not changed.
 
 ## How it picks
 
-S-mods are permanent, so each candidate is judged by fitting the whole ship again around it: the hullmod costs no OP once built in, it gets its s-mod bonus, and the freed OP goes to weapons, other hullmods, vents and capacitors. The best one goes first, then the next, and so on.
-
-It stops at whichever comes first:
-- the ship's s-mod limit;
-- **S-mods per ship** (3 by default);
-- your story points minus **Story points to keep** (0 by default);
-- the next s-mod making the ship less than **Minimum gain per s-mod** (2%) stronger.
-
-Civilian ships use their own list, see [Civilian ships](civilian-ships.md).
+- Method: Each candidate is judged by refitting the whole ship with it built in. The best goes first.
+- Stops at: The ship's s-mod limit, S-mods per ship (3), story points minus Story points to keep (0), or a gain below Minimum gain per s-mod (2%).
+- Civilian ships: Use their own list. See [Civilian ships](civilian-ships.md).
 
 ## Waiting for better hullmods
 
-Sometimes the best s-mod for a ship is one you don't know yet, or can only add at a spaceport. With **Wait for the best hullmods** on (the default):
+- Wait for the best hullmods (on): If a set not yet buildable is better by 10%, only those slots stay open. Other slots get the best available.
+- Most days to hold a slot (30): Afterward held slots get the best available.
+- Log: `starsector.log` states what each held slot waits for.
 
-- if a set you can't build yet would be clearly better (by **How much better to wait for**, 10%), only the slots those hullmods would take are kept open, and the rest get the best you have now;
-- `starsector.log` says what each held slot is waiting for;
-- after **Most days to hold a slot** (30 days), the ship gives up waiting and builds the best it has.
+## Limiting spending
 
-Turn it off and every ship just builds the best it can right now.
-
-## Keeping points safe
-
-- Leave the box unticked. Nothing gets built.
-- Set **Story points to keep** to the number you never want it to go below.
-- Lower **S-mods per ship**, or raise **Minimum gain per s-mod** so only the big upgrades get a point.
-
-Next up: [Other mods](other-mods.md).
+- Box unticked: Nothing is built in.
+- Story points to keep: Floor the mod does not spend below.
+- S-mods per ship and Minimum gain per s-mod: Lower the first or raise the second to build in only large upgrades.
