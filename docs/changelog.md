@@ -2,6 +2,10 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.23 - 2026-11-12
+
+- **Starsector 0.98.5a:** the mod loads on 0.98.5a. The game's ship interface (ShipAPI) has six new methods in 0.98.5a, and the mod's internal stand-in ship, used to check hullmods on ships away from the refit screen, now has them. Checked by compiling against both 0.98a and 0.98.5a-RC4. It still works on 0.98a.
+
 ## 0.5.22 - 2026-11-12
 
 - **New name:** the mod is now called Auto Outfitting. Its folder is `Auto Outfitting`, the zip is `AutoOutfitting.zip`, and the GitHub repository is [Mjolniar/auto-outfitting](https://github.com/Mjolniar/auto-outfitting). Jonah's Colony Manager is now called Auto Colonies.
