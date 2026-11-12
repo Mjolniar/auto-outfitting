@@ -9,7 +9,7 @@ Tick **Build in s-mods (story points, permanent)** in the Autofit panel. It's of
 - **Single Optimal fit:** the preview shows the s-mods it would build. Points are only spent when you press **Confirm**, never by the preview.
 - **Optimize fleet:** uses the same box. The panel lists every new s-mod and its story point before you press **Apply to all ships**, and says whether s-mods are on.
 
-S-mods already on your ships are never touched.
+The mod does not change s-mods already on your ships. On 0.98.5a the game can change a ship's s-mods for credits at your colony with Heavy Industry; that is done in the game's own dialog.
 
 ## How it picks
 

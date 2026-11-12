@@ -406,9 +406,9 @@ final class JAOModel {
         /** CR one deployment spends (0-1; 0 = only the first deployment counts). */
         float deployCr;
         /**
-         * Carrier deck: fighter wings' value on this ship (deckFactor): refit time (Damaged Flight Deck +30%),
-         * replacement rate (Expanded Deck Crew), engagement range (Malfunctioning Comms x0.6), fighter d-mods
-         * (Defective Manufactory). 1 = as the wing's own numbers.
+         * Carrier deck: fighter wings' value on this ship (deckFactor): refit time (Damaged Flight Deck +30% in 0.98a,
+         * +25% in 0.98.5a), replacement rate (Expanded Deck Crew), engagement range (Malfunctioning Comms x0.6 in 0.98a,
+         * x0.7 in 0.98.5a), fighter d-mods (Defective Manufactory). All read from the live stats. 1 = as the wing's own numbers.
          */
         float deck = 1f;
         /** Defensive Targeting Array (wing engagement range 0): every wing stays at the carrier (CF-4). */
@@ -1251,9 +1251,9 @@ final class JAOModel {
 
     /**
      * A carrier's deck against the wings' own numbers (1 = vanilla deck): fighters away longer per refit (Damaged
-     * Flight Deck +30% refit time: x0.88), a replacement rate that falls slower and recovers faster (Expanded Deck Crew
-     * x0.85 / +25%: x1.08), a shorter leash (Malfunctioning Comms x0.6 engagement range: x0.94), times fighter d-mods
-     * applied to the craft themselves (fighterMult, JAOCompat.wingMult).
+     * Flight Deck +30% refit time: x0.88; 0.98.5a +25%: x0.89), a replacement rate that falls slower and recovers
+     * faster (Expanded Deck Crew x0.85 / +25%: x1.08), a shorter leash (Malfunctioning Comms x0.6 engagement range:
+     * x0.94; 0.98.5a x0.7: x0.955), times fighter d-mods applied to the craft themselves (fighterMult, JAOCompat.wingMult).
      */
     static float deckFactor(float refitMult, float decreaseMult, float increaseMult, float rangeMult, float fighterMult) {
         float r = refitMult > 0f ? refitMult : 1f, d = decreaseMult > 0f ? decreaseMult : 1f, in = increaseMult > 0f ? increaseMult : 1f;
@@ -1261,6 +1261,17 @@ final class JAOModel {
         f *= 0.85f + 0.15f * clamp(rangeMult > 0f ? rangeMult : 1f, 0f, 1.5f);
         return clamp(f * (fighterMult > 0f ? fighterMult : 1f), 0.3f, 1.6f);
     }
+
+    /**
+     * Phase Anchor's value on a phase ship, as a fractional score bonus: 0.06 for free cloak activation and the
+     * emergency dive, plus 0.06 per extra x1 of dissipation and weapon recharge while phased. 0.12 at 0.98a's x2,
+     * 0.09 at 0.98.5a's x1.5 (JAOShip.phaseAnchorMult reads it from the game).
+     */
+    static float phaseAnchorExtra(float dissMult) {
+        return PHASE_ANCHOR_BASE + PHASE_ANCHOR_PER_MULT * clamp(dissMult - 1f, 0f, 3f);
+    }
+
+    static final float PHASE_ANCHOR_BASE = 0.06f, PHASE_ANCHOR_PER_MULT = 0.06f;
 
     /** Point defense hits against the ship's turret turn rate (x0.75: 0.93, Advanced Turret Gyros x1.75: 1.15). */
     static float pdTrack(float turnMult) {

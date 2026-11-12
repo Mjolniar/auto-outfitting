@@ -83,10 +83,24 @@ final class JAOShip implements JAOSearch.World {
         // a ship without an officer fights with the personality the faction doctrine's aggression sets (Command >
         // Doctrine; FactionPersonalityPickerPluginImpl: 1 cautious, 2 steady, 3 aggressive, 4 aggressive or reckless,
         // 5 reckless). 0.5.12: it was always taken as steady (research builds_update_1106 rule 3)
-        String p = c == null || c.isDefault() || c.getPersonalityAPI() == null ? doctrinePersonality() : c.getPersonalityAPI().getId();
+        // 0.98.5a: an inactive officer (past the officer limit) doesn't command the ship
+        String p = c == null || c.isDefault() || c.getPersonalityAPI() == null || !activeOfficer(c) ? doctrinePersonality() : c.getPersonalityAPI().getId();
         if ("aggressive".equals(p) || "reckless".equals(p)) return 1;
         if ("cautious".equals(p) || "timid".equals(p)) return 2;
         return 0;
+    }
+
+    /**
+     * False for an officer set inactive (0.98.5a: more officers than the limit allows, only that many active). The same
+     * memory flag Misc.isOfficerActive reads; 0.98a never sets it, so every officer counts as active there.
+     */
+    static boolean activeOfficer(PersonAPI c) {
+        try {
+            com.fs.starfarer.api.campaign.rules.MemoryAPI mem = c.getMemoryWithoutUpdate();
+            return mem == null || !mem.contains("$inactive") || !mem.getBoolean("$inactive");
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     static String doctrinePersonality() {
@@ -178,10 +192,11 @@ final class JAOShip implements JAOSearch.World {
         s.interferenceMult = work.hasHullMod("fluxbreakers") ? 0.5f : 1f;
         s.noVent = st.getVentRateMult().getModifiedValue() <= 0f;
         // more listener hullmods, modelled roughly: Missile Autoloader reloads small finite missiles (+6/9/15/24
-        // capacity, 5 s cooldown), Phase Anchor makes phasing free and doubles dissipation/recharge while phased
+        // capacity, 5 s cooldown), Phase Anchor makes phasing free and raises dissipation/recharge while phased
+        // (x2 in 0.98a, x1.5 in 0.98.5a; read from the game)
         // as an s-mod the Autoloader waits 10 s after a reload instead of 5 (its s-mod penalty)
         if (work.hasHullMod("missile_autoloader")) s.ammoMult *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
-        if (work.hasHullMod("phase_anchor") && s.phase) s.extra += 0.12f;
+        if (work.hasHullMod("phase_anchor") && s.phase) s.extra += JAOModel.phaseAnchorExtra(phaseAnchorMult());
         // Adaptive Phase Coils (0.98a): a phased ship keeps its speed to 50% more hard flux, so it can phase in, fire and
         // get out; experts take it or Phase Anchor on every phase ship (research meta_report 5, builds_update_1106)
         if (work.hasHullMod("adaptive_coils") && s.phase) s.extra += ADAPTIVE_COILS;
@@ -319,6 +334,25 @@ final class JAOShip implements JAOSearch.World {
 
     static final float OMNI_BONUS = 0.04f, ADAPTIVE_COILS = 0.10f;
 
+    private static float anchorMult = -1f;
+
+    /**
+     * Phase Anchor's dissipation and weapon recharge multiplier while phased, from the game's own PhaseAnchor class
+     * (a public static field in 0.98a and 0.98.5a: 2 and 1.5). 2 if it can't be read.
+     */
+    static float phaseAnchorMult() {
+        if (anchorMult < 0f) {
+            float m = 2f;
+            try {
+                m = com.fs.starfarer.api.impl.hullmods.PhaseAnchor.PHASE_DISSIPATION_MULT;
+            } catch (Throwable t) {
+                Global.getLogger(JAOShip.class).warn("Auto Outfitting: couldn't read Phase Anchor's multiplier; using 2", t);
+            }
+            anchorMult = m > 0f ? m : 2f;
+        }
+        return anchorMult;
+    }
+
     static boolean lowTech(ShipHullSpecAPI h) {
         String m = h.getManufacturer();
         return m != null && m.toLowerCase(java.util.Locale.ROOT).contains("low tech");
@@ -429,7 +463,27 @@ final class JAOShip implements JAOSearch.World {
             "ballistic flux cost", "energy flux cost", "missile flux cost", "beam flux cost", "missile ammo",
             "weapon turn rate", "beam turn rate", "peak operating time", "CR loss rate", "CR per deployment",
             "supplies per month", "supplies to recover", "deployment points", "fuel use", "venting", "fighter refit time",
-            "fighter bays", "crew needed", "sensor profile", "burn level", "shield"};
+            "fighter bays", "crew needed", "sensor profile", "burn level", "shield", "crew salary", "crew losses"};
+
+    /**
+     * Crew salary multiplier and Safety Overrides' extra crew losses (0.98.5a stats ship_crew_salary_mult and
+     * so_crew_loss_mod; Safety Overrides doubles the salary). Read by id, so on 0.98a they stay unset and never differ.
+     */
+    private static float salaryMult(MutableShipStatsAPI st) {
+        try {
+            return st.getDynamic().getStat("ship_crew_salary_mult").getModifiedValue();
+        } catch (Throwable t) {
+            return 1f;
+        }
+    }
+
+    private static float crewLoss(MutableShipStatsAPI st) {
+        try {
+            return st.getDynamic().getMod("so_crew_loss_mod").computeEffective(0f);
+        } catch (Throwable t) {
+            return 0f;
+        }
+    }
 
     /** Every stat a hullmod could make worse, each turned so that bigger is better. */
     private float[] snapshot() {
@@ -458,7 +512,7 @@ final class JAOShip implements JAOSearch.World {
                 -st.getSuppliesPerMonth().getModifiedValue(), -st.getSuppliesToRecover().getModifiedValue(), -scratch.getDeploymentPointsCost(),
                 -st.getFuelUseMod().computeEffective(1f), st.getVentRateMult().getModifiedValue(), -st.getFighterRefitTimeMult().getModifiedValue(),
                 st.getNumFighterBays().getModifiedValue(), -st.getMinCrewMod().computeEffective(100f), -st.getSensorProfile().getModifiedValue(),
-                st.getMaxBurnLevel().getModifiedValue(), shield ? 1f : 0f};
+                st.getMaxBurnLevel().getModifiedValue(), shield ? 1f : 0f, -salaryMult(st), -crewLoss(st)};
     }
 
     /** The first stat mod makes worse (by more than 0.5%), or null when it only helps. */
