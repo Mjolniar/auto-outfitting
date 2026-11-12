@@ -39,7 +39,7 @@ public class JAOScreenButton implements EveryFrameScript {
     static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis", OPTIMIZE = "jao_fleet_optimize", LOCK = "jao_lock_ship";
     static final String LOCK_LABEL = "Lock this ship", UNLOCK_LABEL = "Unlock this ship";
     static final Logger LOG = Global.getLogger(JAOScreenButton.class);
-    static final String TAG = "Jonah's Auto Outfitting: refit screen button ";
+    static final String TAG = "Auto Outfitting: refit screen button ";
 
     private boolean broken;
     private float timer;

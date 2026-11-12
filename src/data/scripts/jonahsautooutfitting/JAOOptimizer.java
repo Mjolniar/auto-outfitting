@@ -202,7 +202,7 @@ class JAOOptimizer {
                 plugin.recordWeapon(current.getHullVariantId() + "_" + s.id, w);
                 // the real delegate silently skips a weapon that fails its own checks: its OP then goes to flux below
                 if (!planning && !w.getId().equals(current.getWeaponId(s.id))) {
-                    Global.getLogger(JAOOptimizer.class).warn("Jonah's Auto Outfitting: " + w.getId() + " didn't go into "
+                    Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: " + w.getId() + " didn't go into "
                             + s.id + " on " + shipName() + " (the game refused it); its OP goes to vents/capacitors");
                 }
             }
@@ -240,7 +240,7 @@ class JAOOptimizer {
                 }
                 if (n == 0) why.append("none that fits");
             }
-            Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " has " + unused + " OP unused: " + why);
+            Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " has " + unused + " OP unused: " + why);
         }
 
         current.getWeaponGroups().clear();
@@ -257,11 +257,11 @@ class JAOOptimizer {
             if (real) settleOp(hullOp, maxV, maxC, role == JAORole.CARRIER || role == JAORole.PHASE || role == JAORole.MISSILE_BOAT || role == JAORole.SUPPORT);
         }
         if (smodNote != null && (real || JAOSettings.debug)) {
-            Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " s-mods" + (real ? "" : " (preview)") + ": " + smodNote);
+            Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " s-mods" + (real ? "" : " (preview)") + ": " + smodNote);
         }
         if (JAOSettings.debug) {
             log(search, world, p, st, (System.nanoTime() - t0) / 1_000_000L);
-            if (!world.drawbacks.isEmpty()) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName()
+            if (!world.drawbacks.isEmpty()) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName()
                     + " hullmods skipped for drawbacks: " + world.drawbacks);
         }
     }
@@ -277,10 +277,10 @@ class JAOOptimizer {
                 JAOFleetMix others = fleetMix != null ? fleetMix : JAOFleetContext.of(delegate.getFleetMember()).mix;
                 others.wings(p);
                 if (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) others.complement(p);
-                if (JAOSettings.debug && !planning) Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: fleet context for " + shipName()
+                if (JAOSettings.debug && !planning) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: fleet context for " + shipName()
                         + ": " + others.ships + " other ships, " + others.describe() + " -> weights " + p.wS + "/" + p.wA + "/" + p.wH);
             } catch (Throwable t) {
-                Global.getLogger(JAOOptimizer.class).warn("Jonah's Auto Outfitting: couldn't read the fleet for balance", t);
+                Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: couldn't read the fleet for balance", t);
             }
         }
         return p;
@@ -349,7 +349,7 @@ class JAOOptimizer {
         current.setNumFluxVents(v);
         current.setNumFluxCapacitors(c);
         delegate.syncUIWithVariant(current);
-        Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " had " + left + " OP " + (left > 0 ? "spare" : "over")
+        Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " had " + left + " OP " + (left > 0 ? "spare" : "over")
                 + " once the game rebuilt it (hullmods that change costs); vents " + v0 + " -> " + v + ", capacitors " + c0 + " -> " + c
                 + ", now " + (hullOp - current.computeOPCost(plugin.stats())) + " OP left");
     }
@@ -392,7 +392,7 @@ class JAOOptimizer {
         }
         ps.spendStoryPoints(n, true, null, true, xp / n, "Built " + Misc.getAndJoined(names) + " into " + shipName() + " (" + hull.getNameWithDesignationWithDashClass() + ")");
         if (ps.getStoryPoints() > had - n) {
-            Global.getLogger(JAOOptimizer.class).error("Jonah's Auto Outfitting: story points weren't spent for " + shipName() + "; " + names + " added as ordinary hullmods");
+            Global.getLogger(JAOOptimizer.class).error("Auto Outfitting: story points weren't spent for " + shipName() + "; " + names + " added as ordinary hullmods");
             for (String id : smods) if (!current.hasHullMod(id)) current.addMod(id);
             return 0;
         }
@@ -746,7 +746,7 @@ class JAOOptimizer {
                 + (docked ? "" : " (dock at a spaceport to add logistics hullmods)"));
         delegate.syncUIWithVariant(current);
         if (real || JAOSettings.debug) {
-            Global.getLogger(JAOOptimizer.class).info("Jonah's Auto Outfitting: " + shipName() + " (civilian) logistics fit: " + mods
+            Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " (civilian) logistics fit: " + mods
                     + (smods.isEmpty() ? "" : ", built in " + smods + (built > 0 ? "" : " (not built: preview or no story points)"))
                     + (skipped.isEmpty() ? "" : "; skipped for higher supply/fuel cost: " + skipped) + " in " + (System.nanoTime() - t0) / 1_000_000L + " ms");
         }
@@ -859,7 +859,7 @@ class JAOOptimizer {
         Map<String, Float> b = new LinkedHashMap<>();
         int[] vc = s.flux();
         JAOModel.evaluate(JAOModel.withFlux(s.ship(), vc[0], vc[1]), s.fits(), p, b);
-        StringBuilder sb = new StringBuilder("Jonah's Auto Outfitting: ").append(current.getHullSpec().getHullId())
+        StringBuilder sb = new StringBuilder("Auto Outfitting: ").append(current.getHullSpec().getHullId())
                 .append(module ? " (module)" : "").append(' ').append(p.role != null ? p.role.label + "/" : "").append(st.label).append(" in ").append(ms).append(" ms, ")
                 .append(s.evaluations).append(" evaluations; ");
         for (JAOSearch.Slot slot : s.slots) {

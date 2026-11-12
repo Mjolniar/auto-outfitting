@@ -4,8 +4,8 @@ How to install it, do your first fit, and what the boxes in the Autofit panel do
 
 ## Install
 
-1. Download the zip from the [latest release](https://github.com/Mjolniar/jonahs-auto-outfitting/releases/latest) and extract it into `Starsector/mods/`, so you end up with `Starsector/mods/Jonah's Auto Outfitting/mod_info.json`.
-2. Enable **Jonah's Auto Outfitting** in the launcher. Nothing else is required.
+1. Download the zip from the [latest release](https://github.com/Mjolniar/auto-outfitting/releases/latest) and extract it into `Starsector/mods/`, so you end up with `Starsector/mods/Auto Outfitting/mod_info.json`.
+2. Enable **Auto Outfitting** in the launcher. Nothing else is required.
 3. Load your save or start a new one.
 
 Adding it to a save mid-game is fine, and so is taking it out again. The Optimal option only exists while the refit screen is open and is never written into your save.
@@ -57,6 +57,6 @@ The first two sit next to the Autofit button, and Fleet analysis and Lock this s
 
 - If an Optimal fit ever fails, the ship gets the game's own autofit instead and the error goes in `starsector.log`. You never get left with a half-stripped ship.
 - Turn on **Log every fit** in the settings and every fit writes its scores and reasons to `starsector.log`. That's the easiest way to see why it picked something.
-- If it's a bug, throw it in the [issues](https://github.com/Mjolniar/jonahs-auto-outfitting/issues) with `starsector-core/starsector.log`, the ship, and your modlist if you can.
+- If it's a bug, throw it in the [issues](https://github.com/Mjolniar/auto-outfitting/issues) with `starsector-core/starsector.log`, the ship, and your modlist if you can.
 
 Next up: [How a ship gets fitted](how-it-fits.md), or jump to [The fleet buttons](fleet-tools.md).

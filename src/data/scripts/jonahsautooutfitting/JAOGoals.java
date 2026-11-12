@@ -48,7 +48,7 @@ public class JAOGoals {
             MethodHandle get = MethodHandles.lookup().findVirtual(svd.getClass(), "getOptionState", MethodType.methodType(Map.class));
             return Boolean.TRUE.equals(((Map<?, ?>) get.invoke(svd)).get(id));
         } catch (Throwable t) {
-            if (!optionWarned) Global.getLogger(JAOGoals.class).warn("Jonah's Auto Outfitting: can't read the Autofit panel's \"" + id + "\" box; treated as unticked", t);
+            if (!optionWarned) Global.getLogger(JAOGoals.class).warn("Auto Outfitting: can't read the Autofit panel's \"" + id + "\" box; treated as unticked", t);
             optionWarned = true;
             return false;
         }
@@ -92,7 +92,7 @@ public class JAOGoals {
             handlesFailed = false;
             return h;
         } catch (Throwable t) {
-            if (!handlesFailed) Global.getLogger(JAOGoals.class).warn("Jonah's Auto Outfitting: can't reach the autofit goal list ("
+            if (!handlesFailed) Global.getLogger(JAOGoals.class).warn("Auto Outfitting: can't reach the autofit goal list ("
                     + t + "); use the \"Optimal fit for every goal\" box instead");
             handlesFailed = true;
             return null;
@@ -127,7 +127,7 @@ public class JAOGoals {
                 JAOCleanup.injected = true;
             }
         } catch (Throwable t) {
-            Global.getLogger(JAOGoals.class).warn("Jonah's Auto Outfitting: couldn't add the Optimal goal", t);
+            Global.getLogger(JAOGoals.class).warn("Auto Outfitting: couldn't add the Optimal goal", t);
         }
     }
 
@@ -165,7 +165,7 @@ public class JAOGoals {
             map.values().removeIf(v -> v instanceof ShipVariantAPI && styleOf((ShipVariantAPI) v) != null);
             injected.clear();
         } catch (Throwable t) {
-            Global.getLogger(JAOGoals.class).warn("Jonah's Auto Outfitting: couldn't remove the Optimal goals", t);
+            Global.getLogger(JAOGoals.class).warn("Auto Outfitting: couldn't remove the Optimal goals", t);
         }
     }
 

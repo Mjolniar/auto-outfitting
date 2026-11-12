@@ -30,7 +30,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         try {
             return new JAOFleetApply(refit);
         } catch (Throwable t) {
-            Global.getLogger(JAOFleetPanel.class).error("Jonah's Auto Outfitting: Optimize fleet couldn't start", t);
+            Global.getLogger(JAOFleetPanel.class).error("Auto Outfitting: Optimize fleet couldn't start", t);
             return null;
         }
     }
@@ -46,7 +46,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         try {
             return job.step(25L);
         } catch (Throwable t) {
-            Global.getLogger(JAOFleetPanel.class).error("Jonah's Auto Outfitting: Optimize fleet planning failed", t);
+            Global.getLogger(JAOFleetPanel.class).error("Auto Outfitting: Optimize fleet planning failed", t);
             failed = true;
             return true;
         }
@@ -148,7 +148,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             try {
                 msg = job.apply();
             } catch (Throwable t) {
-                Global.getLogger(JAOFleetPanel.class).error("Jonah's Auto Outfitting: Optimize fleet failed while applying", t);
+                Global.getLogger(JAOFleetPanel.class).error("Auto Outfitting: Optimize fleet failed while applying", t);
                 msg = "Something went wrong part way (see starsector.log)";
                 ok = false;
             }

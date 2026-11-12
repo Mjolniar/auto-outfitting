@@ -35,7 +35,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         try {
             return JAOFleetContext.of(null);
         } catch (Throwable t) {
-            Global.getLogger(JAOAnalysisPanel.class).error("Jonah's Auto Outfitting: fleet analysis failed", t);
+            Global.getLogger(JAOAnalysisPanel.class).error("Auto Outfitting: fleet analysis failed", t);
             return null;
         }
     }

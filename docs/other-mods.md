@@ -10,7 +10,7 @@ Some mods change ships from their own scripts, though, and the fit has to play a
 |---|---|
 | **Treasure Hunt** | Treasure Hunt Package is valued highly on civilian ships, and built in on the ones that stay in your fleet. See [Civilian ships](civilian-ships.md). |
 | **Ashes of the Domain: Vaults of Knowledge** | Order fleet weapons goes into AoTD's production and lists the goods it takes from your colonies. See [The fleet buttons](fleet-tools.md#order-fleet-weapons). |
-| **Jonah's Colony Manager** (2.39+) | Its Special project supply plans producers for the goods an AoTD order needs that none of your colonies make. |
+| **Auto Colonies** (0.2.39+) | Its Special project supply plans producers for the goods an AoTD order needs that none of your colonies make. |
 | **Seeker** | Plague hulls (the Guru, the other Cultist ships, the Plague Bearers) only fly plague LPCs: Fire Ant, Pillbug and Beetle. Any other wing gets thrown back to cargo by Seeker as soon as the ship shows up, so none is planned there. Plague weapons and LPCs cost max CR on any other hull, priced through the game's CR rules (about 1% for a Coda Launcher on a healthy 70% ship, much more on a ship already short of CR). |
 | **Emergent Threats** | Trinity Worlds ships only fly their Nimbus drones. Carriers with an Enhanced Control Node (the Maquech) fly anything, but an empty bay gets Nimbus drones at 10 OP each, and the plan counts that. Kites and Terminators stay in their bays. Slots the mod fills from its own code are left alone. AI Subsystem Integration is valued for the hullmods it unlocks. |
 | **Arma Armatura** | Bits stay in their bays. |

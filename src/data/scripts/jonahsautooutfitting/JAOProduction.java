@@ -30,7 +30,7 @@ final class JAOProduction {
             } catch (Throwable t) {
                 problem = "Ashes of the Domain's production couldn't be used (see starsector.log), so this goes to the game's own "
                         + "custom production, which AoTD's screen doesn't show";
-                Global.getLogger(JAOProduction.class).warn("Jonah's Auto Outfitting: AoTD production not usable; using the game's custom production", t);
+                Global.getLogger(JAOProduction.class).warn("Auto Outfitting: AoTD production not usable; using the game's custom production", t);
             }
             aotd = on;
         }
@@ -53,7 +53,7 @@ final class JAOProduction {
         try {
             JAOAotdProduction.addIncoming(weapons, wings);
         } catch (Throwable t) {
-            Global.getLogger(JAOProduction.class).warn("Jonah's Auto Outfitting: couldn't read AoTD's production orders", t);
+            Global.getLogger(JAOProduction.class).warn("Auto Outfitting: couldn't read AoTD's production orders", t);
         }
     }
 
@@ -64,7 +64,7 @@ final class JAOProduction {
 
     // ------------------------------------------------------------------ what AoTD's orders take from your colonies
 
-    /** Jonah's Colony Manager: from 2.39.0 its Special project supply plans producers for what AoTD's production orders take. */
+    /** Auto Colonies: from 0.2.39.0 its Special project supply plans producers for what AoTD's production orders take. */
     static final String CM_ID = "jonah_tweaks";
 
     /** AoTD only: commodity id -> units these items take from your colonies; empty without AoTD or if it can't be read. */
@@ -73,7 +73,7 @@ final class JAOProduction {
         try {
             return JAOAotdProduction.resources(weapons, wings);
         } catch (Throwable t) {
-            Global.getLogger(JAOProduction.class).warn("Jonah's Auto Outfitting: couldn't read what AoTD's production takes", t);
+            Global.getLogger(JAOProduction.class).warn("Auto Outfitting: couldn't read what AoTD's production takes", t);
             return new java.util.TreeMap<>();
         }
     }
@@ -126,7 +126,7 @@ final class JAOProduction {
     }
 
     /**
-     * Jonah's Colony Manager 2.39.0 or later is enabled: its Special project supply (Settings, Items and AI cores) reads
+     * Auto Colonies 0.2.39.0 or later is enabled: its Special project supply (Settings, Items and AI cores) reads
      * AoTD's open production orders and plans a producer for every good no colony of yours makes, and its surplus
      * investment keeps back what the orders still owe. Found by mod id and version, so neither mod needs the other.
      */
@@ -135,7 +135,9 @@ final class JAOProduction {
             if (!Global.getSettings().getModManager().isModEnabled(CM_ID)) return false;
             String v = Global.getSettings().getModManager().getModSpec(CM_ID).getVersion().replaceFirst("^[^0-9]+", "");
             String[] p = v.split("[^0-9]+");
-            int major = Integer.parseInt(p[0]), minor = p.length > 1 ? Integer.parseInt(p[1]) : 0;
+            // Auto Colonies numbers with a leading 0 since 2026-11-11 (2.45.2 became 0.2.45.2, then 0.3.0.0): skip it
+            int at = p.length >= 3 && "0".equals(p[0]) ? 1 : 0;
+            int major = Integer.parseInt(p[at]), minor = p.length > at + 1 ? Integer.parseInt(p[at + 1]) : 0;
             return major > 2 || (major == 2 && minor >= 39);
         } catch (Throwable t) {
             return false;

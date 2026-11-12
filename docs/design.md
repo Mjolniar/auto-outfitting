@@ -1,4 +1,4 @@
-# Jonah's Auto Outfitting: design (draft for the build step)
+# Auto Outfitting: design (draft for the build step)
 
 Status 2026-11-02: version 0.2.0 built, installed and enabled in the user's game; not yet tried in game.
 
@@ -254,7 +254,7 @@ Three tiers, best first. Each slot's goal is met from the highest tier that has 
 
 ### Testing across mod lists
 
-The same idea as Colony Manager's `audit_combos`:
+The same idea as Auto Colonies' `audit_combos`:
 - the offline check runs the rating and optimizer on vanilla-only specs, the full modlist, and random subsets of the 26 content mods;
 - each run is checked for legal fits and no exceptions;
 - for a stocked pool, a sensible slot goal mix (kinetic + HE/energy when both exist).
@@ -627,7 +627,7 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 
 ## 7l. Other mods' scripts, and what production takes, 0.5.2 (user, 11/05)
 
-**Report.** New game with 19 new mods. A Guru-class carrier (Seeker, XXX Chi-Prince) "registered Optimal" and every bay came out empty. User: "deep analysis on all the new mods ... run a new whole check", and have Order fleet weapons work with Colony Manager so the colonies supply what production needs.
+**Report.** New game with 19 new mods. A Guru-class carrier (Seeker, XXX Chi-Prince) "registered Optimal" and every bay came out empty. User: "deep analysis on all the new mods ... run a new whole check", and have Order fleet weapons work with Auto Colonies so the colonies supply what production needs.
 
 **What the log and save showed** (`fleet_diag_1105b`, research `modscan_1105_1605.txt`):
 - The Guru's built-in `SKR_plagueCultist` throws every LPC except Seeker's three plague LPCs into cargo when the ship is shown (`applyEffectsAfterShipCreation`). Its fighter cost mods (-1000 on every role) made every wing cost 0 OP in the model, so the plan filled the bays with Daggers, a JYD Heavy Drone and an Arma Kouto; all four were back in fleet cargo in the save. The plague LPCs cost 1008-1012 OP everywhere else.
@@ -644,7 +644,12 @@ Variant name "Optimal: Logistics". Not testable offline; check in game.
 - **Installers**: `spendLeftover` never takes a zero-OP hullmod (it spends nothing; free hullmods that help still come in through `addMods`); `never_add_ui,Installation` and `never_add` rows for `yunru_install_confirm`, `vice_apotheosis_protocol` and Roider's MIDAS levels; `never_remove,ix_dawnstar_*` (the player's Dawnstar mode).
 - **purge_lpc** `nimbus_tw_*`: removed from cargo and every storage on load, before saves and after each apply (two were in Hot Springs storage).
 
-**Production supply.** AoTD's production order is a Theory of Toolbox trade contract that takes goods from your colonies every month: Heavy Armaments for every weapon and LPC, Ships for LPCs, Electronic Components for most manufacturers (`AoTDProductionSpec`). Colony Manager 2.39.0 (its own session) reads the open orders and plans a producer for every good no colony makes (Special project supply), and keeps back the credits the orders still owe. Auto Outfitting's side: the order panel lists what the order takes, which colony makes each good, and which goods nobody makes (`JAOProduction.describe/unmade`); it says Colony Manager plans a producer when 2.39+ is enabled (`colonyManagerSupplies`, by mod id and version), else that those items wait. Queue all logs what all of AoTD's orders still wait for.
+**Production supply.** AoTD's production order is a Theory of Toolbox trade contract that takes goods from your colonies every month: Heavy Armaments for every weapon and LPC, Ships for LPCs, Electronic Components for most manufacturers (`AoTDProductionSpec`). Auto Colonies 0.2.39.0 (its own session) reads the open orders and plans a producer for every good no colony makes (Special project supply), and keeps back the credits the orders still owe. Auto Outfitting's side: the order panel lists what the order takes, which colony makes each good, and which goods nobody makes (`JAOProduction.describe/unmade`); it says Auto Colonies plans a producer when 2.39+ is enabled (`colonyManagerSupplies`, by mod id and version), else that those items wait. Queue all logs what all of AoTD's orders still wait for.
+
+**0.5.22** (user 11/12, through the StarSector session: drop "Jonah's" from both mod names everywhere).
+- Display name Auto Outfitting; mod folder `Auto Outfitting` (staging and game); zip base `AutoOutfitting`; repo Mjolniar/auto-outfitting. Jonah's Colony Manager is Auto Colonies (Mjolniar/auto-colonies).
+- Unchanged so saves and settings keep working: mod id `jonahs_auto_outfitting`, package `data.scripts.jonahsautooutfitting`, jar `jonahsautooutfitting.jar`, config `jonahs_auto_outfitting.json`, persistent keys `jao_*`, status key `$jonahs_status_jonahs_auto_outfitting`.
+- `JAOProduction.colonyManagerSupplies` skips Auto Colonies' leading 0 (0.3.0.1 read as major 0 and failed the 2.39 check).
 
 **0.5.21** (user 11/11: "It needs to be possible to lock ships from being auto outfitted, somewhere on the main outfitting screen").
 - `JAOLocks`: locked fleet member ids in a plain `HashSet<String>` under persistent data key `jao_locked` (removal-safe like `jao_smod_waits`).
@@ -743,11 +748,11 @@ Logged per fit (`maxCr`, `crStart`, `deck`, `malf`, `d-mods [...]`); the Optimiz
 - `yunru_irt` (Inverted Reverse Thrusters: speed, acceleration and turning x (decel + accel) / accel, about x1.7-2; no flying backwards) on most ships: the lost reverse is invisible to the stat diff. Now in `JAOShip.KNOWN_DRAWBACKS`, so only with "Allow hullmods with drawbacks".
 - `cutting_beam_ix` (0 OP, 600 dps; an IX built-in) mounted as a free gun. Candidates with base OP 0 are skipped (3 such weapons in the whole modlist).
 
-**0.5.5** (user 11/05: Optimize fleet under 0.5.3 still put Daggers, a JYD Heavy Drone and a Kouto on both Gurus). `jao_rules.csv` was read with `getMergedSpreadsheetDataForMod("kind", ...)`. The game's merge (`LoadingUtils`) takes a file as the master mod's only when its folder path contains the master id; "Jonah's Auto Outfitting" doesn't contain `jonahs_auto_outfitting`, so the file went through the id-deduplicating loop and only the **last row of each kind** survived, since 0.1. bay_wings kept only the Enhanced Control Node row (`*`), skip_slots only radiant_ix, never_add / never_remove / interference one row each. Rules are now read with `loadCSV(RULES, MOD)` (no merge), and the load logs the count per kind. jao_hullmods.csv and jao_weapon_effects.csv are keyed by unique ids, so the merge didn't hurt them.
+**0.5.5** (user 11/05: Optimize fleet under 0.5.3 still put Daggers, a JYD Heavy Drone and a Kouto on both Gurus). `jao_rules.csv` was read with `getMergedSpreadsheetDataForMod("kind", ...)`. The game's merge (`LoadingUtils`) takes a file as the master mod's only when its folder path contains the master id; "Auto Outfitting" doesn't contain `jonahs_auto_outfitting`, so the file went through the id-deduplicating loop and only the **last row of each kind** survived, since 0.1. bay_wings kept only the Enhanced Control Node row (`*`), skip_slots only radiant_ix, never_add / never_remove / interference one row each. Rules are now read with `loadCSV(RULES, MOD)` (no merge), and the load logs the count per kind. jao_hullmods.csv and jao_weapon_effects.csv are keyed by unique ids, so the merge didn't hurt them.
 
 **0.5.4** (user 11/05: "if somebody just clicks the button and it uses them all, they'd be super pissed"): Optimize fleet builds s-mods only while the Autofit panel's "Build in s-mods" box is ticked, read from `SavedVariantData.getOptionState()` (`JAOGoals.optionChecked`; the game saves every box's state there). The box is off by default; the `jao_fleetSmods` setting (default on) is gone. The panel and the button tooltip say which way it is.
 
-**0.5.3**: Colony Manager's session confirmed 2.39.0 (unreleased until the troubleshooting round ends) reads each order line's `getReqResources()` (exact remainder) and plans producers only for goods no colony makes; a good made in small amounts isn't boosted. The order panel says so whenever Colony Manager 2.39+ is enabled.
+**0.5.3**: Auto Colonies' session confirmed 0.2.39.0 (unreleased until the troubleshooting round ends) reads each order line's `getReqResources()` (exact remainder) and plans producers only for goods no colony makes; a good made in small amounts isn't boosted. The order panel says so whenever Auto Colonies 0.2.39+ is enabled.
 
 **Checks.** `jtbuild\ao_modscan.py` (every enabled mod: scripts that change loadouts or cargo, installers, zero-OP hullmods, hull-bound and gated wings, unsellable weapons). JAOFitCheck 542 checks (plague factor and copy, zero-OP leftover); 552 in 0.5.10 (CR curve, plague on a d-mod ship, deck, PD tracking, recoil, malfunctions). Research data regenerated for 92 sources (`data_1102` kept); the all-mods run fails 16 of 536 vanilla-tuned checks, driven by the new mods' weapon numbers (CFT's 7-OP 1,040-dps autocannon and 15,000-damage volley rockets, Yunru's 0-OP fighter gun), not by this change. Fleet sim on `fleet_diag_1105b`: 15 ships, settles in two passes.
 
@@ -978,7 +983,7 @@ User request 2026-11-02. It comes after the single-ship Optimal fit works.
 1. **Pool** = cargo + storage (counted once across the whole fleet) + every known weapon/fighter blueprint (`getPlayerFaction().knowsWeapon/knowsFighter`) at unlimited quantity, priced at production cost (`FactionProductionAPI.getUnitCost`). Items already in the production queue (`getCurrent()`) count as incoming, so pressing twice doesn't double-order.
 2. **Order**: fit ships biggest first (capitals, then cruisers ...), then by deployment cost, so scarce owned items go to the ships where they're worth most. The same style setting applies, or each ship's chosen Optimal style.
 3. **Shopping list** = what the fits use that isn't owned: weapon/wing id → count, with each item's score gain. It's trimmed to:
-   - a credit budget (Colony Manager's reserve if it's installed, else a setting);
+   - a credit budget (Auto Colonies' reserve if it's installed, else a setting);
    - optionally, months of production capacity (`getMonthlyProductionCapacity()`).
    The cut drops the smallest gain per credit first.
 
@@ -990,10 +995,10 @@ Nothing is ordered without that press. Orders are charged by the game as product
 
 **Where the button goes** (lowest risk first):
 1. **Refit screen**: a LunaLib refit button ("Order best weapons for fleet"). Public LunaLib API (`LunaRefitManager.addRefitButton`), already installed.
-2. **Colony Manager's empire panel**: a "Fleet outfitting" page with the list and the same button, when both mods are enabled. Colony Manager calls `JAOFleetPlanner` through its usual guarded optional-integration pattern (`isModEnabled` + a class compiled against the optional jar, checked by `audit_combos`). Colony Manager could also re-run it monthly in Auto mode, within its budget, to keep the fleet stocked.
-3. **Fleet tab button** (what the user pictured): no public API. It would need the same UI-tree technique as Colony Manager's colony-screen button (`CAScreenButton`). Possible, but brittle across game updates. Stretch goal.
+2. **Auto Colonies' empire panel**: a "Fleet outfitting" page with the list and the same button, when both mods are enabled. Auto Colonies calls `JAOFleetPlanner` through its usual guarded optional-integration pattern (`isModEnabled` + a class compiled against the optional jar, checked by `audit_combos`). Auto Colonies could also re-run it monthly in Auto mode, within its budget, to keep the fleet stocked.
+3. **Fleet tab button** (what the user pictured): no public API. It would need the same UI-tree technique as Auto Colonies' colony-screen button (`CAScreenButton`). Possible, but brittle across game updates. Stretch goal.
 
-**Works without Colony Manager.** Custom production is vanilla, so the planner and the refit button work alone. Colony Manager only adds the panel page, its budget/reserve and monthly automation. This follows the any-mod-list rule (§7b).
+**Works without Auto Colonies.** Custom production is vanilla, so the planner and the refit button work alone. Auto Colonies only adds the panel page, its budget/reserve and monthly automation. This follows the any-mod-list rule (§7b).
 
 **Open / unverified:**
 - Whether `showCoreUITab(OUTPOSTS, custom)` can open the custom-production sub-panel directly, or only the Colonies tab.
@@ -1012,11 +1017,11 @@ Nothing is ordered without that press. Orders are charged by the game as product
   - **The 11/02 bug**: the first order (134 items, 16 kinds) went into vanilla's list. AoTD's screen doesn't show that list, but AoTD's patched CoreScript still builds it at month end, and the planner counted it, so re-plans found nothing to build. With AoTD, the panel now lists the weapons and LPCs waiting in vanilla's list, and Queue all moves them into the AoTD order (`removeItem` only after AoTD accepted it). If the AoTD probe fails, vanilla is used and the panel says so.
 - **Search changes this needed** (apply in refit too): prune counts distinct weapons, not stock entries, and keeps every source of a kept weapon; candidates sorted by `CANON` (cheapest source first) after the prune; a last pass swaps a priced pick for the same weapon from a cheaper source still in stock.
 - **Tests**: JAOFitCheck "planning" checks (eagle, onslaught, conquest, paragon): with one owned + unlimited priced blueprint per weapon, the weapons picked match a single unlimited source, and no blueprint is used while an owned copy is free.
-- **Not done**: Colony Manager page and monthly re-order; fleet-tab button; per-line deselection in the panel.
+- **Not done**: Auto Colonies page and monthly re-order; fleet-tab button; per-line deselection in the panel.
 
 ## 12. Testing plan
 
-Offline, the same jtbuild pattern as Colony Manager:
+Offline, the same jtbuild pattern as Auto Colonies:
 - `ao_build.ps1`: javac, banned-class scan, verify with and without LunaLib, game script-loader check (done);
 - plus `JAOFitCheck.java`: real `starfarer.api` specs loaded offline where possible; otherwise fixed weapon/hull rows from `data\*.json`. It runs the optimizer on fixed pools and checks:
   - OP limits, slot legality and determinism (same seed → same fit);

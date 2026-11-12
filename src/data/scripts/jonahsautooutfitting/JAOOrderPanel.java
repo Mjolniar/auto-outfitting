@@ -29,7 +29,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         try {
             return new JAOFleetPlanner.Job();
         } catch (Throwable t) {
-            Global.getLogger(JAOOrderPanel.class).error("Jonah's Auto Outfitting: fleet order planning failed", t);
+            Global.getLogger(JAOOrderPanel.class).error("Auto Outfitting: fleet order planning failed", t);
             return null;
         }
     }
@@ -46,7 +46,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             if (!job.step(25L)) return false;
             plan = job.plan;
         } catch (Throwable t) {
-            Global.getLogger(JAOOrderPanel.class).error("Jonah's Auto Outfitting: fleet order planning failed", t);
+            Global.getLogger(JAOOrderPanel.class).error("Auto Outfitting: fleet order planning failed", t);
             plan = null;
         }
         return true;
@@ -87,13 +87,13 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                     // AoTD's order takes these from your colonies' exports every month; a good no colony makes stalls it
                     List<String> none = JAOProduction.unmade(plan.resources);
                     head.addPara(esc("It takes from your colonies: " + JAOProduction.describe(plan.resources) + "."), 4f, none.isEmpty() ? g : h);
-                    // Colony Manager 2.39 plans producers only for goods no colony makes; one made in small amounts isn't
+                    // Auto Colonies 0.2.39 plans producers only for goods no colony makes; one made in small amounts isn't
                     // boosted, and the order just goes as fast as that output (its session, 11/05)
                     boolean cm = JAOProduction.colonyManagerSupplies();
                     List<String> names = new java.util.ArrayList<>();
                     for (String c : none) names.add(JAOProduction.commodityName(c));
                     if (cm) {
-                        head.addPara(esc((none.isEmpty() ? "" : "Colony Manager plans a producer for " + Misc.getAndJoined(names)
+                        head.addPara(esc((none.isEmpty() ? "" : "Auto Colonies plans a producer for " + Misc.getAndJoined(names)
                                 + " (Special project supply, under Items and AI cores); those items wait until it runs. ")
                                 + "It only plans for goods no colony makes: one your colonies make little of just slows the order."), 4f, g);
                     } else if (!none.isEmpty()) {

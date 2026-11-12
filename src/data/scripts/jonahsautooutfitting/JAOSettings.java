@@ -37,7 +37,7 @@ public class JAOSettings {
     public static boolean load(boolean fromLuna) {
         if (file == null) {
             try { file = Global.getSettings().loadJSON(FILE, MOD); }
-            catch (Throwable t) { file = new JSONObject(); LOG.warn("Jonah's Auto Outfitting: can't read " + FILE + "; using defaults", t); }
+            catch (Throwable t) { file = new JSONObject(); LOG.warn("Auto Outfitting: can't read " + FILE + "; using defaults", t); }
         }
         useLuna = fromLuna && luna();
         if (useLuna) {

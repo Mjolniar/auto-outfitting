@@ -1,7 +1,7 @@
-# Jonah's Auto Outfitting
+# Auto Outfitting
 
 > [!WARNING]
-> **AI-generated.** Mod, docs and build checks written by AI coding agents. Every version is checked offline (compile, bytecode checks, a few hundred test fits on vanilla hulls), but a lot of the newer changes haven't been tried in a real game yet. Expect bugs. If something looks off, throw it in the [issues](https://github.com/Mjolniar/jonahs-auto-outfitting/issues) with `starsector-core/starsector.log` and your modlist if you can.
+> **AI-generated.** Mod, docs and build checks written by AI coding agents. Every version is checked offline (compile, bytecode checks, a few hundred test fits on vanilla hulls), but a lot of the newer changes haven't been tried in a real game yet. Expect bugs. If something looks off, throw it in the [issues](https://github.com/Mjolniar/auto-outfitting/issues) with `starsector-core/starsector.log` and your modlist if you can.
 
 The game's autofit doesn't really know which weapons are good. It copies the ship's stock loadout and grabs whatever has the highest tag, so you end up with junk in big mounts and the same wing in every bay. I had Claude Code make this so the autofit button actually builds the strongest ship it can from the stuff I own.
 
@@ -11,8 +11,8 @@ There are also fleet buttons that fit your whole fleet together, order the weapo
 
 ## Install
 
-1. Grab the zip from the [latest release](https://github.com/Mjolniar/jonahs-auto-outfitting/releases/latest) and extract it into `Starsector/mods/`.
-2. Enable **Jonah's Auto Outfitting** in the launcher. Nothing else is required. LunaLib is optional and gives you an in-game settings menu.
+1. Grab the zip from the [latest release](https://github.com/Mjolniar/auto-outfitting/releases/latest) and extract it into `Starsector/mods/`.
+2. Enable **Auto Outfitting** in the launcher. Nothing else is required. LunaLib is optional and gives you an in-game settings menu.
 
 Starsector 0.98a. It's fine to add to an existing save, and fine to take out again.
 

@@ -204,7 +204,7 @@ final class JAOFleetApply {
                     if (mv != null) strip(mv, off);
                 }
             } catch (Throwable t) {
-                Global.getLogger(JAOFleetApply.class).error("Jonah's Auto Outfitting: Optimize fleet couldn't strip " + s.name, t);
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't strip " + s.name, t);
             }
         }
         // 2. each ship takes its plan
@@ -233,17 +233,17 @@ final class JAOFleetApply {
                 if (settle(v, s.member)) s.member.updateStats();
                 List<String> added = new ArrayList<>();
                 for (String id : v.getHullMods()) if (!before.contains(id)) added.add(id);
-                if (!added.isEmpty()) Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + s.name
+                if (!added.isEmpty()) Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name
                         + "'s hullmod scripts added " + added);
                 done.add(s.member);
                 ships++;
-                Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
                         + emptyMounts(v) + " empty mounts, " + emptyBays(v) + " empty bays, wings " + fittedWings(v) + ", hullmods "
                         + v.getNonBuiltInHullmods() + ", s-mods " + v.getSMods() + ", vents " + v.getNumFluxVents() + ", caps "
                         + v.getNumFluxCapacitors() + ", OP " + v.computeOPCost(Global.getSector().getPlayerStats()) + "/"
                         + v.getHullSpec().getOrdnancePoints(Global.getSector().getPlayerStats()));
             } catch (Throwable t) {
-                Global.getLogger(JAOFleetApply.class).error("Jonah's Auto Outfitting: Optimize fleet couldn't finish " + s.name, t);
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't finish " + s.name, t);
             }
         }
         // 3. what came off and wasn't used again goes to storage
@@ -274,13 +274,13 @@ final class JAOFleetApply {
             try {
                 com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().reportFleetMemberVariantSaved(m, market);
             } catch (Throwable t) {
-                Global.getLogger(JAOFleetApply.class).warn("Jonah's Auto Outfitting: hullmod item bookkeeping failed for " + m.getShipName(), t);
+                Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: hullmod item bookkeeping failed for " + m.getShipName(), t);
             }
         }
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");
-        Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + msg + "; fleet " + before.describe() + " -> " + fleet.mix().describe());
+        Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + msg + "; fleet " + before.describe() + " -> " + fleet.mix().describe());
         return msg;
     }
 
@@ -366,9 +366,9 @@ final class JAOFleetApply {
                 if (c != null) n += purge(c);
             }
         } catch (Throwable t) {
-            Global.getLogger(JAOFleetApply.class).warn("Jonah's Auto Outfitting: couldn't check for blank LPCs", t);
+            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: couldn't check for blank LPCs", t);
         }
-        if (n > 0) Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: removed " + n + " blank LPCs (left by 0.5.0's Optimize fleet)");
+        if (n > 0) Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: removed " + n + " blank LPCs (left by 0.5.0's Optimize fleet)");
         return n;
     }
 
@@ -434,7 +434,7 @@ final class JAOFleetApply {
         int had = ps.getStoryPoints();
         if (had - JAOSettings.smodReserve < newS.size()) {
             for (String id : newS) if (!v.hasHullMod(id)) v.addMod(id);
-            Global.getLogger(JAOFleetApply.class).warn("Jonah's Auto Outfitting: not enough story points for " + s.name + "'s s-mods; added as ordinary hullmods");
+            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: not enough story points for " + s.name + "'s s-mods; added as ordinary hullmods");
             return 0;
         }
         ShipHullSpecAPI hull = v.getHullSpec();
@@ -448,7 +448,7 @@ final class JAOFleetApply {
         ps.spendStoryPoints(newS.size(), true, null, true, xp / newS.size(), "Built " + Misc.getAndJoined(names) + " into " + s.name + " (" + hull.getNameWithDesignationWithDashClass() + ")");
         if (ps.getStoryPoints() > had - newS.size()) {
             for (String id : newS) if (!v.hasHullMod(id)) v.addMod(id);
-            Global.getLogger(JAOFleetApply.class).error("Jonah's Auto Outfitting: story points weren't spent for " + s.name + "; " + names + " added as ordinary hullmods");
+            Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: story points weren't spent for " + s.name + "; " + names + " added as ordinary hullmods");
             return 0;
         }
         for (String id : newS) {
@@ -475,7 +475,7 @@ final class JAOFleetApply {
         v.setNumFluxCapacitors(v.getNumFluxCapacitors() - c);
         over -= c;
         v.setNumFluxVents(Math.max(0, v.getNumFluxVents() - over));
-        Global.getLogger(JAOFleetApply.class).info("Jonah's Auto Outfitting: Optimize fleet: " + (m == null ? v.getHullVariantId() : m.getShipName())
+        Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + (m == null ? v.getHullVariantId() : m.getShipName())
                 + " was over its OP after refitting (scripts or changed costs); now vents " + v.getNumFluxVents() + ", caps " + v.getNumFluxCapacitors());
         return true;
     }

@@ -1,9 +1,9 @@
 {
   "id": "jonahs_auto_outfitting",
-  "name": "Jonah's Auto Outfitting",
+  "name": "Auto Outfitting",
   "author": "Mjolniar",
-  "version": "0.5.21",
-  "description": "Adds an Optimal goal to the refit screen's autofit: the strongest build for the ship from the weapons, fighters and hullmods you actually have, scored from real combat numbers (damage vs shields, armor and hull, flux, range, special effects) instead of OP cost. Build style: Balanced, Anti-shield, Anti-armor or Hull killer (LunaLib, or data/config/jonahs_auto_outfitting.json).",
+  "version": "0.5.22",
+  "description": "Adds an Optimal goal to the refit screen's autofit: the strongest build for the ship from the weapons, fighters and hullmods you actually have, scored from combat numbers: damage against shields, armor and hull, flux, range and special effects. Build style: Balanced, Anti-shield, Anti-armor or Hull killer (LunaLib, or data/config/jonahs_auto_outfitting.json).",
   "gameVersion": "0.98a-RC8",
   "utility": true,
   "jars": [

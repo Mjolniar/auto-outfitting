@@ -1,6 +1,6 @@
 # Settings
 
-With LunaLib, everything is in its settings menu under **Jonah's Auto Outfitting**. Without it, the same settings are in `data/config/jonahs_auto_outfitting.json` in the mod folder, with a comment on each one. That file is read at startup and on every save load.
+With LunaLib, everything is in its settings menu under **Auto Outfitting**. Without it, the same settings are in `data/config/jonahs_auto_outfitting.json` in the mod folder, with a comment on each one. That file is read at startup and on every save load.
 
 The defaults are meant to work as they are. The ones people usually change are **Build style**, **Story points to keep** and **Never use these weapons**.
 

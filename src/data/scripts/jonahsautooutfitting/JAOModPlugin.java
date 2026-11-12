@@ -12,14 +12,14 @@ public class JAOModPlugin extends BaseModPlugin {
     @Override
     public void onApplicationLoad() {
         try { if (JAOSettings.luna()) JAOLuna.register(); }
-        catch (Throwable t) { Global.getLogger(JAOModPlugin.class).warn("Jonah's Auto Outfitting: LunaLib link failed; using " + JAOSettings.FILE, t); }
+        catch (Throwable t) { Global.getLogger(JAOModPlugin.class).warn("Auto Outfitting: LunaLib link failed; using " + JAOSettings.FILE, t); }
         JAOSettings.load();
     }
 
     @Override
     public void onGameLoad(boolean newGame) {
         if (!JAOSettings.load()) {
-            Global.getLogger(JAOModPlugin.class).warn("Jonah's Auto Outfitting: LunaLib settings not loaded; using " + JAOSettings.FILE);
+            Global.getLogger(JAOModPlugin.class).warn("Auto Outfitting: LunaLib settings not loaded; using " + JAOSettings.FILE);
             JAOSettings.load(false);
         }
         JAOGoals.removeAll();
@@ -29,12 +29,12 @@ public class JAOModPlugin extends BaseModPlugin {
         Global.getSector().registerPlugin(new JAOCampaignPlugin());
         Global.getSector().addTransientScript(new JAOCleanup());
         Global.getSector().addTransientScript(new JAOScreenButton());
-        Global.getLogger(JAOModPlugin.class).info("Jonah's Auto Outfitting: " + JAOSettings.summary());
+        Global.getLogger(JAOModPlugin.class).info("Auto Outfitting: " + JAOSettings.summary());
         publishStatus();
     }
 
     /**
-     * One status line for Jonah's Colony Manager's Diagnostics page, in sector memory under "$jonahs_status_" + mod id,
+     * One status line for Auto Colonies' Diagnostics page, in sector memory under "$jonahs_status_" + mod id,
      * so neither mod needs the other's classes. Written on load and whenever the settings change.
      */
     static void publishStatus() {

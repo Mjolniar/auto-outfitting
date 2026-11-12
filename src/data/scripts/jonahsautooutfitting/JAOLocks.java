@@ -45,7 +45,7 @@ final class JAOLocks {
         if (s == null) return false;
         boolean now = !s.remove(m.getId());
         if (now) s.add(m.getId());
-        Global.getLogger(JAOLocks.class).info("Jonah's Auto Outfitting: " + name(m) + (now ? " locked" : " unlocked") + " (" + s.size() + " locked)");
+        Global.getLogger(JAOLocks.class).info("Auto Outfitting: " + name(m) + (now ? " locked" : " unlocked") + " (" + s.size() + " locked)");
         return now;
     }
 

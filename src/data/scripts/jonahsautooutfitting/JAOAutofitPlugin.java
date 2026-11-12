@@ -20,7 +20,7 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
     public JAOAutofitPlugin(PersonAPI fleetCommander) {
         super(fleetCommander);
         options.add(new AutofitOption(JAOGoals.OPTION, "Optimal fit for every goal", false,
-                "Jonah's Auto Outfitting builds the strongest loadout from what you have, whichever goal you click. "
+                "Auto Outfitting builds the strongest loadout from what you have, whichever goal you click. "
                         + "Use it for ships whose four goal slots are all taken; otherwise pick the Optimal goal."));
         options.add(new AutofitOption(SMODS, "Build in s-mods (story points, permanent)", false,
                 "With an Optimal fit, also builds in the hullmods that make the ship strongest, each judged by re-optimising "
@@ -47,7 +47,7 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
             new JAOOptimizer(this, current, maxSMods, delegate, style).run();
         } catch (Throwable t) {
             // never leave the player with a half-stripped ship: log it and fall back to the game's fit of a stock goal
-            Global.getLogger(JAOAutofitPlugin.class).error("Jonah's Auto Outfitting: Optimal fit failed for "
+            Global.getLogger(JAOAutofitPlugin.class).error("Auto Outfitting: Optimal fit failed for "
                     + current.getHullSpec().getHullId() + "; using the game's autofit", t);
             ShipVariantAPI fallback = JAOGoals.styleOf(target) == null ? target : JAOGoals.stockGoal(current.getHullSpec().getHullId());
             if (fallback != null) super.doFit(current, fallback, maxSMods, delegate);

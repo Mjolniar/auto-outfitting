@@ -2,6 +2,12 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.22 - 2026-11-12
+
+- **New name:** the mod is now called Auto Outfitting. Its folder is `Auto Outfitting`, the zip is `AutoOutfitting.zip`, and the GitHub repository is [Mjolniar/auto-outfitting](https://github.com/Mjolniar/auto-outfitting). Jonah's Colony Manager is now called Auto Colonies.
+- **Updating:** delete the old `Jonah's Auto Outfitting` folder in `mods/` before you extract this version. The mod id is unchanged (`jonahs_auto_outfitting`), so saves, LunaLib settings and ship locks keep working.
+- **Auto Colonies check:** the order panel's note about Auto Colonies supplying AoTD orders works again. Auto Colonies now numbers its versions with a leading 0 (0.3.0.x), which the version check read as older than 2.39.
+
 ## 0.5.21 - 2026-11-11
 
 - **Locked ships:** a new **Lock this ship** button on the refit screen locks the ship shown there. Optimize fleet and Order fleet weapons leave a locked ship as it is, order nothing for it, and don't use what it carries for other ships. It still counts toward the fleet's balance. Press **Unlock this ship** to undo. The Autofit button's Optimal fit still works on locked ships. Locks are saved with the game as a plain list, so removing the mod stays safe. See [The fleet buttons](fleet-tools.md#locked-ships).
@@ -120,7 +126,7 @@ Fixes from an all-weapons test run:
 
 ## 0.5.3 - 2026-11-05
 
-- **The order panel says what Colony Manager covers.** Colony Manager 2.39 plans producers only for goods no colony makes. A good your colonies only make a little of just slows the AoTD order.
+- **The order panel says what Auto Colonies covers.** Auto Colonies 0.2.39 plans producers only for goods no colony makes. A good your colonies only make a little of just slows the AoTD order.
 
 ## 0.5.2 - 2026-11-05
 
@@ -129,7 +135,7 @@ Fixes from an all-weapons test run:
 - **No installer hullmods.** Yunru's Install hullmods and other zero-OP installers are never added.
 - **Plague weapons cost max CR** on other hulls.
 - **MagicLib weapon interference** is read from every mod.
-- **AoTD orders list what they take** from your colonies, and flag what no colony makes (Colony Manager 2.39+ plans producers for those).
+- **AoTD orders list what they take** from your colonies, and flag what no colony makes (Auto Colonies 0.2.39+ plans producers for those).
 
 ## 0.5.1 - 2026-11-05
 

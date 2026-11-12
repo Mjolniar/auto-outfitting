@@ -186,8 +186,8 @@ final class JAOFleetPlanner {
                 for (Line l : plan.moved) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
                 plan.resources = JAOProduction.resources(weapons, wings);
             }
-            if (!plan.notes.isEmpty()) Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: fleet order notes: " + plan.notes);
-            Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: fleet order planned in " + plan.ms + " ms ("
+            if (!plan.notes.isEmpty()) Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order notes: " + plan.notes);
+            Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order planned in " + plan.ms + " ms ("
                     + (plan.aotd ? "AoTD production" : "custom production") + "): " + plan.lines.size() + " items, " + plan.totalCost
                     + " credits (budget " + plan.budget + ")" + (plan.laterItems > 0 ? ", " + plan.laterItems + " more items for " + plan.laterShips
                     + " ships next time (" + plan.laterCost + " credits)" : "") + ", " + plan.planned + " ships, " + plan.skippedCivilian + " civilian skipped"
@@ -230,7 +230,7 @@ final class JAOFleetPlanner {
             try {
                 units = JAOProduction.orderAotd(weapons, wings);
             } catch (Throwable t) {
-                Global.getLogger(JAOFleetPlanner.class).error("Jonah's Auto Outfitting: AoTD production refused the fleet order", t);
+                Global.getLogger(JAOFleetPlanner.class).error("Auto Outfitting: AoTD production refused the fleet order", t);
                 return "Ashes of the Domain's production refused the order (see starsector.log); nothing was ordered";
             }
             int moved = 0;
@@ -246,9 +246,9 @@ final class JAOFleetPlanner {
             Map<String, Integer> waits = JAOProduction.outstanding();
             if (!waits.isEmpty()) {
                 List<String> none = JAOProduction.unmade(waits);
-                Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: AoTD production waits for " + JAOProduction.describe(waits)
+                Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: AoTD production waits for " + JAOProduction.describe(waits)
                         + (none.isEmpty() ? "" : "; no colony makes " + none + (JAOProduction.colonyManagerSupplies()
-                        ? " (Colony Manager's Special project supply plans producers for them)" : "")));
+                        ? " (Auto Colonies' Special project supply plans producers for them)" : "")));
             }
         } else {
             int items = 0;
@@ -257,7 +257,7 @@ final class JAOFleetPlanner {
             }
             msg = "Queued " + items + " items for about " + Misc.getDGSCredits(plan.totalCost) + ", paid each month as they're built; " + where;
         }
-        Global.getLogger(JAOFleetPlanner.class).info("Jonah's Auto Outfitting: " + msg);
+        Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: " + msg);
         return msg;
     }
 

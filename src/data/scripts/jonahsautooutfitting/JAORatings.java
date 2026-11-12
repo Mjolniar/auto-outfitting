@@ -463,9 +463,9 @@ public class JAORatings {
                 out[s] = l.get(l.size() / 2);
             }
         } catch (Throwable t) {
-            Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: couldn't measure enemy ranges; using defaults", t);
+            Global.getLogger(JAORatings.class).warn("Auto Outfitting: couldn't measure enemy ranges; using defaults", t);
         }
-        Global.getLogger(JAORatings.class).info("Jonah's Auto Outfitting: enemy main-battery ranges by size " + java.util.Arrays.toString(out));
+        Global.getLogger(JAORatings.class).info("Auto Outfitting: enemy main-battery ranges by size " + java.util.Arrays.toString(out));
         return out;
     }
 
@@ -535,9 +535,9 @@ public class JAORatings {
                     float s = JAOModel.tierScore(o.optString("tier", ""));
                     if (s > 0f) tiers.put(wid, JAOModel.tierPrior(s));
                 }
-                Global.getLogger(JAORatings.class).info("Jonah's Auto Outfitting: " + tiers.size() + " community weapon ratings");
+                Global.getLogger(JAORatings.class).info("Auto Outfitting: " + tiers.size() + " community weapon ratings");
             } catch (Throwable e) {
-                Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: can't read " + TIERS, e);
+                Global.getLogger(JAORatings.class).warn("Auto Outfitting: can't read " + TIERS, e);
             }
         }
         Float f = tiers.get(id);
@@ -557,9 +557,9 @@ public class JAORatings {
                 rules.add(new String[]{kind, o.optString("id", "").trim(), o.optString("value", "").trim()});
                 kinds.merge(kind, 1, Integer::sum);
             }
-            Global.getLogger(JAORatings.class).info("Jonah's Auto Outfitting: " + rules.size() + " rules " + kinds);
+            Global.getLogger(JAORatings.class).info("Auto Outfitting: " + rules.size() + " rules " + kinds);
         } catch (Throwable t) {
-            Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: can't read " + RULES, t);
+            Global.getLogger(JAORatings.class).warn("Auto Outfitting: can't read " + RULES, t);
         }
         return rules;
     }
@@ -625,7 +625,7 @@ public class JAORatings {
                 if (!id.isEmpty() && !id.startsWith("#")) m.put(id, o);
             }
         } catch (Throwable t) {
-            Global.getLogger(JAORatings.class).warn("Jonah's Auto Outfitting: can't read " + path, t);
+            Global.getLogger(JAORatings.class).warn("Auto Outfitting: can't read " + path, t);
         }
         return Collections.unmodifiableMap(m);
     }

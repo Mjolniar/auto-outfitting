@@ -1,4 +1,4 @@
-# Jonah's Auto Outfitting settings, used when LunaLib isn't enabled (with LunaLib, change them in its settings menu instead).
+# Auto Outfitting settings, used when LunaLib isn't enabled (with LunaLib, change them in its settings menu instead).
 # Read at startup and on every save load.
 {
 	"jao_enabled":true,

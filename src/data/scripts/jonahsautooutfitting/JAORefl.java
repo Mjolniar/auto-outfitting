@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Reflection without naming java.lang.reflect (the game's script loader refuses classes that refer to it): Method is
  * held as a plain Object and getMethod, getMethods, getName and invoke are reached through method handles, the same way
- * Colony Manager's CARefl does it. Only for reading the game's own UI tree (JAOScreenButton).
+ * Auto Colonies' CARefl does it. Only for reading the game's own UI tree (JAOScreenButton).
  */
 final class JAORefl {
     static final MethodHandle GET_METHOD, GET_METHODS, INVOKE, NAME;

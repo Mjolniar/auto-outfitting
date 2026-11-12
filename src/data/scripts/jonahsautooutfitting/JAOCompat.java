@@ -147,7 +147,7 @@ final class JAOCompat {
                 legalWings.addAll(f.getKnownFighters());
             }
         } catch (Throwable t) {
-            Global.getLogger(JAOCompat.class).warn("Jonah's Auto Outfitting: couldn't read the factions' known weapons", t);
+            Global.getLogger(JAOCompat.class).warn("Auto Outfitting: couldn't read the factions' known weapons", t);
         }
         int variants = 0;
         for (String id : Global.getSettings().getAllVariantIds()) {
@@ -160,7 +160,7 @@ final class JAOCompat {
                 for (String w : v.getNonBuiltInWings()) if (w != null && !w.isEmpty()) legalWings.add(w);
             } catch (Throwable ignored) { }
         }
-        Global.getLogger(JAOCompat.class).info("Jonah's Auto Outfitting: " + legalWeapons.size() + " weapons and " + legalWings.size()
+        Global.getLogger(JAOCompat.class).info("Auto Outfitting: " + legalWeapons.size() + " weapons and " + legalWings.size()
                 + " wings obtainable in a normal game (NPC factions and " + variants + " ship variants)");
     }
 
@@ -246,9 +246,9 @@ final class JAOCompat {
                 }
             }
         } catch (Throwable t) {
-            Global.getLogger(JAOCompat.class).warn("Jonah's Auto Outfitting: couldn't read Seeker's or MagicLib's modSettings", t);
+            Global.getLogger(JAOCompat.class).warn("Auto Outfitting: couldn't read Seeker's or MagicLib's modSettings", t);
         }
-        if (!plague.isEmpty() || !interference.isEmpty()) Global.getLogger(JAOCompat.class).info("Jonah's Auto Outfitting: "
+        if (!plague.isEmpty() || !interference.isEmpty()) Global.getLogger(JAOCompat.class).info("Auto Outfitting: "
                 + plague.size() + " plague items (" + plagueLpc.size() + " LPCs), " + interference.size() + " MagicLib interference weapons from modSettings");
     }
 
@@ -363,7 +363,7 @@ final class JAOCompat {
             MutableCharacterStatsAPI cs = Global.getSector().getPlayerStats();
             p.over = after.computeOPCost(cs) - after.getHullSpec().getOrdnancePoints(cs);
         } catch (Throwable t) {
-            Global.getLogger(JAOCompat.class).warn("Jonah's Auto Outfitting: couldn't check what hullmod scripts do to " + plan.getHullVariantId(), t);
+            Global.getLogger(JAOCompat.class).warn("Auto Outfitting: couldn't check what hullmod scripts do to " + plan.getHullVariantId(), t);
         }
         return p;
     }
@@ -414,9 +414,9 @@ final class JAOCompat {
                 if (c != null) n += purge(c, pats);
             }
         } catch (Throwable t) {
-            Global.getLogger(JAOCompat.class).warn("Jonah's Auto Outfitting: couldn't check for script-only LPCs", t);
+            Global.getLogger(JAOCompat.class).warn("Auto Outfitting: couldn't check for script-only LPCs", t);
         }
-        if (n > 0) Global.getLogger(JAOCompat.class).info("Jonah's Auto Outfitting: removed " + n + " script-only LPCs (drones their own mod deletes from cargo)");
+        if (n > 0) Global.getLogger(JAOCompat.class).info("Auto Outfitting: removed " + n + " script-only LPCs (drones their own mod deletes from cargo)");
         return n;
     }
 

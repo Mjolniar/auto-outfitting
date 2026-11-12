@@ -121,7 +121,7 @@ final class JAOFleetPlan {
             } catch (Throwable t) {
                 s.failed = true;
                 failed++;
-                Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't read locked ship " + s.name, t);
+                Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't read locked ship " + s.name, t);
             }
         }
     }
@@ -201,7 +201,7 @@ final class JAOFleetPlan {
             else keepOwn(s.member);
             if (!s.failed) failed++;
             s.failed = true;
-            Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't plan " + s.name, t);
+            Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't plan " + s.name, t);
         }
     }
 
@@ -236,7 +236,7 @@ final class JAOFleetPlan {
         } catch (Throwable t) {
             failed++;
             s.failed = true;
-            Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't plan " + s.name + "'s logistics fit", t);
+            Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't plan " + s.name + "'s logistics fit", t);
         }
     }
 
@@ -264,7 +264,7 @@ final class JAOFleetPlan {
             if (n.contains("error") || n.contains("warning") || n.contains("malfunction") || n.contains("penalty")) bad.add(id);
         }
         if (!bad.isEmpty()) s.notes.add("its scripts add " + JAOCompat.names(bad));
-        if (!probe.added.isEmpty() || !probe.wings.isEmpty()) Global.getLogger(JAOFleetPlan.class).info("Jonah's Auto Outfitting: " + s.name
+        if (!probe.added.isEmpty() || !probe.wings.isEmpty()) Global.getLogger(JAOFleetPlan.class).info("Auto Outfitting: " + s.name
                 + " plan: scripts fill bays " + probe.wings + ", add hullmods " + probe.added + (probe.removed.isEmpty() ? "" : ", remove " + probe.removed)
                 + (probe.over > 0 ? ", " + probe.over + " OP over (taken from flux)" : ""));
     }

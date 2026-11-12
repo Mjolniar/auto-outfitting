@@ -67,7 +67,7 @@ Runs the same fleet plan, but as if every weapon and fighter blueprint you know 
 
 AoTD's production also takes goods from your colonies every month: Heavy Armaments for every item, Ships for LPCs, and Electronic Components for most. The order panel lists them, says which colony makes each one, and flags anything no colony makes, since those items wait until something does.
 
-With **Jonah's Colony Manager** 2.39 or later, its Special project supply plans a producer for goods none of your colonies make. A good your colonies only make a little of just slows the order down.
+With **Auto Colonies** 0.2.39 or later, its Special project supply plans a producer for goods none of your colonies make. A good your colonies only make a little of just slows the order down.
 
 ## Fleet analysis
 
