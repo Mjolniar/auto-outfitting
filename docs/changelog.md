@@ -2,6 +2,10 @@
 
 Every version, newest first. 0.2.1 was the first one on GitHub.
 
+## 0.5.20 - 2026-11-11
+
+- **Settings page crash:** opening Auto Outfitting's page in the LunaLib settings menu crashed the game. Two setting descriptions had a single % sign ("Lean on community weapon ratings" and "Rare weapon bonus"). LunaLib reads % as a formatting code, so they now use %%. The build now checks every setting text for this.
+
 ## 0.5.19 - 2026-11-11
 
 - **Empty mounts:** an empty or under-used mount now costs up to 1.0 of the fit score, up from 0.5. In the offline check with every mod's weapons in stock, the share of mount size left empty went from 17% to 7%. With vanilla weapons it went from 4% to 1%. The modelled cost is about 1% of offense and survival on the stock reference ships.
