@@ -83,6 +83,9 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 .append(" d-mods: each is fitted for its own armor, flux, speed, max CR, flight deck and turrets. ");
         if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons or flux")
                 .append(job.smods && JAOSettings.civilianSmods ? "; cruisers, capitals and salvage rigs build in fleet-wide ones). " : "). ");
+        if (job.fleet.locked > 0) notes.append(job.fleet.locked).append(job.fleet.locked == 1
+                ? " locked ship stays as it is, and what it carries isn't used for other ships"
+                : " locked ships stay as they are, and what they carry isn't used for other ships").append(" (lock or unlock on the refit screen). ");
         if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
         if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
 
@@ -90,7 +93,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         Color text = Global.getSettings().getColor("standardTextColor");
         int same = 0;
         for (JAOFleetApply.Change c : job.changes) {
-            if (!c.any()) { same++; continue; }
+            if (!c.any()) { if (!c.ship.locked) same++; continue; }
             List<String> parts = new ArrayList<>();
             if (c.weapons > 0) parts.add(c.weapons + " weapon" + (c.weapons > 1 ? "s" : ""));
             if (c.wings > 0) parts.add(c.wings + " wing" + (c.wings > 1 ? "s" : ""));
@@ -105,6 +108,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         // notes on ships the plan doesn't change (a Guru with no plague LPCs to fly)
         for (JAOFleetApply.Change c : job.changes) {
             if (c.any()) continue;
+            if (c.ship.locked) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, "locked: left as it is.");
             for (String n : c.ship.notes) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, esc(n) + ".");
         }
 

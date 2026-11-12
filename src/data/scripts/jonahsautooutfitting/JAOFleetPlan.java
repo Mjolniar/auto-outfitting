@@ -57,6 +57,8 @@ final class JAOFleetPlan {
         final List<String> notes = new ArrayList<>();
         /** A civilian hull: the logistics fit (campaign hullmods, no weapons, fleet-wide s-mods on keepers), planned once, outside the fleet's balance. */
         boolean civilian;
+        /** Locked on the refit screen (JAOLocks, 0.5.21): its plan is the ship as it is, what it carries stays on it, and it still counts toward the balance. */
+        boolean locked;
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
@@ -92,13 +94,41 @@ final class JAOFleetPlan {
         for (FleetMemberAPI m : order) {
             ShipPlan s = new ShipPlan(m);
             s.civilian = JAOSettings.civilianLogistics && JAOOptimizer.civilian(m.getHullSpec());
+            s.locked = JAOLocks.locked(m);
+            if (s.locked) locked++;
             ships.add(s);
         }
         done = ships.isEmpty();
     }
 
+    /** Ships locked on the refit screen. */
+    int locked;
+    private boolean lockedReady;
+
+    /**
+     * Locked ships before any planning: each keeps its own fit as its plan, what it carries leaves the shared stock, and
+     * its weapons count in the fleet's balance from the first ship planned on.
+     */
+    private void readyLocked() {
+        lockedReady = true;
+        for (ShipPlan s : ships) {
+            if (!s.locked) continue;
+            try {
+                ShipVariantAPI v = variantOf.apply(s.member).clone();
+                keepOwn(s.member);
+                s.plan = v;
+                s.ws = s.civilian ? new ArrayList<>() : JAOFleetContext.weaponsOf(v);
+            } catch (Throwable t) {
+                s.failed = true;
+                failed++;
+                Global.getLogger(JAOFleetPlan.class).warn("Jonah's Auto Outfitting: couldn't read locked ship " + s.name, t);
+            }
+        }
+    }
+
     /** Plans ships until budgetMs has gone by; true when the whole plan is done. */
     boolean step(long budgetMs) {
+        if (!lockedReady) readyLocked();
         long t0 = System.nanoTime(), end = t0 + budgetMs * 1_000_000L;
         while (!done && System.nanoTime() < end) {
             planOne(ships.get(index));
@@ -119,6 +149,7 @@ final class JAOFleetPlan {
     }
 
     private void planOne(ShipPlan s) {
+        if (s.locked) return;
         if (s.civilian) { planCivilian(s); return; }
         ShipVariantAPI old = s.plan;
         List<Object> oldUsed = new ArrayList<>(s.used);

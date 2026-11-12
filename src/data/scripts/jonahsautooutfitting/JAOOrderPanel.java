@@ -111,6 +111,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                     plan.gatheringPoint == null ? "none set (Queue all picks your biggest production colony)" : plan.gatheringPoint);
             StringBuilder notes = new StringBuilder();
             if (plan.skippedCivilian > 0) notes.append(plan.skippedCivilian).append(" civilian ships skipped (logistics fit). ");
+            if (plan.locked > 0) notes.append(plan.locked).append(plan.locked == 1 ? " locked ship gets" : " locked ships get").append(" nothing ordered and keeps what it carries. ");
             if (plan.failed > 0) notes.append(plan.failed).append(" ships couldn't be planned (see starsector.log). ");
             if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
             for (int i = 0; i < plan.notes.size() && i < 2; i++) head.addPara(esc(plan.notes.get(i) + "."), 4f, g);

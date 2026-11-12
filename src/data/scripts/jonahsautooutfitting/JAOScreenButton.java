@@ -36,15 +36,21 @@ import java.util.Locale;
  */
 public class JAOScreenButton implements EveryFrameScript {
     static final float W = 200f, H = 24f, GAP = 8f;
-    static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis", OPTIMIZE = "jao_fleet_optimize";
+    static final String OPEN = "jao_order_open", ANALYSE = "jao_fleet_analysis", OPTIMIZE = "jao_fleet_optimize", LOCK = "jao_lock_ship";
+    static final String LOCK_LABEL = "Lock this ship", UNLOCK_LABEL = "Unlock this ship";
     static final Logger LOG = Global.getLogger(JAOScreenButton.class);
     static final String TAG = "Jonah's Auto Outfitting: refit screen button ";
 
     private boolean broken;
     private float timer;
     private UIPanelAPI core, refit, overlayHost;
-    /** button: Order fleet weapons (with Optimize fleet under it); button2: Optimize fleet on its own; button3: Fleet analysis. */
-    private CustomPanelAPI button, button2, button3, overlay;
+    /** button: Order fleet weapons (with Optimize fleet under it); button2: Optimize fleet on its own; button3: Fleet analysis;
+     *  button4: Lock / Unlock this ship (0.5.21, JAOLocks). */
+    private CustomPanelAPI button, button2, button3, button4, overlay;
+    private ButtonAPI lockButton;
+    /** The ship and lock state the lock button's label was last set for. */
+    private Object lockShown;
+    private Boolean lockStateShown;
     private int reports, placements;
     private String lastReport;
 
@@ -76,7 +82,7 @@ public class JAOScreenButton implements EveryFrameScript {
         }
         UIPanelAPI found = refitPanel(ui);
         if (found == null) { remove(); report("refit panel not found", null, null, null); return; }
-        if (button != null && found == refit && JAORefl.children(refit).contains(button)) return;   // still in place
+        if (button != null && found == refit && JAORefl.children(refit).contains(button)) { refreshLock(false); return; }   // still in place
         remove();
         refit = found;
         List<UIComponentAPI> leaves = new ArrayList<>();
@@ -126,12 +132,28 @@ public class JAOScreenButton implements EveryFrameScript {
         if (atAna != null) {
             button3 = single(w, h, ANALYSE, "Fleet analysis");
             refit.addComponent(button3).inBL(atAna[0] - rp.getX(), atAna[1] - rp.getY());
+            ours.add(new float[]{atAna[0], atAna[1], w, h});
+        }
+        // Lock / Unlock this ship: the next free cell in the same column, else anywhere free on the refit panel
+        float[] atLock = null;
+        if (two) {
+            float x2 = at[0] + w + 3f;
+            for (float[] c : new float[][]{{x2, at[1] + h + 3f}, {x2, at[1]}, {x2, at[1] - h - 3f}}) {
+                if (spot(rect(refit), leaves, null, null, w, h, c, ours) != null) { atLock = c; break; }
+            }
+        }
+        if (atLock == null) atLock = spot(rect(refit), leaves, op, autofit, w, h, null, ours);
+        if (atLock != null) {
+            button4 = lockPanel(w, h);
+            refit.addComponent(button4).inBL(atLock[0] - rp.getX(), atLock[1] - rp.getY());
+            refreshLock(true);
         }
         if (placements < 4) {
             placements++;
             LOG.info(TAG + (two ? "(with Optimize fleet under it) " : "") + "placed at " + box(ours.get(0))
                     + (two ? "" : atOpt != null ? ", Optimize fleet at " + box(new float[]{atOpt[0], atOpt[1], w, h}) : ", Optimize fleet: no room")
                     + (atAna != null ? ", Fleet analysis at " + box(new float[]{atAna[0], atAna[1], w, h}) : ", Fleet analysis only in the Optimize fleet panel")
+                    + (atLock != null ? ", Lock at " + box(new float[]{atLock[0], atLock[1], w, h}) : ", Lock: no room")
                     + " in " + refit.getClass().getName() + " " + box(rect(refit))
                     + "; OP readout " + box(op) + ", Autofit button " + box(autofit) + ", screen " + Math.round(screen(true)) + "x"
                     + Math.round(screen(false)) + "; buttons " + buttons(leaves));
@@ -166,7 +188,7 @@ public class JAOScreenButton implements EveryFrameScript {
 
     /** Every visible element under c with no children of its own; hidden ones (no opacity) and our button are skipped. */
     void collect(UIComponentAPI c, List<UIComponentAPI> leaves, int depth) {
-        if ((c == button && button != null) || (c == button2 && button2 != null) || (c == button3 && button3 != null)) return;
+        if ((c == button && button != null) || (c == button2 && button2 != null) || (c == button3 && button3 != null) || (c == button4 && button4 != null)) return;
         if (depth > 0 && c.getOpacity() <= 0f) return;
         boolean any = false;
         if (depth <= 16) for (Object o : JAORefl.children(c)) if (o instanceof UIComponentAPI) { any = true; collect((UIComponentAPI) o, leaves, depth + 1); }
@@ -252,10 +274,40 @@ public class JAOScreenButton implements EveryFrameScript {
         if (OPEN.equals(id)) openOrder();
         else if (OPTIMIZE.equals(id)) openOptimize();
         else if (ANALYSE.equals(id)) openAnalysis();
+        else if (LOCK.equals(id)) {
+            Object m = refit == null ? null : JAORefl.call(refit, "getMember");
+            if (m instanceof com.fs.starfarer.api.fleet.FleetMemberAPI) JAOLocks.toggle((com.fs.starfarer.api.fleet.FleetMemberAPI) m);
+            refreshLock(true);
+        }
+    }
+
+    /** "Lock / Unlock this ship" with its label kept to the ship the refit screen shows. */
+    CustomPanelAPI lockPanel(float w, float h) {
+        CustomPanelAPI p = Global.getSettings().createCustom(w, h, new BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object pressedId) { pressed(pressedId); }
+        });
+        TooltipMakerAPI t = p.createUIElement(w, h, false);
+        lockButton = addButton(t, LOCK, LOCK_LABEL, w, h, 0f);
+        p.addUIElement(t).inTL(0f, 0f);
+        lockShown = null;
+        lockStateShown = null;
+        return p;
+    }
+
+    /** Sets the lock button's label for the ship on the screen when the ship or its lock changed (or when forced). */
+    void refreshLock(boolean force) {
+        if (lockButton == null || refit == null) return;
+        Object m = JAORefl.call(refit, "getMember");
+        boolean locked = m instanceof com.fs.starfarer.api.fleet.FleetMemberAPI && JAOLocks.locked((com.fs.starfarer.api.fleet.FleetMemberAPI) m);
+        if (!force && m == lockShown && lockStateShown != null && lockStateShown == locked) return;
+        lockButton.setText(locked ? UNLOCK_LABEL : LOCK_LABEL);
+        lockButton.setEnabled(m instanceof com.fs.starfarer.api.fleet.FleetMemberAPI);
+        lockShown = m;
+        lockStateShown = locked;
     }
 
     /** A button in the game's colors at y from the element's top, with its tooltip. */
-    static void addButton(TooltipMakerAPI t, String id, String label, float w, float h, float y) {
+    static ButtonAPI addButton(TooltipMakerAPI t, String id, String label, float w, float h, float y) {
         ButtonAPI b = t.addButton(label, id, Misc.getBasePlayerColor(), Misc.getDarkPlayerColor(), Alignment.MID, CutStyle.ALL, w, h, 0f);
         b.getPosition().inTL(0f, y);
         t.addTooltipToPrevious(new TooltipMakerAPI.TooltipCreator() {
@@ -274,12 +326,18 @@ public class JAOScreenButton implements EveryFrameScript {
                             + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
                     tt.addPara("S-mods: %s (the Autofit panel's \"Build in s-mods\" box).", 6f, Misc.getHighlightColor(),
                             JAOGoals.optionChecked(JAOAutofitPlugin.SMODS) ? "built in, one story point each" : "none");
+                } else if (LOCK.equals(id)) {
+                    tt.addPara("Locks or unlocks the ship shown here. Optimize fleet and Order fleet weapons leave a locked ship "
+                            + "as it is: its weapons, wings, hullmods, vents and capacitors don't change, nothing is ordered for it, "
+                            + "and what it carries isn't used for other ships. It still counts toward the fleet's balance.", 0f);
+                    tt.addPara("The Autofit button's Optimal fit still works on a locked ship.", 6f);
                 } else {
                     tt.addPara("What your fleet carries: anti-shield and armor-cracking against their aims, damage types, fighter roles, "
                             + "point defense, range bands and empty mounts, with recommendations. Changes nothing.", 0f);
                 }
             }
         }, TooltipMakerAPI.TooltipLocation.BELOW);
+        return b;
     }
 
     /** Plans the order and shows it centred over the screen, in the core UI so it sits above the refit screen. */
@@ -321,12 +379,14 @@ public class JAOScreenButton implements EveryFrameScript {
     }
 
     void remove() {
-        for (CustomPanelAPI b : new CustomPanelAPI[]{button, button2, button3}) {
+        for (CustomPanelAPI b : new CustomPanelAPI[]{button, button2, button3, button4}) {
             try { if (b != null && refit != null) refit.removeComponent(b); } catch (Throwable ignored) { }
         }
         button = null;
         button2 = null;
         button3 = null;
+        button4 = null;
+        lockButton = null;
     }
 
     /** What was found while the button can't be placed, when it changes, a few times a session. */

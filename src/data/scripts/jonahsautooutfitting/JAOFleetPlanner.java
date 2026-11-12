@@ -51,7 +51,7 @@ final class JAOFleetPlanner {
         final List<Line> lines = new ArrayList<>();
         /** AoTD only: weapons and LPCs waiting in the game's own production list, which AoTD's screen doesn't show; Queue all moves them into AoTD's order. */
         final List<Line> moved = new ArrayList<>();
-        int totalCost, budget, credits, planned, skippedCivilian, failed, monthlyCapacity, movedCost;
+        int totalCost, budget, credits, planned, skippedCivilian, locked, failed, monthlyCapacity, movedCost;
         /** Over the budget: ordered next time. */
         int laterShips, laterItems, laterCost;
         /** Ordered through Ashes of the Domain's production rather than the game's own. */
@@ -174,6 +174,7 @@ final class JAOFleetPlanner {
                 }
             }
             plan.failed = fleet.failed;
+            plan.locked = fleet.locked;
             plan.after = fleet.mix();
             plan.lines.addAll(lines.values());
             plan.lines.sort(Comparator.comparingInt((Line l) -> -l.total()).thenComparing(l -> l.name));
