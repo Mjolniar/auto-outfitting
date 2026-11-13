@@ -16,7 +16,7 @@ import java.util.List;
  * Drawn as an overlay from the refit screen button, or inside LunaLib's refit panel (JAORefitButton).
  */
 final class JAOOrderPanel extends JAOOverlayPanel {
-    static final float W = 900f, H = 640f, HEAD = 230f;
+    static final float W = 900f, H = 670f, HEAD = 260f;
     final JAOFleetPlanner.Job job;   // null when planning couldn't start
     JAOFleetPlanner.Plan plan;
     ButtonAPI queue;
@@ -62,14 +62,16 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         if (plan == null) {
             head.addPara("Couldn't plan the fleet order (see starsector.log).", 6f, bad);
         } else {
-            if (plan.lines.isEmpty()) {
+            if (plan.lines.isEmpty() && plan.settlementLines.isEmpty()) {
                 head.addPara(plan.laterItems > 0 ? "Nothing fits the budget now." : "Nothing new to build: your fleet's plan uses only what you own or have on order, or you know no "
                         + "blueprint that would improve it.", 6f);
             } else {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.lines) units += l.count;
+                for (JAOFleetPlanner.Line l : plan.settlementLines) units += l.count;
                 head.addPara("%s items (%s kinds) for the fleet's plan, %s in all. You have %s; budget %s.", 6f, h,
-                        "" + units, "" + plan.lines.size(), Misc.getDGSCredits(plan.totalCost), Misc.getDGSCredits(plan.credits), Misc.getDGSCredits(plan.budget));
+                        "" + units, "" + (plan.lines.size() + plan.settlementLines.size()), Misc.getDGSCredits(plan.totalCost + plan.settlementCost),
+                        Misc.getDGSCredits(plan.credits), Misc.getDGSCredits(plan.budget));
             }
             if (plan.laterItems > 0) head.addPara("Over the budget: %s more items for %s ships (%s). Press Order fleet weapons again later to order them.",
                     4f, h, "" + plan.laterItems, "" + plan.laterShips, Misc.getDGSCredits(plan.laterCost));
@@ -79,6 +81,15 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                 for (JAOFleetPlanner.Line l : plan.moved) units += l.count;
                 head.addPara("%s items from an earlier order (%s) are in the game's own production list, which AoTD's screen doesn't "
                         + "show. Queue all moves them into AoTD's production.", 4f, h, "" + units, Misc.getDGSCredits(plan.movedCost));
+            }
+            JAOProduction.Settlement st = plan.settlement;
+            if (st != null) {
+                // RAT: what the settlement takes, its budget and delivery time
+                if (plan.settlementLines.isEmpty()) head.addPara("Settlement %s: budget %s of %s, +%s a month. Nothing goes there this time.", 4f, h,
+                        st.name, Misc.getDGSCredits(st.budget), Misc.getDGSCredits(st.maxBudget), Misc.getDGSCredits(st.perMonth));
+                else head.addPara("Settlement %s: %s, paid when ordered (%s over base), delivered to its storage in about %s days. Budget %s of %s, +%s a month.", 4f, h,
+                        st.name, Misc.getDGSCredits(plan.settlementCost), st.extraPct(), "" + st.days(plan.settlementCost),
+                        Misc.getDGSCredits(st.budget), Misc.getDGSCredits(st.maxBudget), Misc.getDGSCredits(st.perMonth));
             }
             if (plan.aotd) {
                 head.addPara("Production: Ashes of the Domain (Colonies, Custom production). Each unit is paid when it's finished, "
@@ -100,6 +111,8 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                         head.addPara(esc("Those items wait until a colony makes " + Misc.getAndJoined(names) + "."), 4f, bad);
                     }
                 }
+            } else if (plan.monthlyCapacity <= 0 && st != null) {
+                head.addPara("No custom production capacity (Heavy Industry or Orbital Works): the settlement takes what fits its budget.", 4f, g);
             } else if (plan.monthlyCapacity <= 0) {
                 head.addPara("You have no custom production capacity: you need a colony with Heavy Industry or Orbital Works.", 4f, bad);
             } else if (plan.totalCost > 0) {
@@ -107,8 +120,9 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                         Misc.getDGSCredits(plan.monthlyCapacity), months(plan.totalCost, plan.monthlyCapacity));
             }
             if (plan.problem != null) head.addPara(plan.problem + ".", 4f, bad);
-            head.addPara("Gathering point: %s.", 4f, plan.gatheringPoint == null ? bad : h,
-                    plan.gatheringPoint == null ? "none set (Queue all picks your biggest production colony)" : plan.gatheringPoint);
+            if (st == null || !plan.lines.isEmpty() || !plan.moved.isEmpty())
+                head.addPara("Gathering point: %s.", 4f, plan.gatheringPoint == null ? bad : h,
+                        plan.gatheringPoint == null ? "none set (Queue all picks your biggest production colony)" : plan.gatheringPoint);
             StringBuilder notes = new StringBuilder();
             if (plan.skippedCivilian > 0) notes.append(plan.skippedCivilian).append(" civilian ships skipped (logistics fit). ");
             if (plan.locked > 0) notes.append(plan.locked).append(plan.locked == 1 ? " locked ship gets" : " locked ships get").append(" nothing ordered and keeps what it carries. ");
@@ -123,19 +137,30 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             Color text = Global.getSettings().getColor("standardTextColor");
             List<JAOFleetPlanner.Line> all = new java.util.ArrayList<>(plan.lines);
             all.addAll(plan.moved);
-            for (JAOFleetPlanner.Line l : all) {
-                String ships = l.ships.size() <= 3 ? String.join(", ", l.ships) : String.join(", ", l.ships.subList(0, 3)) + " +" + (l.ships.size() - 3);
-                list.addPara("%s  %s  %s (%s each)   %s", 3f, new Color[]{h, text, h, g, g},
-                        l.count + "x", l.name, Misc.getDGSCredits(l.total()), Misc.getDGSCredits(l.unitCost), ships);
+            boolean both = !plan.settlementLines.isEmpty() && !all.isEmpty();
+            if (!plan.settlementLines.isEmpty()) {
+                if (both) list.addPara("Settlement", g, 3f);
+                lines(list, plan.settlementLines, h, text, g);
             }
+            if (both) list.addPara("Custom production", g, 8f);
+            lines(list, all, h, text, g);
         }
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
         queue = buttons.addButton("Queue all", "queue", 200f, 30f, 0f);
         // AoTD runs its own production; the game's needs Heavy Industry or Orbital Works capacity
-        queue.setEnabled(plan != null && plan.anything() && (plan.aotd || plan.monthlyCapacity > 0));
+        // RAT's settlement takes its share without either
+        queue.setEnabled(plan != null && plan.anything() && (plan.custom() || !plan.settlementLines.isEmpty()));
         ButtonAPI closeButton = buttons.addButton("Close", "close", 140f, 30f, 0f);
         closeButton.getPosition().rightOfTop(queue, 10f);
+    }
+
+    static void lines(TooltipMakerAPI list, List<JAOFleetPlanner.Line> lines, Color h, Color text, Color g) {
+        for (JAOFleetPlanner.Line l : lines) {
+            String ships = l.ships.size() <= 3 ? String.join(", ", l.ships) : String.join(", ", l.ships.subList(0, 3)) + " +" + (l.ships.size() - 3);
+            list.addPara("%s  %s  %s (%s each)   %s", 3f, new Color[]{h, text, h, g, g},
+                    l.count + "x", l.name, Misc.getDGSCredits(l.total()), Misc.getDGSCredits(l.unitCost), ships);
+        }
     }
 
     /** "The plan's fleet: anti-shield 33% -> 46%, armor-cracking 34% -> 41%, bays fighters/bombers/interceptors/support 1/24/0/8 -> 9/15/1/9." */
@@ -161,9 +186,9 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         } else if ("queue".equals(id) && queue != null && queue.isEnabled() && plan != null) {
             String msg = JAOFleetPlanner.queue(plan);
             queue.setEnabled(false);
-            if (status == null) status = element(W - 400f, 40f, false, 370f, H - 48f);
-            boolean failed = msg.contains("nothing was ordered");
-            status.addPara(msg + (failed ? "." : ". See Colonies, Custom production."), 0f, failed ? Misc.getNegativeHighlightColor() : Misc.getPositiveHighlightColor());
+            if (status == null) status = element(W - 400f, 46f, false, 370f, H - 50f);
+            boolean failed = msg.contains("nothing was ordered") || msg.startsWith("Nothing");
+            status.addPara(esc(msg + "."), 0f, failed ? Misc.getNegativeHighlightColor() : Misc.getPositiveHighlightColor());
         }
     }
 }

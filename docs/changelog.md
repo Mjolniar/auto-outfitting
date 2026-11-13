@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.27 - 2026-11-13
+
+- Order fleet weapons: Added Random Assortment of Things settlement orders. A Frontiers settlement with Ordnance Manufacturing takes the biggest ships' items while its budget lasts, at its prices (20% over base), paid when ordered.
+- Order fleet weapons: With custom production too, the rest of the order goes there. Without Heavy Industry or Orbital Works, the settlement takes what fits its budget and the rest is ordered next time.
+- Order fleet weapons: The settlement's storage and its open orders count as owned stock.
+- Order panel: Shows the settlement's share, its budget, its monthly refill and the delivery time. The item list splits into Settlement and Custom production.
+- Settings: Added RAT settlement orders (On).
+
 ## 0.5.26 - 2026-11-12
 
 - Optimize fleet: Fixed ships off the refit screen skipping the CR loss of an in-space refit. Every changed ship loses the same CR as on the refit screen.
