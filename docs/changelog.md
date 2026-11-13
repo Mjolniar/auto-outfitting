@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.28 - 2026-11-13
+
+- Compatibility: The game version in mod_info is 0.98.5a-RC4. TriOS no longer marks the mod incompatible. 0.98a still loads it.
+- Install: The installed AutoOutfitting.version matches the installed version. TriOS no longer offers an update for a version already installed.
+
 ## 0.5.27 - 2026-11-13
 
 - Order fleet weapons: Added Random Assortment of Things settlement orders. A Frontiers settlement with Ordnance Manufacturing takes the biggest ships' items while its budget lasts, at its prices (20% over base), paid when ordered.
