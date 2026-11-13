@@ -1,5 +1,20 @@
 # Patch notes
 
+## 0.5.26 - 2026-11-12
+
+- Optimize fleet: Fixed ships off the refit screen skipping the CR loss of an in-space refit. Every changed ship loses the same CR as on the refit screen.
+- Optimize fleet: The panel shows each ship's CR loss before Apply to all ships.
+- AI Tweaks: Fixed Strip and Optimize fleet removing its five 0-OP hullmods.
+- Priority weapons: Fixed Respect priority weapons having no effect. Doctrine priority weapons and fighters win a mount when they score within 1% of the best choice.
+- Market prices: Added the setting Minimum gain to buy (1% per 10,000 credits). A market weapon or LPC must make the ship that much stronger than owned items. Survival mode prices weapons x10 and LPCs x5.
+- Hullmod data: Fixed 4 duplicate rows in `jao_hullmods.csv` (Expanded Deck Crew, Insulated Engine Assembly, Recovery Shuttles, Solar Shielding).
+- Expanded Deck Crew: Fixed it being refused on automated carriers such as the Blinding-class.
+- Recovery Shuttles: Fixed the 0.98.5a note. Only automated ships are refused.
+- Escort Package: Added a value as an s-mod. 0.98.5a: shield and armor damage taken -20% on destroyers and -10% on cruisers. 0.98a: destroyer shields only.
+- CR model: Changed the malfunction thresholds to the game's values for each ship. The fit log names the 0.98.5a risk tier (Low, Serious, Critical).
+- Docs: Fixed the design notes on the Auto style and officer skills. Officer skills are not counted in fits.
+- README: Lists Starsector 0.98a and 0.98.5a.
+
 ## 0.5.25 - 2026-11-12
 
 - Version Checker: Added AutoOutfitting.version. TriOS and MagicLib show the installed and latest version.

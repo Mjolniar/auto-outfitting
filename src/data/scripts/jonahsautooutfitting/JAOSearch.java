@@ -49,9 +49,20 @@ final class JAOSearch {
         final Object entry;
         final String stockKey;
         final float price;
+        /** Marked as priority in the player faction's doctrine (with "Respect priority weapons" on). */
+        boolean priority;
 
         Cand(JAOModel.W w, Object entry, String stockKey, float price) { this.w = w; this.entry = entry; this.stockKey = stockKey; this.price = price; }
     }
+
+    /**
+     * A doctrine priority weapon or wing wins over another choice for its mount that scores up to this much better
+     * (design 4): pickBest, pairSwap and fillEmpty compare score x (1 + this) for priority picks. The objective itself
+     * doesn't change.
+     */
+    static final float PRIORITY_MARGIN = 0.01f;
+
+    static float bonus(Cand c) { return c != null && c.priority ? 1f + PRIORITY_MARGIN : 1f; }
 
     static final class Slot {
         final String id;
@@ -143,7 +154,21 @@ final class JAOSearch {
             for (Slot s : slots) if (s.pick != null) { float o = 1f + s.size * 2f; wsum += o; r += o * s.pick.w.rarity; }
             if (wsum > 0f) score *= 1f + params.rareBonus * r / wsum;
         }
+        if (params.creditCost > 0f) score *= 1f - spendCost();
         return score;
+    }
+
+    /** Most of the score purchases can take (the score stays positive). */
+    static final float MAX_SPEND_COST = 0.9f;
+
+    /**
+     * Share of the score the fit's purchases cost: credits spent on bought weapons and LPCs x params.creditCost. A
+     * market weapon has to beat an owned one by its price x creditCost (survival mode's x10 prices need a gain to match).
+     */
+    float spendCost() {
+        float spent = 0f;
+        for (Slot s : slots) if (s.fixed == null && s.pick != null && s.pick.price > 0f) spent += s.pick.price;
+        return Math.min(MAX_SPEND_COST, params.creditCost * spent);
     }
 
     /**
@@ -341,7 +366,10 @@ final class JAOSearch {
         }
     }
 
-    /** Puts the best candidate (or nothing) in s. With swap, the current pick competes too. Returns true if it changed. */
+    /**
+     * Puts the best candidate (or nothing) in s. With swap, the current pick competes too. Returns true if it changed.
+     * Candidates compare on score x bonus (doctrine priority picks win near-ties).
+     */
     boolean pickBest(Slot s, boolean swap) {
         Cand old = s.pick;
         if (old != null) { give(old); s.pick = null; }
@@ -350,7 +378,7 @@ final class JAOSearch {
         if (old != null && take(old)) {
             // the current pick is the one to beat
             s.pick = old;
-            float v = objective();
+            float v = objective() * bonus(old);
             s.pick = null;
             give(old);
             if (v >= best) { best = v; bestC = old; }
@@ -358,7 +386,7 @@ final class JAOSearch {
         for (Cand c : s.cands) {
             if (c == old || !take(c)) continue;
             s.pick = c;
-            float v = objective();
+            float v = objective() * bonus(c);
             s.pick = null;
             give(c);
             if (v > best * 1.0005f || (best <= 0f && v > best)) { best = v; bestC = c; }
@@ -400,7 +428,7 @@ final class JAOSearch {
     void fillEmpty(List<Slot> order) {
         for (Slot s : order) {
             if (s.fixed != null || s.bay || s.pick != null || s.cands.isEmpty()) continue;
-            float base = objective(), bestV = base * (1f - FILL_TOLERANCE);
+            float base = objective(), floor = base * (1f - FILL_TOLERANCE), bestK = -1f;
             Cand best = null;
             for (Cand c : s.cands) {
                 if (!take(c)) continue;
@@ -408,7 +436,8 @@ final class JAOSearch {
                 float v = objective();
                 s.pick = null;
                 give(c);
-                if (v >= bestV) { bestV = v; best = c; }
+                // within the tolerance on its own score; among those, priority picks win near-ties
+                if (v >= floor && v * bonus(c) >= bestK) { bestK = v * bonus(c); best = c; }
             }
             if (best != null && take(best)) s.pick = best;
         }
@@ -450,13 +479,15 @@ final class JAOSearch {
             for (Cand c : s.cands) if (ids.contains(c.w.id)) kept.add(c);
             top.put(s, kept);
         }
-        float base = objective(), bestV = base * 1.002f;
+        // each pair's change is judged against that pair's current picks, on score x priority bonus
+        float base = objective(), bestV = 1.002f;
         Slot bestA = null, bestB = null;
         Cand bestCa = null, bestCb = null;
         for (int i = 0; i < big.size(); i++) {
             for (int j = i + 1; j < big.size(); j++) {
                 Slot a = big.get(i), b = big.get(j);
                 Cand oa = a.pick, ob = b.pick;
+                float now = base * bonus(oa) * bonus(ob);
                 if (oa != null) give(oa);
                 if (ob != null) give(ob);
                 Set<String> doneA = new HashSet<>();
@@ -471,7 +502,9 @@ final class JAOSearch {
                         if (!take(cb)) continue;
                         doneB.add(cb.w.id);
                         b.pick = cb;
-                        float v = objective();
+                        float o = objective() * bonus(ca) * bonus(cb);
+                        // from a fit scoring 0 any positive score is a gain (the largest wins)
+                        float v = now > 0f ? o / now : o > 0f ? 2f + o : 0f;
                         if (v > bestV) { bestV = v; bestA = a; bestB = b; bestCa = ca; bestCb = cb; }
                         b.pick = null;
                         give(cb);

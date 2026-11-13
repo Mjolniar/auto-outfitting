@@ -140,6 +140,8 @@ class JAOOptimizer {
         JAORole role = JAOSettings.roles ? roleOf(hull) : null;
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = paramsFor(hull, role, st);
+        // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
+        p.creditCost = planning ? 0f : JAOSettings.buyGain / 10000f;
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
@@ -147,6 +149,12 @@ class JAOOptimizer {
             List<String> available = new ArrayList<>();
             for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
             for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
+            // hullmods worth something only as s-mods (Escort Package) aren't ordinary candidates
+            for (String id : JAOShip.SMOD_VALUE) {
+                if (available.contains(id) || !delegate.getAvailableHullmods().contains(id) || hull.getBuiltInMods().contains(id)
+                        || JAOCompat.removedByHull(id, hull) || !JAOSMods.buildable(id)) continue;
+                available.add(id);
+            }
             int[] why = new int[4];
             int limit = smodLimit(why);
             FleetMemberAPI member = delegate.getFleetMember();
@@ -471,7 +479,9 @@ class JAOOptimizer {
                     if ((spec.getType() == WeaponType.MISSILE || spec.getAIHints().contains(AIHints.STRIKE)) && !spec.getAIHints().contains(AIHints.DO_NOT_AIM)) {
                         if (offAxis > 45f || (!spec.getAIHints().contains(AIHints.GUIDED_POOR) && offAxis > 20f)) continue;
                     }
-                    js.cands.add(new JAOSearch.Cand(m, w, "w" + i, w.getPrice()));
+                    JAOSearch.Cand c = new JAOSearch.Cand(m, w, "w" + i, w.getPrice());
+                    c.priority = priority(spec.getWeaponId(), false);
+                    js.cands.add(c);
                 }
             }
             slots.add(js);
@@ -492,12 +502,29 @@ class JAOOptimizer {
                     if (f.getWingSpec() == null || f.getQuantity() <= 0) continue;
                     if (JAOCompat.boundWing(f.getWingSpec()) || !JAOCompat.wingAllowed(allow, f.getId())) continue;
                     if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(f.getWingSpec())) continue;
-                    js.cands.add(new JAOSearch.Cand(JAORatings.wing(f.getWingSpec()), f, "f" + i, f.getPrice()));
+                    JAOSearch.Cand c = new JAOSearch.Cand(JAORatings.wing(f.getWingSpec()), f, "f" + i, f.getPrice());
+                    c.priority = priority(f.getId(), true);
+                    js.cands.add(c);
                 }
             }
             slots.add(js);
         }
         return slots;
+    }
+
+    /**
+     * Marked as priority in the player faction's doctrine, with "Respect priority weapons" on (design 4): such a weapon or
+     * wing wins when it scores within JAOSearch.PRIORITY_MARGIN of the best other choice. The game's own autofit
+     * delegate reports nothing as priority for the player.
+     */
+    static boolean priority(String id, boolean wing) {
+        if (!JAOSettings.keepPriority || id == null) return false;
+        try {
+            com.fs.starfarer.api.campaign.FactionAPI f = Global.getSector().getPlayerFaction();
+            return wing ? f.isFighterPriority(id) : f.isWeaponPriority(id);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** Sets each weapon slot's bearing (JAOModel.bearing) from its degrees off the bow, weighted by size 1/2/4. */

@@ -18,6 +18,8 @@
 - OP cost: Taken from live ship stats, so hullmod discounts count (Valkyrian Bryncore).
 - Charged guns: Autopulse, Thermal Pulse Cannon and Storm Needler count burst from stored charges.
 - Community ratings: Grievous69's 0.98a tier lists break near-ties by about 5% at most.
+- Priority weapons: Doctrine priority weapons and fighters win a mount when within 1% of the best choice.
+- Market weapons: A bought weapon must add 1% per 10,000 credits it costs (setting Minimum gain to buy).
 
 ## Missiles
 
@@ -65,10 +67,10 @@
 ## The ship itself
 
 - Stats: Armor, hull, flux, speed, shields, range and peak time come from live stats, skills and d-mods.
-- Max CR: Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills run through the CR rules. Aim worsens as CR falls. Ships below 50% and 40% fight worse and malfunction.
+- Max CR: Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills run through the CR rules. Aim worsens as CR falls. Ships below 50% and 40% fight worse and malfunction. The malfunction thresholds are read from the game for each ship.
 - Flight deck: Damaged Flight Deck, Malfunctioning Comms and Defective Manufactory lower wing value. Expanded Deck Crew raises it.
 - Turrets: Damaged Weapon Mounts cost point defense and accuracy. Weapon durability is not scored.
-- Officers: A ship without an officer is fitted for the personality from the doctrine aggression slider. On 0.98.5a an inactive officer counts as none.
+- Officers: The officer's personality sets the fit's range. Officer skills are not counted. A ship without an officer is fitted for the personality from the doctrine aggression slider. On 0.98.5a an inactive officer counts as none.
 
 ## Weapon groups
 

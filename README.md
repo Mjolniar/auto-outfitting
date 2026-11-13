@@ -14,7 +14,7 @@
 2. Extract it into `Starsector/mods/`.
 3. Enable Auto Outfitting in the launcher. LunaLib is optional and adds an in-game settings menu.
 
-- Game version: Starsector 0.98a.
+- Game version: Starsector 0.98a and 0.98.5a. One jar runs on both.
 - Saves: Can be added to or removed from an existing save.
 
 ## Update

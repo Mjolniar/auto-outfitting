@@ -87,7 +87,10 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 ? " locked ship stays as it is, and what it carries isn't used for other ships"
                 : " locked ships stay as they are, and what they carry isn't used for other ships").append(" (lock or unlock on the refit screen). ");
         if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
-        if (notes.length() > 0) head.addPara(notes.toString().trim(), 4f, g);
+        if (job.crShips > 0) notes.append("Refitting in space costs CR, as on the refit screen: ").append(job.crShips)
+                .append(job.crShips == 1 ? " ship loses " : " ships lose ").append("up to ").append(Math.round(job.crMax * 100f))
+                .append("% (shown per ship). Refits at a market cost no CR. ");
+        if (notes.length() > 0) head.addPara(esc(notes.toString().trim()), 4f, g);
 
         TooltipMakerAPI list = element(W - 20f, H - 250f, true, 10f, 190f);
         Color text = Global.getSettings().getColor("standardTextColor");
@@ -101,7 +104,9 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             for (String m : c.removed) parts.add("-" + m);
             if (!c.smods.isEmpty()) parts.add("s-mod " + String.join(", ", c.smods));
             if (parts.isEmpty() && c.flux > 0) parts.add("vents/capacitors");
-            list.addPara("%s  %s", 3f, new Color[]{h, text}, c.ship.name, esc(String.join(", ", parts)));
+            if (c.cr >= 0.005f) parts.add("CR -" + Math.round(c.cr * 100f) + "%");
+            // highlight arguments go in as they are (String.format doesn't read them): "CR -12%" needs no escaping
+            list.addPara("%s  %s", 3f, new Color[]{h, text}, c.ship.name, String.join(", ", parts));
             for (String n : c.ship.notes) list.addPara("    " + esc(n) + ".", 0f, g);
         }
         if (same > 0) list.addPara(same + " ships already match the plan.", 6f, g);
@@ -109,7 +114,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         for (JAOFleetApply.Change c : job.changes) {
             if (c.any()) continue;
             if (c.ship.locked) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, "locked: left as it is.");
-            for (String n : c.ship.notes) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, esc(n) + ".");
+            for (String n : c.ship.notes) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, n + ".");
         }
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);

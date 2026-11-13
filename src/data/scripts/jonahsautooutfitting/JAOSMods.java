@@ -200,13 +200,16 @@ final class JAOSMods {
         return s;
     }
 
-    /** Can be an s-mod at all: not tagged no_build_in, not hidden, has combat value (jao_hullmods.csv or unknown). */
+    /**
+     * Can be an s-mod at all: not tagged no_build_in, not hidden, has combat value (jao_hullmods.csv or unknown), or a
+     * value only as an s-mod (JAOShip.SMOD_VALUE: Escort Package).
+     */
     static boolean buildable(String id) {
         HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
         if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag(Tags.HULLMOD_NO_BUILD_IN) || spec.hasTag("dmod")) return false;
         if (JAOCompat.neverAdd(id)) return false;
         JSONObject row = JAORatings.hullmods().get(id);
-        if (row != null && !"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE"))) return false;
+        if (row != null && !"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE")) && !JAOShip.SMOD_VALUE.contains(id)) return false;
         // s-mods whose s-mod effect is a penalty (Heavy Armor maneuver -25%, Expanded Missile Racks missile rate of
         // fire x0.8, Autoloader 10 s cooldown): with "Allow hullmods with drawbacks" on they stay candidates (the
         // scratch fleet member applies the penalty and the model scores it); off, never

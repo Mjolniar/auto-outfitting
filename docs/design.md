@@ -45,7 +45,8 @@
 - Hullmods: `delegate.getAvailableHullmods()`. Also checked: `isApplicableToShip` via `ship.setVariantForHullmodCheckOnly`, item requirements, phase tags, incompatibilities (ITU/DTC/ATC/DFC, HSA vs Advanced Optics, shield conversions), the 2-Logistics limit, `canAddRemoveHullmodInPlayerCampaignRefit`.
 - OP: hull `hullSpec.getOrdnancePoints(stats)`. Weapon `w.getOPCost(stats, current.getStatsForOpCosts())` with the player's stats, re-read after hullmod changes. Max vents/caps 10/20/30/50 × the player's `getMaxVentsBonus/getMaxCapacitorsBonus`. The engine does not check these afterwards.
 - Slot rules: `slot.weaponFits(spec)`. Exact mount type may go one size down. Hybrid / Composite / Synergy / Universal need the same size. Built-in, decorative, hidden, system and station slots are skipped.
-- Priority: `isPriority` is hard-wired to false. With "Respect priority weapons" on, `getPlayerFaction().isWeaponPriority(id)` / `isFighterPriority(id)` give a tie-break bonus.
+- Priority: the game's delegate reports nothing as priority for the player. With "Respect priority weapons" on, `getPlayerFaction().isWeaponPriority(id)` / `isFighterPriority(id)` mark the candidate (`Cand.priority`, set in `JAOOptimizer.buildSlots`). `pickBest`, `pairSwap` and `fillEmpty` compare score x 1.01 for marked picks (`JAOSearch.PRIORITY_MARGIN`), so a marked weapon or wing wins its mount when it scores within 1% of the best other choice. The objective itself is unchanged.
+- Price: a single Optimal fit pays for market and black-market items in score: `objective` x (1 - `Params.creditCost` x credits spent), capped at 0.9 (`JAOSearch.spendCost`). `creditCost` = setting "Minimum gain to buy" / 10,000 (default 1% per 10,000 credits). Survival mode (ext_weaponPriceMult 10, ext_fighterPriceMult 5) raises the gain a bought item needs by the same factor. Planning (Optimize fleet, Order fleet weapons) sets it to 0.
 
 ## 5. Ship model
 
@@ -53,7 +54,7 @@
 
 - Stats: one scratch `FleetMemberAPI` per fit. `createFleetMember(SHIP, clone)`, `setFleetCommanderForStats(player, playerFleet.getFleetData())`, then per candidate `setVariant(candidate, false, true)` and `getStats()`.
 - After-creation hullmods (Ballistic Rangefinder, High Scatter Amp, Coherer, PD Integration ...) do not run on the scratch member. The model adds them.
-- Captain (`member.getCaptain()`): sets the engagement range (personality) and skill multipliers. Ordnance Expertise: +1.5 dissipation per weapon OP (elite +20 capacity per OP). Point Defense ×1.5.
+- Captain (`member.getCaptain()`): only the personality is used (`JAOShip.personalityOf`). It sets the engagement range. Officer skills are not applied: `FleetMember.updateStats` applies the captain's personal skills only to a member inside a fleet (`getFleetData() != null`), and the scratch member has none. The player's fleet-wide skills apply through `setFleetCommanderForStats`.
 - Derived: shield-tank share, flux budget (dissipation − shield upkeep − system flux), peak time, slot geometry (front arc share, hardpoints, mirror pairs).
 
 ## 6. Weapon model
@@ -102,7 +103,9 @@ Styles (`JAOStyle`):
 | Anti-armor | TTK vs armored targets (1250-1750) with 0.15/0.55/0.3 |
 | Hull killer | Σ w·(0.1 t1 + 0.3 t2 + 0.6 t3) plus burst damage inside the overload window (4/6/8/10 s) |
 
-- Auto: missile boats with STRIKE missiles use Anti-armor. Carriers use Balanced for the guns. Otherwise Balanced. The mix of the hull's stock goals (R: `hull_profiles.md` "mix") is a second hint.
+- Auto with "Fit for each ship's fleet role" on (default): the role's kill-layer weights (`JAORole` shield/armor/hull, `Params.apply`). Missile boats 0.6/1.6/0.8, Phase 0.5/1.2/1.3, Skirmisher and Support 1.2/0.9/0.9, Flanker 0.7/1.15/1.15, Anchor 1.1/1.0/0.9, Line, Carrier, Battle carrier and Civilian 1/1/1.
+- Auto with fleet roles off: `JAOOptimizer.resolve`. Missile mounts at 40% or more of the mount weight (small 1, medium 2, large 4) use Anti-armor. Every other hull uses Balanced.
+- Auto and Balanced with "Balance with the fleet" on: `JAOFleetMix.complement` then leans the shield and armor weights toward the damage the rest of the fleet lacks (§7k).
 - Survival: EHP = hull + kA·armor + shield HP. Shield HP = tank share × (capacity + 30 s × spare dissipation) / shield efficiency. kA = 10/15/20/25 per size.
 - Score: `survival^0.5 / TTK^0.5`.
 - Hard rules: OP within limit. Load ≤ 1.3 × budget. PD ≥ 0.5 × need for destroyers and up. One range band for the main guns. Mirror pairs symmetric. No STRIKE-only fits on frigates.
@@ -262,6 +265,8 @@ Rules the model reproduces (offline test expectations only):
 Optimize fleet (`JAOFleetApply`, `JAOFleetPanel`):
 - Apply: strips changing ships into cargo, fits each plan from cargo then storage, sets hullmods (s-mods through the game's story point path), vents, capacitors (trimmed if over OP), weapon groups and variant name, then moves unused items to storage.
 - The ship shown on the refit screen is changed through `getShipDisplay().getCurrentVariant()`, then `syncWithCurrentVariant()` and `saveCurrentVariant()`.
+- In-space refit CR (0.5.26): the refit screen charges CR through `FleetMember.setVariant(variant, panel)` when its other entity is null (trade mode NONE). `JAOFleetApply.fieldRefit` reads `getOtherEntity()` from the panel (no panel: no market, or a condition-only market). Every other changed ship is charged through `setVariant(old, false, false)` then `setVariant(new, true, true)`, the same `computeVariantDiffCRImpact`. The shown ship pays through `saveCurrentVariant()`. The panel shows each ship's loss before Apply (`JAOModel.refitCrLoss` over `JAOFleetApply.refitDiff`, the same formula through the API).
+- Hullmods: `hullmods()` keeps hidden hullmods and `never_remove` rule matches (AI Tweaks' AI hullmods), as the single fit's strip does.
 - S-mods are built only while the Autofit panel's "Build in s-mods" box is ticked (`JAOGoals.optionChecked`, read from `SavedVariantData.getOptionState()`). The box is off by default.
 
 Order fleet weapons (`JAOFleetPlanner.Job`):
@@ -369,6 +374,8 @@ New-mod audit (`ao_modscan.py`, report modscan_1111):
 0.5.10 CR and d-mods:
 - `Ship.maxCr` / `JAOShip.maxCr`: 0.7 plus every flat modifier on `getMaxCombatReadiness` except crew ones and `SKR_plagueWarning`, times its mult. Degraded Life Support, Faulty Automated Systems and Increased Maintenance take 5 points each.
 - `crEffect(c)` follows `CRPluginImpl`: aim accuracy 1.5c - 0.5 weighted `CR_AIM` 0.25 of hits; above 70% up to +12% at 100% (damage, damage taken, speed: 10% each); below 50% -12% at 0; malfunctions below 40% (-20% at 0), critical ones below 20% (-40%). Value 1 at 70%.
+- 0.5.26: the thresholds are the ship's own (`Ship.malfAt`, `critAt`, `degradeAt`). `JAOShip.crThresholds` reads `getCRPlugin().getMalfunctionThreshold(stats)` and `getCriticalMalfunctionThreshold(stats)`; the degrade line takes the same scale (all three follow the dynamic stat `cr_malfunction_range`). Defaults 0.4 / 0.2 / 0.5.
+- 0.5.26: `crTier` gives the game's risk label: Low below the malfunction line, Serious below the midpoint of the two lines (0.98.5a; 0.98a used a fixed 30%), Critical below the critical line. The chances are linear in CR in both versions, so the tier changes no score. The fit log shows it as `crTier`.
 - `crStart(max, deploy)` averages first deployment and the next (`Ship.deployCr` from `getCRPerDeploymentPercent`). Plague is `crStart(maxCr - plague/100)`.
 - Carrier deck (`Ship.deck`, `deckFactor`): wing value x (1/refit mult)^0.5 x (1/replacement decrease mult)^0.25 x (replacement increase mult)^0.15 x (0.85 + 0.15 engagement range mult) x `JAOCompat.wingMult`. Damaged Flight Deck x0.88, Malfunctioning Comms x0.94, Expanded Deck Crew x1.08.
 - Carrier deck (`Ship.deck`, `deckFactor`): `wing_mult` rule rows cover hullmods that change the craft: `defective_manufactory` 0.88, scaled by `dmod_effect_mult`.
@@ -483,7 +490,8 @@ Runtime: up to about 60 slots on the largest hulls and about 200 distinct availa
 | Value special weapons | on | Uses `jao_weapon_effects.csv`. |
 | Prefer rare weapons | off | Bias x (1 + bonus x rarity score), section 7c. |
 | Rare weapon bonus | 0.15 | 0-0.5. |
-| Respect priority weapons | on | Faction doctrine marks. |
+| Respect priority weapons | on | Faction doctrine marks win within 1% (`PRIORITY_MARGIN`). |
+| Minimum gain to buy | 0.01 | Score share per 10,000 credits a bought item must add (`Params.creditCost`). 0-0.1. |
 | Point defense floor | 1 | x PD need. |
 | Allow logistics hullmods | off | |
 | Log every fit | off | Scores and reasons to starsector.log (no on-screen messages). |
@@ -498,6 +506,7 @@ Refit autofit always gets 0 s-mods, so there is no "Build in hullmods" setting.
 - S-mod planner: beam search over sets (width 3). "Waiting" is reported even when nothing known is worth it.
 - Known hullmods: the delegate's `getAvailableHullmods()` (learned + always-unlocked, minus hidden, minus spaceport-only when not docked). Excluded: logistics (setting off); `never_add`; fleet-level or campaign-only (ECM, Nav Relay, Ops Center, Escort Package, Recovery Shuttles, Stardust Harmonic/Overcharge).
 - Known hullmods: S-mods also exclude `no_build_in` (Safety Overrides, ET adaptive subsystems, conversions) and penalty s-mods.
+- Escort Package s-mod (0.5.26, `JAOShip.SMOD_VALUE`): an s-mod candidate only. `JAOModel.escortSMod`: 0.98.5a cuts shield and armor damage taken 20% on destroyers and 10% on cruisers near a bigger ship; 0.98a cuts destroyer shield damage only. `JAOShip.escortArmor` tells the versions apart by the hullmod's second s-mod text number. Counted for `ESCORT_UPTIME` 0.6 of a fight.
 - Missile Autoloader and Phase Anchor have modelled effects (`JAOShip.MODELLED`).
 - Safety Overrides: setting `jao_safetyOverrides` (Never / Frigates and destroyers (default) / When it scores best). The game bars SO from capitals.
 - Safety Overrides: Model costs: peak time judged against a whole battle (max(180 s, 2 x fight length)), so x0.33 peak time costs readiness unless Hardened Subsystems offsets it; a range cap removes up to 60% of the firepower share from main guns longer than threshold + 100 (550 for SO); no venting costs x0.93. Offline: SO in 0 of 42 vanilla fits; every fit that picks it has a long-gun share of 25% or less (`JAOFitCheck`).

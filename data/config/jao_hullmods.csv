@@ -15,8 +15,8 @@ dedicated_targeting_core,vanilla,RANGE,TRUE,stats,FALSE,targetingunit distribute
 defensive_targeting_array,vanilla,FIGHTER PD,TRUE,stats,FALSE,,Good on escort carriers with PD wings; bad for strike carriers. 2/4/6/10 OP.
 eccm,vanilla,MISSILE SENSOR,TRUE,stats,FALSE,,Good on missile boats with guided missiles. Low on gun ships. Not a range buff.
 ecm,vanilla,SENSOR,FALSE,context,FALSE,,Fleet support. Low per-ship value; 6/12/18/24 OP is expensive. Only worth it when building an ECM fleet or with spare OP.
-escort_package,vanilla,MOBILITY RANGE,FALSE,context,FALSE,,Good on escort destroyers/cruisers in fleets with capitals; 0 value solo. Cost 0/7/15/0 (only destroyer/cruiser).
-expanded_deck_crew,vanilla,FIGHTER,TRUE,stats,FALSE,,Good on dedicated carriers with 3+ bays; marginal on 1-bay ships. 5/10/15/25 OP.
+escort_package,vanilla,MOBILITY RANGE,FALSE,context,FALSE,,"Good on escort destroyers/cruisers in fleets with capitals; 0 value solo. Cost 0/7/15/0 (only destroyer/cruiser). As an s-mod (scored, JAOShip.SMOD_VALUE): 0.98.5a cuts shield and armor damage taken 20% on destroyers and 10% on cruisers near a bigger ship; 0.98a cuts destroyer shield damage only. Counted for 60% of a fight."
+expanded_deck_crew,vanilla,FIGHTER,TRUE,stats,FALSE,vice_ai_subsystem_integration,Good on dedicated carriers with 3+ bays; marginal on 1-bay ships. 5/10/15/25 OP. Fits automated carriers. Emergent Threats: not with AI Subsystem Integration.
 magazines,vanilla,SPECIAL,TRUE,stats,FALSE,,Niche: ships with charge-based energy weapons or ammo-limited ballistics. Better as S-mod (+50% regen).
 missleracks,vanilla,MISSILE,TRUE,stats,TRUE,,"Strong on missile-centric ships. Useless without missiles. Expensive (8/12/20/30). Its S-mod effect is a penalty, so do not build it in."
 extendedshieldemitter,vanilla,SHIELD,TRUE,stats,FALSE,,Moderate on narrow-arc shields (<=180). Useless on 360-degree shields.
@@ -38,7 +38,7 @@ frontemitter,vanilla,SHIELD,TRUE,stats,FALSE,adaptiveshields,"Good on omni ships
 adaptiveshields,vanilla,SHIELD,TRUE,stats,FALSE,frontemitter,Situational. Useful on front-shield carriers or broadside ships; usually negative on brawlers. Great when S-modded (no arc penalty).
 operations_center,vanilla,SPECIAL,FALSE,context,FALSE,,No value on non-flagships. Only consider when fitting the flagship and CP matter.
 phase_anchor,vanilla,FLUX SPECIAL,TRUE,listener,FALSE,adaptive_coils,phase cloak activation free; x2 (0.98a) or x1.5 (0.98.5a) dissipation and weapon recharge while phased; one emergency dive
-recovery_shuttles,vanilla,FIGHTER LOGISTICS,FALSE,none,FALSE,,"No combat value. 3/6/9/15 OP. 0.98.5a: a Logistics hullmod (takes a logistics slot, needs a spaceport and a fighter bay); recovers up to 10/20/40/80 lost fighter pilots after battle, fleet-wide."
+recovery_shuttles,vanilla,FIGHTER LOGISTICS,FALSE,none,FALSE,automated vice_ai_subsystem_integration,"No combat value. 3/6/9/15 OP. Refused on automated ships. 0.98a: cuts fighter pilot losses, needs a fighter bay. 0.98.5a: a Logistics hullmod (takes a logistics slot, needs a spaceport, no fighter bay needed); recovers up to 10/20/40/80 lost fighter pilots after battle, fleet-wide. Emergent Threats: not with AI Subsystem Integration."
 reinforcedhull,vanilla,HULL,TRUE,stats,FALSE,,Decent filler for armor/hull tanks; very good for rare/irreplaceable hulls (recovery guarantee). Low combat value per OP on shield tanks.
 fluxbreakers,vanilla,FLUX,TRUE,stats,FALSE,,Moderate on high-tech/flux-hungry ships that vent often; good vs Remnant/ion-heavy enemies. Cheap (3/6/9/15).
 safetyoverrides,vanilla,MOBILITY FLUX,TRUE,stats,FALSE,fluxshunt,"Very strong on short-range frigates/destroyers/cruisers built to brawl (e.g. Hyperion, Tempest, Medusa, Wolf, Hammerhead, Aurora). Terrible for long-range fire-support, carriers, and ships needing to "
@@ -50,7 +50,7 @@ auxiliary_fuel_tanks,vanilla,LOGISTICS,FALSE,none,FALSE,,"None in combat. Logist
 efficiency_overhaul,vanilla,LOGISTICS CR,TRUE,stats,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
 expanded_cargo_holds,vanilla,LOGISTICS,FALSE,none,FALSE,,"None in combat. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or remove (BaseHullMod."
 hiressensors,vanilla,LOGISTICS SENSOR,FALSE,none,FALSE,,"None in combat (S-mod: vision only). Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or"
-insulatedengine,vanilla,LOGISTICS SENSOR HULL,TRUE,stats,FALSE,,Campaign stealth mod; small combat value. Requires dock.
+insulatedengine,vanilla,LOGISTICS SENSOR HULL,TRUE,stats,FALSE,,Campaign stealth mod; small combat value. Requires dock. Emergent Threats adds Interdictor immunity.
 militarized_subsystems,vanilla,CIVILIAN LOGISTICS,FALSE,none,FALSE,,"Only matters to arm civilian hulls. Logistics hullmod: counts toward the max 2 non-built-in Logistics mods (settings.json:172, BaseLogisticsHullMod.java:12-68) and needs a spaceport/station to add or "
 solar_shielding,vanilla,LOGISTICS ARMOR SHIELD,TRUE,stats,FALSE,,Low-moderate combat value (generic 10% vs energy); cheap. Requires dock.
 surveying_equipment,vanilla,LOGISTICS,FALSE,none,FALSE,,None in combat. Requires dock.
@@ -122,10 +122,6 @@ vice_adaptive_entropy_arrester,EmergentThreats_Vice,HULL CR,TRUE,stats,FALSE,aut
 vice_adaptive_entropy_projector_abyssal,EmergentThreats_Vice,WEAPON SPECIAL,TRUE,stats,FALSE,other vice_adaptive_*,Free periodic arc damage (~60-120 dps-equivalent + EMP); decent default for brawlers.
 vice_adaptive_flux_dissipator,EmergentThreats_Vice,FLUX SHIELD,TRUE,stats,FALSE,other vice_adaptive_*,Likely near-zero effect (mult on a 0 stat) unless the captain has hard-flux-dissipation skills.
 vice_adaptive_metastatic_growth,EmergentThreats_Vice,HULL MISSILE,TRUE,stats,FALSE,other vice_adaptive_*,Good all-round pick for missile boats.
-expanded_deck_crew,EmergentThreats_Vice,FIGHTER,TRUE,stats,FALSE,automated vice_ai_subsystem_integration,Same numbers as vanilla.
-insulatedengine,EmergentThreats_Vice,ARMOR HULL SENSOR MOBILITY,TRUE,stats,FALSE,,Vanilla Insulated Engine Assembly; ET only adds Interdictor immunity.
-recovery_shuttles,EmergentThreats_Vice,FIGHTER CR,FALSE,none,FALSE,automated vice_ai_subsystem_integration,Same numbers as vanilla.
-solar_shielding,EmergentThreats_Vice,SHIELD ARMOR LOGISTICS,TRUE,stats,FALSE,,Same combat numbers as vanilla (-10% energy damage).
 vice_apotheosis_protocol,EmergentThreats_Vice,FIGHTER SHIELD,TRUE,stats,FALSE,hiressensors,One-shot upgrade for the Cabal Odyssey.
 tw_drone_control_node,EmergentThreats_IX_Revival,FIGHTER SHIELD,TRUE,stats,FALSE,hardenedshieldemitter tw_enhanced_control_node,Cheap (5/7/10 OP) free drone wing for TW destroyers+; worth it unless the ship relies on shield tanking.
 tw_modernized_rangefinder,EmergentThreats_IX_Revival,RANGE,TRUE,stats,FALSE,tw_optimized_targeting_core magellan_trajectory_analyzer vice_adaptive_trajectory_analyzer,Cheap (3/5/7/10) but only useful for archaic composite builds; as an S-mod it is a generic +200 missile/composite range buff.

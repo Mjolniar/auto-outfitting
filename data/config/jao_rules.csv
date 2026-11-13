@@ -72,3 +72,9 @@ removed_by,tahlan_lirefit,unstable_injector,Tahlan: Infernalis Drives (Legio Inf
 removed_by,tahlan_silberherz,safetyoverrides,Tahlan: Silberherz Core (Stahlherz) removes Safety Overrides
 removed_by,tahlan_silberherz_minor,safetyoverrides,Tahlan: Silberherz Subcore (Glanzwurf) removes Safety Overrides
 never_use,tahlan_manannan,,Tahlan: until the Scathach quest flag is set; firing it in the campaign disables it; its ship takes 50000 energy and an explosion of radius 10000 hits every ship; friendly ones too
+# 0.5.26: AI Tweaks hullmods (0 OP, picked by the player for the ship AI); Strip and Optimize fleet keep them
+never_remove,aitweaks_finisher_beam_protocol,,AI Tweaks: Finisher Beam Protocol
+never_remove,aitweaks_system_shunt,,AI Tweaks: System Shunt
+never_remove,aitweaks_custom_ship_ai,,AI Tweaks: Custom AI
+never_remove,aitweaks_search_and_destroy,,AI Tweaks: Search and Destroy
+never_remove,aitweaks_skirmisher,,AI Tweaks: Role: Skirmisher
