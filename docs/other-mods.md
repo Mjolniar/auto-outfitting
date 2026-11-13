@@ -6,6 +6,7 @@
 
 - Treasure Hunt: Treasure Hunt Package is valued on civilian ships. See [Civilian ships](civilian-ships.md).
 - Ashes of the Domain: Vaults of Knowledge: Order fleet weapons uses AoTD production. See [The fleet buttons](fleet-tools.md#order-fleet-weapons).
+- Random Assortment of Things: Order fleet weapons orders at a Frontiers settlement with Ordnance Manufacturing. See [The fleet buttons](fleet-tools.md#order-fleet-weapons).
 - Seeker: Plague hulls fly only plague LPCs (Fire Ant, Pillbug, Beetle). Plague weapons and LPCs cost max CR on other hulls.
 - Emergent Threats: Trinity Worlds ships fly only Nimbus drones. Carriers with an Enhanced Control Node (Maquech) fly anything, and an empty bay gets Nimbus drones at 10 OP each. Kites and Terminators stay. Slots the mod fills itself are left alone.
 - Yunru: "Install:" hullmods and Let's Bayblade! are not added. Inverted Reverse Thrusters counts as a drawback. Gyrojets count for less.

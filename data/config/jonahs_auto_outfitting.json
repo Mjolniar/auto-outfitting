@@ -35,6 +35,8 @@
 	# fleet production order (Order weapons for fleet button on the refit screen)
 	"jao_productionButton":true,
 	"jao_productionBudget":0.5,
+	# Random Assortment of Things: a Frontiers settlement with Ordnance Manufacturing takes what fits its budget first
+	"jao_ratSettlement":true,
 
 	"jao_debug":false,
 }

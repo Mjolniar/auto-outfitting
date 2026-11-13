@@ -35,6 +35,7 @@ jao_smodReserve,Story points to keep,Int,0,,"Never spend story points below this
 jao_productionHeader,Fleet production,Header,Fleet production,,,,,
 jao_productionButton,Order weapons for fleet button,Boolean,true,,"A button on the refit screen (also in LunaLib's refit menu) that plans every fleet ship's Optimal fit with all the weapon and fighter blueprints you know, lists what custom production would have to build, and queues it when you press Queue all.",,,
 jao_productionBudget,Production budget,Double,0.5,,"Share of your credits one fleet order may cost (0.5 = half). The order is always the whole fleet's plan; what doesn't fit the budget (smaller ships last) is ordered the next time you press the button.",0.05,1,
+jao_ratSettlement,RAT settlement orders,Boolean,true,,"Random Assortment of Things: a Frontiers settlement with Ordnance Manufacturing takes the biggest ships' items up to its budget, at its prices, paid when ordered. The rest goes to custom production.",,,
 ,,,,,,,,
 jao_miscHeader,Other,Header,Other,,,,,
 jao_debug,Log every fit,Boolean,false,,"Writes each Optimal fit's scores and reasons to starsector.log.",,,

@@ -63,8 +63,16 @@ final class JAOFleetPlanner {
         Map<String, Integer> resources = new TreeMap<>();
         /** "Ship: note" for ships whose plan the player should know about (bay rules, penalty hullmods). */
         final List<String> notes = new ArrayList<>();
+        /** RAT: the Frontiers settlement that takes weapon orders (null: none, or the setting is off). */
+        JAOProduction.Settlement settlement;
+        /** RAT: the items ordered at the settlement, at its prices, and what they cost in all (paid when ordered). */
+        final List<Line> settlementLines = new ArrayList<>();
+        int settlementCost;
 
-        boolean anything() { return !lines.isEmpty() || !moved.isEmpty(); }
+        boolean anything() { return !lines.isEmpty() || !moved.isEmpty() || !settlementLines.isEmpty(); }
+
+        /** Custom production (AoTD's, or the game's with Heavy Industry or Orbital Works capacity) can take an order. */
+        boolean custom() { return aotd || monthlyCapacity > 0; }
     }
 
     /** Builds the order a frame at a time (the plan behind it can take a few seconds on a big fleet). */
@@ -82,14 +90,19 @@ final class JAOFleetPlanner {
             plan.gatheringPoint = prod.getGatheringPoint() == null ? null : prod.getGatheringPoint().getName();
             plan.aotd = JAOProduction.aotd();
             plan.problem = JAOProduction.problem;
+            plan.settlement = JAOProduction.settlement();
 
             // owned stock: cargo, storages, what's on the fleet, what's already being built
             Map<String, Integer> ownW = new TreeMap<>(), ownF = new TreeMap<>();
             JAOFleetPlan.addCargo(pf.getCargo(), ownW, ownF);
+            java.util.Set<MarketAPI> counted = new java.util.HashSet<>();
             for (MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
+                counted.add(m);
                 CargoAPI c = Misc.getStorageCargo(m);
                 if (c != null) JAOFleetPlan.addCargo(c, ownW, ownF);
             }
+            // RAT: the settlement's storage (kept in its planet's storage, a market outside the economy) and its open orders
+            JAOProduction.addSettlementStock(ownW, ownF, counted);
             List<FleetMemberAPI> members = pf.getFleetData().getMembersListCopy();
             for (FleetMemberAPI m : members) if (m.getVariant() != null) JAOFleetPlan.addMountedWithModules(m.getVariant(), ownW, ownF);
             // the game's own production list is still built every month even with AoTD (its CoreScript keeps that), so it
@@ -143,34 +156,46 @@ final class JAOFleetPlanner {
 
         String progress() { return fleet.progress(); }
 
-        /** The blueprint items of each ship's plan, biggest ships first while the budget lasts; the rest is for next time. */
+        /**
+         * The blueprint items of each ship's plan, biggest ships first while the budget lasts; the rest is for next time.
+         * RAT: a ship's items go to the settlement while its budget lasts (at its prices, paid when ordered), the rest to
+         * custom production. Without custom production what the settlement can't take waits for next time; with neither,
+         * the list is custom production's, for the panel to show.
+         */
         private void finish() {
-            Map<String, Line> lines = new LinkedHashMap<>();
+            Map<String, Line> lines = new LinkedHashMap<>(), atSettlement = new LinkedHashMap<>();
+            JAOProduction.Settlement st = plan.settlement;
+            List<JAOFleetPlan.ShipPlan> ships = new ArrayList<>();
+            List<int[]> sums = new ArrayList<>();   // per ship: cost at the plan's prices, units, cost at the settlement's (-1: can't)
             for (JAOFleetPlan.ShipPlan s : fleet.ships) {
                 if (s.plan == null) continue;
-                int cost = 0, units = 0;
-                for (Object o : s.used) {
-                    if (o instanceof JAOFleetPlan.PlanWeapon && ((JAOFleetPlan.PlanWeapon) o).blueprint) { cost += (int) ((JAOFleetPlan.PlanWeapon) o).price; units++; }
-                    if (o instanceof JAOFleetPlan.PlanFighter && ((JAOFleetPlan.PlanFighter) o).blueprint) { cost += (int) ((JAOFleetPlan.PlanFighter) o).price; units++; }
-                }
                 plan.planned++;
-                if (units == 0) continue;
-                if (plan.totalCost + cost > plan.budget) {
-                    plan.laterShips++;
-                    plan.laterItems += units;
-                    plan.laterCost += cost;
-                    continue;
-                }
-                plan.totalCost += cost;
+                int cost = 0, units = 0, stCost = 0;
                 for (Object o : s.used) {
-                    boolean wing = o instanceof JAOFleetPlan.PlanFighter;
-                    if (wing ? !((JAOFleetPlan.PlanFighter) o).blueprint : !((JAOFleetPlan.PlanWeapon) o).blueprint) continue;
-                    String id = wing ? ((JAOFleetPlan.PlanFighter) o).getId() : ((JAOFleetPlan.PlanWeapon) o).getId();
-                    Line l = lines.computeIfAbsent((wing ? "f:" : "w:") + id, k -> new Line(wing, id,
-                            wing ? wingName(((JAOFleetPlan.PlanFighter) o).spec) : ((JAOFleetPlan.PlanWeapon) o).spec.getWeaponName(),
-                            (int) (wing ? ((JAOFleetPlan.PlanFighter) o).price : ((JAOFleetPlan.PlanWeapon) o).price)));
-                    l.count++;
-                    if (!l.ships.contains(s.name)) l.ships.add(s.name);
+                    if (!blueprint(o)) continue;
+                    cost += price(o);
+                    units++;
+                    int c = st == null ? 0 : st.unitCost(o instanceof JAOFleetPlan.PlanFighter, itemId(o));
+                    stCost = c <= 0 || stCost < 0 ? -1 : stCost + c;
+                }
+                if (units == 0) continue;
+                ships.add(s);
+                sums.add(new int[]{cost, units, stCost});
+            }
+            int[] cost = new int[ships.size()], stCost = new int[ships.size()];
+            for (int i = 0; i < ships.size(); i++) { cost[i] = sums.get(i)[0]; stCost[i] = sums.get(i)[2]; }
+            int[] where = split(cost, stCost, plan.budget, st == null ? -1 : st.budget, plan.custom() || st == null);
+            for (int i = 0; i < ships.size(); i++) {
+                if (where[i] == SETTLEMENT) {
+                    plan.settlementCost += stCost[i];
+                    addItems(ships.get(i), atSettlement, st);
+                } else if (where[i] == CUSTOM) {
+                    plan.totalCost += cost[i];
+                    addItems(ships.get(i), lines, null);
+                } else {
+                    plan.laterShips++;
+                    plan.laterItems += sums.get(i)[1];
+                    plan.laterCost += cost[i];
                 }
             }
             plan.failed = fleet.failed;
@@ -178,6 +203,8 @@ final class JAOFleetPlanner {
             plan.after = fleet.mix();
             plan.lines.addAll(lines.values());
             plan.lines.sort(Comparator.comparingInt((Line l) -> -l.total()).thenComparing(l -> l.name));
+            plan.settlementLines.addAll(atSettlement.values());
+            plan.settlementLines.sort(Comparator.comparingInt((Line l) -> -l.total()).thenComparing(l -> l.name));
             plan.ms = Math.max(1L, fleet.nanos / 1_000_000L);
             for (JAOFleetPlan.ShipPlan s : fleet.ships) for (String n : s.notes) plan.notes.add(s.name + ": " + n);
             if (plan.aotd) {
@@ -189,10 +216,64 @@ final class JAOFleetPlanner {
             if (!plan.notes.isEmpty()) Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order notes: " + plan.notes);
             Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order planned in " + plan.ms + " ms ("
                     + (plan.aotd ? "AoTD production" : "custom production") + "): " + plan.lines.size() + " items, " + plan.totalCost
-                    + " credits (budget " + plan.budget + ")" + (plan.laterItems > 0 ? ", " + plan.laterItems + " more items for " + plan.laterShips
+                    + " credits (budget " + plan.budget + ")"
+                    + (st == null ? "" : "; settlement " + st.name + ": " + plan.settlementLines.size() + " kinds, " + plan.settlementCost
+                    + " credits (its budget " + st.budget + " of " + st.maxBudget + ")") + (plan.laterItems > 0 ? ", " + plan.laterItems + " more items for " + plan.laterShips
                     + " ships next time (" + plan.laterCost + " credits)" : "") + ", " + plan.planned + " ships, " + plan.skippedCivilian + " civilian skipped"
                     + (plan.failed > 0 ? ", " + plan.failed + " failed" : "") + "; fleet " + plan.before.describe() + " -> " + plan.after.describe()
                     + (plan.moved.isEmpty() ? "" : "; " + plan.moved.size() + " kinds waiting in the game's own list to move into AoTD's"));
+        }
+    }
+
+    static final int LATER = 0, CUSTOM = 1, SETTLEMENT = 2;
+
+    /**
+     * Where each ship's items go, in fleet order (biggest first): the settlement while its budget lasts (stCost[i] at its
+     * prices; -1 can't be priced there), then custom production when custom is true, else next time (LATER). Both draw on
+     * one credit budget. stBudget < 0: no settlement. Pure, for JAOOrderSplitCheck.
+     */
+    static int[] split(int[] cost, int[] stCost, int budget, int stBudget, boolean custom) {
+        int[] out = new int[cost.length];
+        int spent = 0, stLeft = Math.max(0, stBudget);
+        for (int i = 0; i < cost.length; i++) {
+            if (stBudget >= 0 && stCost[i] > 0 && stCost[i] <= stLeft && spent + stCost[i] <= budget) {
+                out[i] = SETTLEMENT;
+                stLeft -= stCost[i];
+                spent += stCost[i];
+            } else if (custom && spent + cost[i] <= budget) {
+                out[i] = CUSTOM;
+                spent += cost[i];
+            } else {
+                out[i] = LATER;
+            }
+        }
+        return out;
+    }
+
+    static boolean blueprint(Object o) {
+        return o instanceof JAOFleetPlan.PlanWeapon ? ((JAOFleetPlan.PlanWeapon) o).blueprint
+                : o instanceof JAOFleetPlan.PlanFighter && ((JAOFleetPlan.PlanFighter) o).blueprint;
+    }
+
+    static int price(Object o) {
+        return (int) (o instanceof JAOFleetPlan.PlanFighter ? ((JAOFleetPlan.PlanFighter) o).price : ((JAOFleetPlan.PlanWeapon) o).price);
+    }
+
+    static String itemId(Object o) {
+        return o instanceof JAOFleetPlan.PlanFighter ? ((JAOFleetPlan.PlanFighter) o).getId() : ((JAOFleetPlan.PlanWeapon) o).getId();
+    }
+
+    /** Adds a ship's blueprint items to these lines, priced by the settlement (st) or by the plan (null). */
+    static void addItems(JAOFleetPlan.ShipPlan s, Map<String, Line> lines, JAOProduction.Settlement st) {
+        for (Object o : s.used) {
+            if (!blueprint(o)) continue;
+            boolean wing = o instanceof JAOFleetPlan.PlanFighter;
+            String id = itemId(o);
+            Line l = lines.computeIfAbsent((wing ? "f:" : "w:") + id, k -> new Line(wing, id,
+                    wing ? wingName(((JAOFleetPlan.PlanFighter) o).spec) : ((JAOFleetPlan.PlanWeapon) o).spec.getWeaponName(),
+                    st == null ? price(o) : st.unitCost(wing, id)));
+            l.count++;
+            if (!l.ships.contains(s.name)) l.ships.add(s.name);
         }
     }
 
@@ -210,6 +291,27 @@ final class JAOFleetPlanner {
      * Returns what happened.
      */
     static String queue(Plan plan) {
+        String settled = null;
+        if (!plan.settlementLines.isEmpty()) {
+            Map<String, Integer> weapons = new LinkedHashMap<>(), wings = new LinkedHashMap<>();
+            for (Line l : plan.settlementLines) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
+            try {
+                int[] r = JAOProduction.orderSettlement(weapons, wings);
+                settled = r[0] <= 0 ? null : "Settlement: " + r[0] + " items for " + Misc.getDGSCredits(r[1]) + ", paid now, in about "
+                        + plan.settlement.days(r[1]) + " days to its storage";
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetPlanner.class).error("Auto Outfitting: RAT's settlement refused the fleet order", t);
+                settled = "Settlement: refused (see starsector.log), nothing was ordered there";
+            }
+            if (settled != null) Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: " + settled);
+        }
+        if (plan.lines.isEmpty() && plan.moved.isEmpty()) return settled == null ? "Nothing was ordered" : settled;
+        String custom = queueCustom(plan);
+        return settled == null ? custom : settled + ". " + custom;
+    }
+
+    /** The custom production part of the order (AoTD's or the game's). */
+    private static String queueCustom(Plan plan) {
         FactionProductionAPI prod = Global.getSector().getPlayerFaction().getProduction();
         if (prod.getGatheringPoint() == null) {
             MarketAPI best = null;
@@ -241,7 +343,7 @@ final class JAOFleetPlanner {
                 }
             }
             msg = "Ordered " + units + " items through AoTD production" + (moved > 0 ? " (" + moved + " moved from the game's own list)" : "")
-                    + ", about " + Misc.getDGSCredits(plan.totalCost + plan.movedCost) + ", each paid when it's finished; " + where;
+                    + ", about " + Misc.getDGSCredits(plan.totalCost + plan.movedCost) + ", each paid when it's finished; " + where + ". See Colonies, Custom production";
             // what AoTD now waits to have delivered for all its orders, and the goods no colony makes (the order stalls on them)
             Map<String, Integer> waits = JAOProduction.outstanding();
             if (!waits.isEmpty()) {
@@ -255,7 +357,8 @@ final class JAOFleetPlanner {
             for (Line l : plan.lines) {
                 if (prod.addItem(l.wing ? ProductionItemType.FIGHTER : ProductionItemType.WEAPON, l.id, l.count)) items += l.count;
             }
-            msg = "Queued " + items + " items for about " + Misc.getDGSCredits(plan.totalCost) + ", paid each month as they're built; " + where;
+            msg = "Queued " + items + " items for about " + Misc.getDGSCredits(plan.totalCost) + ", paid each month as they're built; " + where
+                    + ". See Colonies, Custom production";
         }
         Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: " + msg);
         return msg;

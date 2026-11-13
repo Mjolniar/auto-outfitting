@@ -33,13 +33,18 @@
 ## Order fleet weapons
 
 - Plan: The same plan with unlimited supply of every known blueprint. It lists what custom production must build, with costs and the ships using each item.
-- Queue all: Orders the list. Nothing is charged on pressing it.
+- Queue all: Orders the list. Custom production charges nothing on pressing it. A RAT settlement charges its share at once.
 - Stock: Cargo, storage, ship contents and items on order count first. Pressing again orders only what is missing.
 - Budget: One order costs at most the Production budget share of credits (50%). Biggest ships' items go first.
 - Base game: Custom production (needs Heavy Industry or Orbital Works), paid monthly as items are built.
 - Ashes of the Domain: Vaults of Knowledge: AoTD Custom production screen, paid per unit when finished.
 - AoTD goods: Takes Heavy Armaments for every item, Ships for LPCs and Electronic Components for most, monthly from colonies. The panel lists them, names the producing colony and flags goods no colony makes. Those items wait.
 - Auto Colonies 0.2.39+: Special project supply plans a producer for goods no colony makes.
+- Random Assortment of Things: A Frontiers settlement with Ordnance Manufacturing takes the biggest ships' items while its budget lasts. The rest goes to custom production.
+- RAT settlement prices: 20% over base, paid when ordered. Budget 150,000 at most, +10,000 a month (more with other facilities). Delivered to the settlement's storage in 10 to 60 days.
+- RAT without Heavy Industry or Orbital Works: The settlement takes what fits its budget. The rest is ordered next time.
+- RAT stock: The settlement's storage and its open orders count as owned.
+- Setting: RAT settlement orders (On) turns the settlement off for orders.
 
 ## Fleet analysis
 

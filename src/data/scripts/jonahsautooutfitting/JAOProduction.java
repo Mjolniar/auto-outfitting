@@ -78,6 +78,80 @@ final class JAOProduction {
         }
     }
 
+    // ------------------------------------------------------------------ Random Assortment of Things' settlement
+
+    static final String RAT_ID = "assortment_of_things";
+    private static Boolean rat;
+
+    /** A Frontiers settlement that takes weapon orders (JAORatSettlement.info): its budget and prices. */
+    static final class Settlement {
+        String name;
+        int budget, maxBudget, perMonth;
+        float costMult;
+        /** An empty order at the settlement's prices (unitCost). */
+        FactionProductionAPI pricing;
+        private final Map<String, Integer> costs = new java.util.HashMap<>();
+
+        /** What one unit costs at the settlement; 0 when it can't be priced. */
+        int unitCost(boolean wing, String id) {
+            return costs.computeIfAbsent((wing ? "f:" : "w:") + id, k -> {
+                try { return pricing.getUnitCost(wing ? ProductionItemType.FIGHTER : ProductionItemType.WEAPON, id); }
+                catch (Throwable t) { return 0; }
+            });
+        }
+
+        /** RAT's delivery time for an order of this cost: 120 days at the full budget, 10 to 60. */
+        int days(int cost) {
+            float d = 120f * cost / Math.max(1, maxBudget);
+            return Math.round(Math.max(10f, Math.min(60f, d)));
+        }
+
+        String extraPct() { return Math.round((costMult - 1f) * 100f) + "%"; }
+    }
+
+    /** RAT is enabled and its settlement classes are what this was built against (checked once). */
+    static boolean ratLoaded() {
+        if (rat == null) {
+            boolean on = false;
+            try {
+                if (Global.getSettings().getModManager().isModEnabled(RAT_ID)) {
+                    JAORatSettlement.probe();
+                    on = true;
+                }
+            } catch (Throwable t) {
+                Global.getLogger(JAOProduction.class).warn("Auto Outfitting: Random Assortment of Things' settlement couldn't be read; settlement orders off", t);
+            }
+            rat = on;
+        }
+        return rat;
+    }
+
+    /** The settlement that takes this order's weapons: null without RAT, with the setting off, or with no settlement with Ordnance Manufacturing. */
+    static Settlement settlement() {
+        if (!JAOSettings.ratSettlement || !ratLoaded()) return null;
+        try {
+            return JAORatSettlement.info();
+        } catch (Throwable t) {
+            Global.getLogger(JAOProduction.class).warn("Auto Outfitting: couldn't read RAT's settlement", t);
+            return null;
+        }
+    }
+
+    /** Adds the settlement's storage and its open orders to owned stock (RAT only; counted is the markets already counted). */
+    static void addSettlementStock(Map<String, Integer> weapons, Map<String, Integer> wings, java.util.Set<com.fs.starfarer.api.campaign.econ.MarketAPI> counted) {
+        if (!ratLoaded()) return;
+        try {
+            JAORatSettlement.addStock(weapons, wings, counted);
+        } catch (Throwable t) {
+            Global.getLogger(JAOProduction.class).warn("Auto Outfitting: couldn't read RAT's settlement storage or orders", t);
+        }
+    }
+
+    /** One settlement order. Returns {units, credits}; throws if the settlement refused it. */
+    static int[] orderSettlement(Map<String, Integer> weapons, Map<String, Integer> wings) {
+        return JAORatSettlement.order(weapons, wings);
+    }
+
     /** AoTD only: what all its production orders still wait for. */
     static Map<String, Integer> outstanding() {
         if (!aotd()) return new java.util.TreeMap<>();
