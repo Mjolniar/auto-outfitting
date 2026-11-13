@@ -217,6 +217,15 @@ final class JAOShip implements JAOSearch.World {
         // d-mods and the rest the live stats above don't carry (0.5.10, the user 11/06: build against every ship's
         // d-mods): max CR, the carrier deck, turret turning and spread, malfunctions
         s.maxCr = maxCr(st.getMaxCombatReadiness());
+        float[] crLines = crThresholds(st);
+        s.malfAt = crLines[0]; s.critAt = crLines[1]; s.degradeAt = crLines[2];
+        // Escort Package built in: shield (0.98.5a also armor) damage taken cut near a bigger friendly ship, a combat
+        // script the stats don't carry; scored for the share of a fight an escort stays near one
+        if (work.getSMods().contains(ESCORT)) {
+            float[] e = JAOModel.escortSMod(size, escortArmor(), escortBonus());
+            s.shieldTaken *= 1f - e[0] * JAOModel.ESCORT_UPTIME;
+            s.armorTaken *= 1f - e[1] * JAOModel.ESCORT_UPTIME;
+        }
         float deploy = hull.getCRToDeploy();
         if (deploy > 1f) deploy /= 100f;
         s.deployCr = JAOModel.clamp(st.getCRPerDeploymentPercent().computeEffective(deploy), 0f, 1f);
@@ -267,6 +276,56 @@ final class JAOShip implements JAOSearch.World {
 
     private static final Set<String> CR_SKIP = new java.util.HashSet<>(java.util.Arrays.asList(
             "crew skill bonus", "crew understrength", "SKR_plagueWarning"));
+
+    /**
+     * The ship's CR thresholds from the game's CR plugin with its stats: {malfunction, critical malfunction, degrade}.
+     * CRPluginImpl scales all three by the dynamic stat cr_malfunction_range; the degrade line isn't on the plugin's
+     * interface, so it takes the same scale as the malfunction line. The defaults if the plugin can't be read.
+     */
+    static float[] crThresholds(MutableShipStatsAPI st) {
+        try {
+            com.fs.starfarer.api.combat.CombatReadinessPlugin crp = Global.getSettings().getCRPlugin();
+            float malf = crp.getMalfunctionThreshold(st), crit = crp.getCriticalMalfunctionThreshold(st), base = crp.getMalfunctionThreshold(null);
+            if (malf > 0f && crit >= 0f && base > 0f) return new float[]{malf, crit, JAOModel.CR_DEGRADE * malf / base};
+        } catch (Throwable ignored) { }
+        return new float[]{JAOModel.CR_MALF, JAOModel.CR_CRIT, JAOModel.CR_DEGRADE};
+    }
+
+    static final String ESCORT = "escort_package";
+
+    /** Hullmods valued only as s-mods (no single-ship value as ordinary hullmods): JAOSMods may build them in. */
+    static final Set<String> SMOD_VALUE = java.util.Collections.singleton(ESCORT);
+
+    private static Boolean escortArmorRead;
+    private static float escortBonusRead = -1f;
+
+    /**
+     * True when the Escort Package s-mod also cuts armor damage and works on cruisers (0.98.5a). Read from the hullmod
+     * itself: 0.98.5a's s-mod text has a second number (the cruiser's 10%), 0.98a's has one.
+     */
+    static boolean escortArmor() {
+        if (escortArmorRead == null) {
+            boolean v = false;
+            try {
+                HullModSpecAPI spec = Global.getSettings().getHullModSpec(ESCORT);
+                v = spec != null && spec.getEffect() != null && spec.getEffect().getSModDescriptionParam(1, ShipAPI.HullSize.CRUISER) != null;
+            } catch (Throwable ignored) { }
+            escortArmorRead = v;
+        }
+        return escortArmorRead;
+    }
+
+    /** EscortPackage.SHIELD_BONUS as a fraction (0.1 in 0.98a and 0.98.5a). */
+    static float escortBonus() {
+        if (escortBonusRead < 0f) {
+            float b = 0.1f;
+            try {
+                b = com.fs.starfarer.api.impl.hullmods.EscortPackage.SHIELD_BONUS / 100f;
+            } catch (Throwable ignored) { }
+            escortBonusRead = b > 0f && b < 1f ? b : 0.1f;
+        }
+        return escortBonusRead;
+    }
 
     /** A multiplier stat, 1 when it reads as unset. */
     private static float mult(float v) { return v > 0f ? v : 1f; }

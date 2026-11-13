@@ -21,6 +21,7 @@ import com.fs.starfarer.api.plugins.AutofitPlugin.AvailableWeapon;
 import com.fs.starfarer.api.util.Misc;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,8 @@ import java.util.TreeMap;
  *  - The ship on the refit screen is changed through the screen's own copy, then the screen is synced and saved.
  * Civilian ships (with the logistics fit setting on) get that fit: campaign hullmods, no weapons, no vents or capacitors;
  * with s-mods asked for and the civilian s-mods setting on, cruisers, capitals and salvage rigs build in fleet-wide ones.
+ * Away from a market every changed ship loses the CR the refit screen takes for an in-space refit (the game's own
+ * FleetMemberAPI.setVariant with withRefit); the panel shows each ship's loss before Apply.
  */
 final class JAOFleetApply {
     final JAOFleetPlan fleet;
@@ -53,11 +56,15 @@ final class JAOFleetApply {
     int civilian;
     /** "Build in s-mods" was ticked in the Autofit panel when this plan started. */
     final boolean smods;
+    /** Refitting here costs CR (no market to refit at: in space, or at a planet with no colony). */
+    final boolean fieldRefit;
 
     /** What applying the plan changes on one ship. */
     static final class Change {
         final JAOFleetPlan.ShipPlan ship;
         int weapons, wings, flux;
+        /** CR the refit takes away from a market (0-1). */
+        float cr;
         final List<String> added = new ArrayList<>(), removed = new ArrayList<>(), smods = new ArrayList<>();
 
         Change(JAOFleetPlan.ShipPlan ship) { this.ship = ship; }
@@ -65,7 +72,9 @@ final class JAOFleetApply {
     }
 
     final List<Change> changes = new ArrayList<>();
-    int storyPoints, fromStorage, changedShips;
+    int storyPoints, fromStorage, changedShips, crShips;
+    /** Largest CR loss on one ship (0-1). */
+    float crMax;
     boolean summarized, applied;
 
     JAOFleetApply(Object refit) {
@@ -93,6 +102,7 @@ final class JAOFleetApply {
                 : market.getFaction().isHostileTo(Factions.PLAYER) ? CampaignUIAPI.CoreUITradeMode.SNEAK : CampaignUIAPI.CoreUITradeMode.OPEN;
         // s-mods only while the Autofit panel's "Build in s-mods" box is ticked, as for a single Optimal fit (off by default)
         smods = JAOGoals.optionChecked(JAOAutofitPlugin.SMODS);
+        fieldRefit = fieldRefit(refit, market);
         fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
         fleet.variantOf = m -> live(m, false);
     }
@@ -102,6 +112,66 @@ final class JAOFleetApply {
         if (!fleet.done && !fleet.step(budgetMs)) return false;
         if (!summarized) summarize();
         return true;
+    }
+
+    /**
+     * True when a refit here costs CR. The refit screen charges it when it has no other entity (FleetMember.setVariant
+     * with the panel), which happens when it opened with trade mode NONE: in space, or at a planet with no colony.
+     * Without the panel: no market, or a planet's condition market only.
+     */
+    static boolean fieldRefit(Object refit, MarketAPI market) {
+        if (refit != null && JAORefl.method(refit.getClass(), "getOtherEntity") != JAORefl.NONE) return JAORefl.call(refit, "getOtherEntity") == null;
+        return market == null || market.isPlanetConditionMarketOnly();
+    }
+
+    /** The ship the refit screen shows: it is changed through the screen, which charges its CR itself on save. */
+    boolean shown(FleetMemberAPI m) { return refit != null && JAORefl.call(refit, "getMember") == m; }
+
+    /**
+     * The CR the game takes for refitting m from one variant to another away from a market (min with its CR, as the
+     * refit screen shows it), 0 if it can't be worked out. See JAOModel.refitCrLoss.
+     */
+    static float crLoss(FleetMemberAPI m, ShipVariantAPI from, ShipVariantAPI to) {
+        try {
+            MutableCharacterStatsAPI cs = m.getFleetCommander() != null ? m.getFleetCommander().getStats() : null;
+            float loss = JAOModel.refitCrLoss(refitDiff(cs, from, to, true), refitDiff(cs, from, to, false),
+                    to.getHullSpec().getOrdnancePoints(cs), m.getRepairTracker().getBaseCR(),
+                    Global.getSettings().getCRPlugin().getMalfunctionThreshold(null));
+            return Math.max(0f, Math.min(loss, m.getRepairTracker().getCR()));
+        } catch (Throwable t) {
+            return 0f;
+        }
+    }
+
+    /**
+     * HullVariantSpec.computeVariantDiff through the API: the OP of weapons and wings that came off or changed (x
+     * crLossMultForRefitWeapons), vents and capacitors removed, hullmods removed (x crLossMultForRefitHullmods); with
+     * removedOnly false also what went on, and vents and capacitors either way. All x crLossMultForRefit.
+     */
+    static float refitDiff(MutableCharacterStatsAPI cs, ShipVariantAPI a, ShipVariantAPI b, boolean removedOnly) {
+        com.fs.starfarer.api.SettingsAPI set = Global.getSettings();
+        float all = set.getFloat("crLossMultForRefit"), wm = set.getFloat("crLossMultForRefitWeapons"), hm = set.getFloat("crLossMultForRefitHullmods");
+        float d = 0f;
+        for (WeaponSlotAPI slot : a.getHullSpec().getAllWeaponSlotsCopy()) {
+            String x = a.getWeaponId(slot.getId()), y = b.getWeaponId(slot.getId());
+            if (same(x, y)) continue;
+            if (x != null) d += a.getWeaponSpec(slot.getId()).getOrdnancePointCost(cs, a.getStatsForOpCosts()) * wm;
+            else if (!removedOnly) d += b.getWeaponSpec(slot.getId()).getOrdnancePointCost(cs) * wm;
+        }
+        for (int i = 0; i < 20; i++) {
+            String x = wingAt(a, i), y = wingAt(b, i);
+            if (same(x, y)) continue;
+            if (x != null) d += set.getFighterWingSpec(x).getOpCost(a.getStatsForOpCosts()) * wm;
+            else if (!removedOnly) d += set.getFighterWingSpec(y).getOpCost(b.getStatsForOpCosts()) * wm;
+        }
+        if (removedOnly) {
+            d += Math.max(0, a.getNumFluxCapacitors() - b.getNumFluxCapacitors()) + Math.max(0, a.getNumFluxVents() - b.getNumFluxVents());
+        } else {
+            d += Math.abs(a.getNumFluxCapacitors() - b.getNumFluxCapacitors()) + Math.abs(a.getNumFluxVents() - b.getNumFluxVents());
+        }
+        for (String id : a.getHullMods()) if (!b.getHullMods().contains(id)) d += set.getHullModSpec(id).getCostFor(a.getHullSize()) * hm;
+        if (!removedOnly) for (String id : b.getHullMods()) if (!a.getHullMods().contains(id)) d += set.getHullModSpec(id).getCostFor(a.getHullSize()) * hm;
+        return d * all;
     }
 
     static MarketAPI dockedMarket() {
@@ -131,6 +201,12 @@ final class JAOFleetApply {
             if (now.getNumFluxVents() != s.plan.getNumFluxVents() || now.getNumFluxCapacitors() != s.plan.getNumFluxCapacitors()) c.flux = 1;
             storyPoints += c.smods.size();
             if (c.any()) changedShips++;
+            // in-space refit: the game compares the ship's saved variant with the new one (the shown ship's unsaved
+            // screen changes included: saving charges them too)
+            if (fieldRefit && c.any() && !s.locked) {
+                c.cr = crLoss(s.member, s.member.getVariant(), s.plan);
+                if (c.cr >= 0.005f) { crShips++; crMax = Math.max(crMax, c.cr); }
+            }
             changes.add(c);
             countFitted(s.plan, need);
             countFitted(now, have);
@@ -194,6 +270,12 @@ final class JAOFleetApply {
         int missing = 0, built = 0, ships = 0;
         List<JAOFleetPlan.ShipPlan> todo = new ArrayList<>();
         for (Change c : changes) if (c.any() && !c.ship.locked) todo.add(c.ship);
+        // away from a market: each ship's variant as it was, so the game can charge the refit's CR once it's done (the
+        // ship on the refit screen pays through the screen's own save)
+        Map<FleetMemberAPI, ShipVariantAPI> was = new IdentityHashMap<>();
+        if (fieldRefit) for (JAOFleetPlan.ShipPlan s : todo) if (!shown(s.member)) was.put(s.member, s.member.getVariant().clone());
+        int crCharged = 0;
+        float crTaken = 0f;
         // 1. everything off the planned ships into cargo (each item as it comes off, so nothing is lost if one fails)
         for (JAOFleetPlan.ShipPlan s : todo) {
             try {
@@ -235,6 +317,19 @@ final class JAOFleetApply {
                 for (String id : v.getHullMods()) if (!before.contains(id)) added.add(id);
                 if (!added.isEmpty()) Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name
                         + "'s hullmod scripts added " + added);
+                // the refit screen's CR cost for an in-space refit, through the same call: the old variant goes back for a
+                // moment so setVariant(new, withRefit) sees the difference
+                ShipVariantAPI old = was.get(s.member);
+                if (old != null) {
+                    float cr0 = s.member.getRepairTracker().getCR();
+                    ShipVariantAPI now = s.member.getVariant();
+                    s.member.setVariant(old, false, false);
+                    s.member.setVariant(now, true, true);
+                    float lost = cr0 - s.member.getRepairTracker().getCR();
+                    if (lost > 0.0005f) { crCharged++; crTaken = Math.max(crTaken, lost); }
+                    Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " lost "
+                            + Math.round(lost * 100f) + "% CR to the in-space refit");
+                }
                 done.add(s.member);
                 ships++;
                 Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
@@ -278,6 +373,7 @@ final class JAOFleetApply {
             }
         }
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
+                + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");
         Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + msg + "; fleet " + before.describe() + " -> " + fleet.mix().describe());
@@ -425,6 +521,9 @@ final class JAOFleetApply {
         ShipVariantAPI plan = s.plan;
         for (String id : new ArrayList<>(v.getNonBuiltInHullmods())) {
             if (v.getPermaMods().contains(id) || plan.getNonBuiltInHullmods().contains(id)) continue;
+            // hidden hullmods and never_remove rules stay, as in the single fit's strip (AI Tweaks' AI hullmods)
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
             v.removeMod(id);
         }
         List<String> newS = new ArrayList<>();

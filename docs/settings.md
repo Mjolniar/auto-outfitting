@@ -21,7 +21,8 @@
 - Rare weapon bonus (15%): Gain of the rarest weapon.
 - Use items you can only get with cheats (Off): Off leaves out console-only items.
 - Lean on community weapon ratings (On): Near-ties go to the higher rating, about 5% at most.
-- Respect priority weapons (On): Doctrine priority marks win ties.
+- Respect priority weapons (On): Doctrine priority weapons and fighters win when they score within 1% of the best choice for a mount.
+- Minimum gain to buy (1% per 10,000 credits): A market weapon or LPC must make the ship this much stronger per 10,000 credits it costs, over owned items. Survival mode prices weapons x10 and LPCs x5. 0 ignores prices.
 - Point defense floor (1): Minimum point defense by ship size. 0 requires none.
 - Never use these weapons (none): Comma-separated ids or patterns, such as `stardust_*`.
 - Allow hullmods with drawbacks (Off): On weighs drawbacks against gains.

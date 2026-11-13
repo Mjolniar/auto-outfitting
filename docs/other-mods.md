@@ -15,6 +15,7 @@
 - Diable Avionics: Versant and Virtuous weapon selectors in built-in slots are left alone. Script effects of 7 weapons count.
 - Ship Mastery System: Turn off its "S-mod autofit option" in LunaLib, or its autofit replaces Optimal. Its s-mod slots count toward the limit.
 - Extra System Reloaded (Oddisz Edition): Its upgrade hullmod stays through refits and counts in scores.
+- AI Tweaks: Its five 0-OP hullmods (Finisher Beam Protocol, System Shunt, Custom AI, Search and Destroy, Role: Skirmisher) stay through Strip and Optimize fleet.
 
 ## Rules for any mod
 

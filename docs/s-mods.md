@@ -10,6 +10,7 @@
 - Method: Each candidate is judged by refitting the whole ship with it built in. The best goes first.
 - Stops at: The ship's s-mod limit, S-mods per ship (3), story points minus Story points to keep (0), or a gain below Minimum gain per s-mod (2%).
 - Civilian ships: Use their own list. See [Civilian ships](civilian-ships.md).
+- Escort Package: Valued only as an s-mod. 0.98.5a: shield and armor damage taken -20% on destroyers, -10% on cruisers, counted for 60% of a fight. 0.98a: destroyer shields only.
 
 ## Waiting for better hullmods
 

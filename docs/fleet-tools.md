@@ -26,6 +26,7 @@
 - Source: Ship contents, fleet cargo and storage at the docked market. Nothing is bought.
 - Panel: Lists changes per ship (weapons, wings, hullmods, s-mods with story points) and the fleet mix before and after.
 - Apply to all ships: Weapons and LPCs go to cargo, ships take their plan from cargo then storage, unused items go to storage.
+- CR: Away from a market every changed ship loses CR, as on the refit screen. The panel shows each ship's loss before Apply. Refits at a market cost no CR.
 - S-mods: Built only if Build in s-mods is ticked. See [S-mods and story points](s-mods.md).
 - Civilian ships: Get their campaign fit. See [Civilian ships](civilian-ships.md).
 

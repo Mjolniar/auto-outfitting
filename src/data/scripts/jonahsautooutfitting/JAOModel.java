@@ -406,6 +406,12 @@ final class JAOModel {
         /** CR one deployment spends (0-1; 0 = only the first deployment counts). */
         float deployCr;
         /**
+         * The ship's CR thresholds (CRPluginImpl, read through the game's CR plugin with the ship's stats; a stat can
+         * move them): weapon and engine malfunctions below malfAt, critical malfunctions below critAt, worse speed,
+         * damage and damage taken below degradeAt.
+         */
+        float malfAt = CR_MALF, critAt = CR_CRIT, degradeAt = CR_DEGRADE;
+        /**
          * Carrier deck: fighter wings' value on this ship (deckFactor): refit time (Damaged Flight Deck +30% in 0.98a,
          * +25% in 0.98.5a), replacement rate (Expanded Deck Crew), engagement range (Malfunctioning Comms x0.6 in 0.98a,
          * x0.7 in 0.98.5a), fighter d-mods (Defective Manufactory). All read from the live stats. 1 = as the wing's own numbers.
@@ -435,6 +441,7 @@ final class JAOModel {
             s.interferenceMult = interferenceMult; s.noVent = noVent;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
             s.turnRate = turnRate; s.baseTurn = baseTurn; s.baseCap = baseCap; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
+            s.malfAt = malfAt; s.critAt = critAt; s.degradeAt = degradeAt;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             return s;
@@ -479,6 +486,11 @@ final class JAOModel {
     static final class Params {
         JAOStyle style = JAOStyle.BALANCED;
         float fightSeconds = 90f, pdFloor = 1f, rareBonus;
+        /**
+         * Score share a bought weapon or LPC must add per credit it costs (jao_buyGain per 10,000 credits; 0 = prices
+         * ignored). Single Optimal fits only: the fleet plan uses what is owned, the order planner known blueprints.
+         */
+        float creditCost;
         /** Kill-layer weights (shield, armor, hull), firepower vs survival, speed, point defense and fighter weights. */
         float wS = 1f, wA = 1f, wH = 1f, offenseW = 0.6f, mobilityW, pdMult = 1f, wingMult = 1f;
         JAORole role;
@@ -873,7 +885,7 @@ final class JAOModel {
         float plague = 0f;
         for (int i = 0; i < n; i++) plague += fits.get(i).w.crCost;
         plague *= s.plagueMult;
-        float startCr = crStart(s.maxCr - plague / 100f, s.deployCr);
+        float startCr = crStart(s, s.maxCr - plague / 100f);
         // weapons that malfunction outside CR (Ill-Advised Modifications) fire less
         float malf = 1f - clamp(MALFUNCTION_COST * s.malfunction, 0f, 0.5f);
         // EMP resistance and faster venting (Resistant Flux Conduits; 0.5.12, "absolute necessity on any battleship" late
@@ -885,6 +897,8 @@ final class JAOModel {
         if (out != null) {
             if (plague > 0f) out.put("plague", plague);
             if (s.maxCr != CR_BASE || plague > 0f) { out.put("maxCr", s.maxCr - plague / 100f); out.put("crStart", startCr); }
+            int tier = crTier(s.maxCr - plague / 100f, s.malfAt, s.critAt);
+            if (tier > 0) out.put("crTier", (float) tier);
             if (s.deck != 1f) out.put("deck", s.deck);
             if (malf < 1f) out.put("malf", malf);
             if (s.shield) out.put("stay", stay);
@@ -1223,20 +1237,52 @@ final class JAOModel {
     static final float MALFUNCTION_COST = 1.5f;
 
     /**
+     * CRPluginImpl's thresholds at the default malfunction range: weapon and engine malfunctions below 40%, critical
+     * malfunctions below 20%, worse performance below 50%, better above 70% (the improve line doesn't move).
+     */
+    static final float CR_MALF = 0.4f, CR_CRIT = 0.2f, CR_DEGRADE = 0.5f, CR_IMPROVE = 0.7f;
+
+    /** crEffect at the default thresholds. */
+    static float crEffect(float c) { return crEffect(c, CR_MALF, CR_CRIT, CR_DEGRADE); }
+
+    /**
      * What a deployment at combat readiness c (0-1) is worth against one at the usual 70%, by the game's CR rules
      * (CRPluginImpl): the AI aims worse as CR falls; above 70% damage, speed and damage taken get up to 10% better at
-     * 100%; below 50% up to 10% worse at 0; weapons and engines malfunction below 40% (up to 10% / 7.5%) and
-     * critically below 20%. The user 11/06: the Coda Launcher (Seeker) takes max CR off its ship; so do d-mods.
+     * 100%; below the degrade line (50%) up to 10% worse at 0; weapons and engines malfunction below malf (40%: up to
+     * 10% / 7.5%) and critically below crit (20%). The thresholds are the ship's own (JAOShip reads them from the game).
+     * The user 11/06: the Coda Launcher (Seeker) takes max CR off its ship; so do d-mods.
      */
-    static float crEffect(float c) {
+    static float crEffect(float c, float malf, float crit, float degrade) {
         c = clamp(c, 0f, 1f);
         float aim = clamp(1.5f * c - 0.5f, 0f, 1f);
         float e = (1f - CR_AIM + CR_AIM * aim) / (1f - CR_AIM + CR_AIM * 0.55f);
-        if (c > 0.7f) e *= 1f + 0.12f * (c - 0.7f) / 0.3f;
-        else if (c < 0.5f) e *= 1f - 0.12f * (0.5f - c) / 0.5f;
-        if (c < 0.4f) e *= 1f - 0.2f * (0.4f - c) / 0.4f;
-        if (c < 0.2f) e *= 1f - 0.4f * (0.2f - c) / 0.2f;
+        if (c > CR_IMPROVE) e *= 1f + 0.12f * (c - CR_IMPROVE) / (1f - CR_IMPROVE);
+        else if (degrade > 0f && c < degrade) e *= 1f - 0.12f * (degrade - c) / degrade;
+        if (malf > 0f && c < malf) e *= 1f - 0.2f * (malf - c) / malf;
+        if (crit > 0f && c < crit) e *= 1f - 0.4f * (crit - c) / crit;
         return Math.max(0.05f, e);
+    }
+
+    /**
+     * The malfunction risk tier the game shows for CR c (CRPluginImpl.getMalfunctionString): 0 none, 1 Low (below the
+     * malfunction threshold), 2 Serious (below the midpoint of the two thresholds; 0.98.5a, where 0.98a used a fixed 30%),
+     * 3 Critical (below the critical threshold). The chances themselves are linear in CR in both versions, so the tier
+     * is a label: the fit log names it.
+     */
+    static int crTier(float c, float malf, float crit) {
+        if (c < crit) return 3;
+        if (c < 0.5f * (crit + malf)) return 2;
+        if (c < malf) return 1;
+        return 0;
+    }
+
+    static final String[] CR_TIERS = {"None", "Low", "Serious", "Critical"};
+
+    /** crStart at the default thresholds. */
+    static float crStart(float maxCr, float deployCr) {
+        Ship s = new Ship();
+        s.deployCr = deployCr;
+        return crStart(s, maxCr);
     }
 
     /**
@@ -1244,9 +1290,39 @@ final class JAOModel {
      * again before they recover; max CR is also the ceiling CR recovers to). Plague weapons and d-mods that cut max CR
      * cost little on a healthy 70% ship and a lot on one already near the 50% and 40% lines.
      */
-    static float crStart(float maxCr, float deployCr) {
-        if (deployCr <= 0f) return crEffect(maxCr);
-        return 0.5f * (crEffect(maxCr) + crEffect(maxCr - deployCr));
+    static float crStart(Ship s, float maxCr) {
+        if (s.deployCr <= 0f) return crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt);
+        return 0.5f * (crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt) + crEffect(maxCr - s.deployCr, s.malfAt, s.critAt, s.degradeAt));
+    }
+
+    /**
+     * The CR a refit away from a market costs (HullVariantSpec.computeVariantDiffCRImpact, the same in 0.98a and
+     * 0.98.5a): removedOp = OP of what came off or was replaced (weapons and wings x crLossMultForRefitWeapons, hullmods x
+     * crLossMultForRefitHullmods, one per vent or capacitor removed), allOp = the same for every change both ways, both
+     * x crLossMultForRefit. The loss is the larger of removedOp / hull OP and allOp / hull OP, the second capped at what
+     * the ship has above the malfunction threshold.
+     */
+    static float refitCrLoss(float removedOp, float allOp, float hullOp, float baseCr, float malf) {
+        if (hullOp <= 0f) return 0f;
+        return Math.max(removedOp / hullOp, Math.min(Math.max(0f, baseCr - malf), allOp / hullOp));
+    }
+
+    /**
+     * Share of a fight an escort spends within reach of a bigger friendly ship, for the Escort Package s-mod (full effect
+     * within 700 of it, fading out to 1200).
+     */
+    static final float ESCORT_UPTIME = 0.6f;
+
+    /**
+     * Escort Package as an s-mod (EscortPackage.applyEPEffect): {shield, armor} damage taken cut near a bigger friendly
+     * ship. bonus = EscortPackage.SHIELD_BONUS (10%), doubled for a destroyer next to a capital. 0.98.5a (armorToo):
+     * shields and armor, destroyers 20%, cruisers 10%. 0.98a: shields only, destroyers only. Frigates and capitals can't
+     * mount it.
+     */
+    static float[] escortSMod(int size, boolean armorToo, float bonus) {
+        if (size == 1) return new float[]{2f * bonus, armorToo ? 2f * bonus : 0f};
+        if (size == 2 && armorToo) return new float[]{bonus, bonus};
+        return new float[]{0f, 0f};
     }
 
     /**
