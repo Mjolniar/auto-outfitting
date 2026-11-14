@@ -44,7 +44,7 @@ final class JAOModel {
                 float rate = 0f;
                 for (float[] m : INCOMING_MIX) {
                     int dt = (int) m[0];
-                    rate += m[2] * ARMOR_MULT[dt] * armorFactor(m[1] * ARMOR_MULT[dt], cur);
+                    rate += m[2] * ARMOR_MULT[dt] * armorFactor(m[1] * ARMOR_MULT[dt], cur, s.maxDr);
                 }
                 t += pool / steps / Math.max(1e-4f, rate * at);
             }
@@ -52,7 +52,7 @@ final class JAOModel {
         float floor = a0 * MIN_ARMOR, hr = 0f;
         for (float[] m : INCOMING_MIX) {
             int dt = (int) m[0];
-            hr += m[2] * armorFactor(m[1] * ARMOR_MULT[dt], floor);
+            hr += m[2] * armorFactor(m[1] * ARMOR_MULT[dt], floor, s.maxDr);
         }
         float perHit = ARMOR_EHP_SCALE * (t + s.hull / Math.max(1e-4f, hr * ht));
         float linear = s.hull / ht + KA[Math.max(0, Math.min(3, s.size))] * a0 / at;
@@ -127,7 +127,9 @@ final class JAOModel {
     static float duty(Ship s, float diss) {
         if (!s.shield) return 1f;
         float hold = DUTY_HARD * Math.max(1f, s.cap);
-        float te = hold / Math.max(1f, incomingShieldFlux(s));
+        // Field Modulation elite: part of the dissipation drains hard flux while the shield is up
+        float in = incomingShieldFlux(s);
+        float te = hold / Math.max(1f, Math.max(0.2f * in, in - s.hardDiss * Math.max(0f, diss)));
         float vent = s.noVent ? Math.max(1f, diss) : Math.max(1f, 2f * diss * Math.max(0.1f, s.ventRate));
         float tr = hold / vent + DUTY_OVERHEAD;
         return te / (te + tr);
@@ -427,6 +429,29 @@ final class JAOModel {
         float ammoBal = 1f, ammoEn = 1f, regenBal = 1f, regenEn = 1f;
         /** EMP damage taken and flux dissipation while venting (Resistant Flux Conduits 0.5 / x1.25). */
         float empTaken = 1f, ventRate = 1f;
+        /**
+         * Captain skills (0.5.29, JAOShip.applyCaptain). Flux dissipation and capacity per OP spent on weapons and wings
+         * (Ordnance Expertise 1.5 / elite 20; ordnance() adds them for the fit's OP).
+         */
+        float fluxPerWeaponOp, capPerWeaponOp;
+        /** Damage to frigates / destroyers / cruisers / capitals (Target Analysis), damage to fighters (Point Defense). */
+        float[] sizeDmg = {1f, 1f, 1f, 1f};
+        float fighterDmg = 1f;
+        /** Flat range added to point-defense weapons, projectile and beam (Point Defense elite +200). */
+        float pdRange, pdBeamRange;
+        /** Missile hit points (Missile Specialization +25%). */
+        float missileHp = 1f;
+        /**
+         * Energy weapon damage at full flux (Energy Weapon Mastery 0.3), full up to ewmNear and none past ewmFar
+         * (600 / 1000). Scored at EWM_FLUX.
+         */
+        float ewm, ewmNear = 600f, ewmFar = 1000f;
+        /** Share of dissipation that drains hard flux while the shield is up (Field Modulation elite 0.2). */
+        float hardDiss;
+        /** Most damage armor can block (85%; Polarized Armor 90%). */
+        float maxDr = MAX_DR;
+        /** Combat readiness lost per second past peak time (Combat Endurance x0.75; Fragile Subsystems more). */
+        float crLoss = 1f;
 
         Ship copy() {
             Ship s = new Ship();
@@ -444,8 +469,33 @@ final class JAOModel {
             s.malfAt = malfAt; s.critAt = critAt; s.degradeAt = degradeAt;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
+            s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
+            s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
+            s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             return s;
         }
+    }
+
+    /**
+     * The ship with Ordnance Expertise's flux for weaponOp ordnance points of weapons and wings (built-ins excluded, as
+     * ShipVariantAPI.computeWeaponOPCost counts them). The same ship when its captain doesn't have the skill.
+     */
+    static Ship ordnance(Ship base, float weaponOp) {
+        if ((base.fluxPerWeaponOp <= 0f && base.capPerWeaponOp <= 0f) || weaponOp <= 0f) return base;
+        Ship s = base.copy();
+        s.diss += s.fluxPerWeaponOp * weaponOp;
+        s.cap += s.capPerWeaponOp * weaponOp;
+        return s;
+    }
+
+    /** Average flux level Energy Weapon Mastery is scored at (the AI fights at about half flux). */
+    static final float EWM_FLUX = 0.5f;
+
+    /** Energy Weapon Mastery's share of its bonus at this firing distance: all of it up to ewmNear, none past ewmFar. */
+    static float ewmRange(Ship s, float dist) {
+        if (dist <= s.ewmNear) return 1f;
+        if (dist >= s.ewmFar || s.ewmFar <= s.ewmNear) return 0f;
+        return 1f - (dist - s.ewmNear) / (s.ewmFar - s.ewmNear);
     }
 
     /** A weapon in a slot. */
@@ -544,14 +594,19 @@ final class JAOModel {
         if (w.beam && s.hsa && base > 200f) base = 200f + 0.5f * (base - 200f);
         float pct = s.rangePct[w.cls] + (w.beam ? s.beamPct : 0f);
         float flat = s.rangeFlat[w.cls] + (w.beam ? s.beamFlat : 0f);
+        // Point Defense elite: point-defense weapons reach 200 further
+        if (w.pd || w.pdOnly) flat += w.beam ? s.pdBeamRange : s.pdRange;
         float r = (base + base * pct / 100f + flat) * s.rangeMult[w.cls] * (w.beam ? s.beamMult : 1f);
         if (w.cls != MIS && r > s.threshold) r = s.threshold + (r - s.threshold) * s.pastThreshold;
         return r;
     }
 
-    static float armorFactor(float hit, float armor) {
-        if (hit <= 0f) return 1f - MAX_DR;
-        return Math.max(1f - MAX_DR, hit / (hit + armor));
+    static float armorFactor(float hit, float armor) { return armorFactor(hit, armor, MAX_DR); }
+
+    /** maxDr: the most damage the armor blocks (85%; Polarized Armor 90%). */
+    static float armorFactor(float hit, float armor, float maxDr) {
+        if (hit <= 0f) return 1f - maxDr;
+        return Math.max(1f - maxDr, hit / (hit + armor));
     }
 
     /** Per-weapon numbers on this ship, filled by evaluate(). */
@@ -677,6 +732,19 @@ final class JAOModel {
         }
         float outrange = rw > 0f ? rs / rw : 1f;
 
+        // Energy Weapon Mastery (captain skill, a combat listener the stats don't carry): energy weapons deal up to +30% at
+        // high flux, in full up to 600 from the target and none past 1000; scored at EWM_FLUX at both distances
+        if (s.ewm > 0f) {
+            for (int i = 0; i < n; i++) {
+                W w = fits.get(i).w;
+                if (w.wing || w.cls != ENE) continue;
+                float f = (1f - close) * ewmRange(s, Math.min(e[i].range, reng)) + close * ewmRange(s, Math.min(e[i].range, rclose));
+                float m = 1f + s.ewm * EWM_FLUX * f;
+                e[i].dps *= m;
+                e[i].pool *= m;
+            }
+        }
+
         // fighter bays by role across the fleet and this ship, for the role balance of each wing
         float[] bays = p.fleetWingBays.clone();
         Map<String, Integer> sameWing = new HashMap<>();
@@ -707,6 +775,8 @@ final class JAOModel {
         // sustained rate; armor and hull go down half in burst windows (shield down, overload, flanks)
         float[] eff = new float[n], effB = new float[n];
         float pd = 0f, missilePool = 0f, missilePoolStrike = 0f;
+        // point defense shoots missiles and fighters about equally (Point Defense: +50% to each)
+        float pdDmg = 0.5f * (s.pdDmg + s.fighterDmg);
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             Eff x = e[i];
@@ -745,10 +815,10 @@ final class JAOModel {
                 // Turret Gyros speed them up)
                 if (!w.wing && !fits.get(i).hardpoint) hitf *= pdTrack(w.beam ? s.beamTurnMult : s.turnMult);
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
-                pd += x.dps * s.pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f) * (w.wing ? 1f : pdKill(x.dps * s.pdDmg, x.range));
+                pd += x.dps * pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f) * (w.wing ? 1f : pdKill(x.dps * pdDmg, x.range));
             } else if (w.wing && w.wingPd > 0f) {
                 // multi-role fighters screen against missiles and fighters with their PD-capable guns, at half weight
-                pd += 0.5f * w.wingPd * x.dps * s.pdDmg;
+                pd += 0.5f * w.wingPd * x.dps * pdDmg;
             }
             if (x.pool > 0f && x.dps <= 0f) {
                 // finite missiles: unguided ones only count when they can face the target, and miss more (missileReliability)
@@ -785,7 +855,8 @@ final class JAOModel {
         // peak time against a whole battle (several engagements), not one fight: a cut peak time (Safety
         // Overrides x0.33) costs combat readiness unless Hardened Subsystems offsets it
         float battle = Math.max(180f, 2f * p.fightSeconds);
-        float cr = s.ppt > 0f ? 1f - 0.5f * Math.max(0f, battle - s.ppt) / battle : 1f;
+        // past peak time CR falls at the ship's rate (Combat Endurance x0.75)
+        float cr = s.ppt > 0f ? Math.max(0f, 1f - 0.5f * s.crLoss * Math.max(0f, battle - s.ppt) / battle) : 1f;
         // a range cap (Safety Overrides keeps 25% past 450) wastes long guns: penalise their share of the firepower,
         // and not being able to vent costs a little more (research meta_report 10.11: SO only with short guns)
         float capPenalty = 1f;
@@ -973,7 +1044,7 @@ final class JAOModel {
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             if (e[i].pool <= 0f || e[i].dps > 0f) continue;
-            mRate[i] = e[i].pool * e[i].rel * missileUse(w, ts) * pdSurvival(w) / missileWindow;
+            mRate[i] = e[i].pool * e[i].rel * missileUse(w, ts) * pdSurvival(w, ship == null ? 1f : ship.missileHp) / missileWindow;
         }
         // free-fire missiles (deep magazines: Annihilators, Swarmers, Pilums) go whenever the target is in range, mostly
         // into a raised shield (the shield AI faces incoming missiles); conserved ones wait for an opening (research
@@ -1030,6 +1101,9 @@ final class JAOModel {
             hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
         }
         float t3 = hullRate <= 0.01f ? 600f : Math.min(600f, t.hull / hullRate);
+        // Target Analysis: more damage to this target's size, so each phase goes faster
+        float sd = ship == null ? 1f : Math.max(0.1f, ship.sizeDmg[ts]);
+        if (sd != 1f) { t1 /= sd; t2 /= sd; t3 /= sd; }
         return new float[]{t1, t2, t3};
     }
 
@@ -1073,9 +1147,12 @@ final class JAOModel {
      * 10,000 damage on paper beat a Harpoon rack's 2,250 in 71 mounts of the reference run; the community rates them C+
      * and A+.
      */
-    static float pdSurvival(W w) {
+    static float pdSurvival(W w) { return pdSurvival(w, 1f); }
+
+    /** hpMult: the ship's missile hit points (Missile Specialization +25%). */
+    static float pdSurvival(W w, float hpMult) {
         if (w.wing || w.projHP <= 0f) return 1f;
-        return 1f / (1f + PD_KILL * 100f / w.projHP);
+        return 1f / (1f + PD_KILL * 100f / (w.projHP * Math.max(0.1f, hpMult)));
     }
 
     static final float PD_KILL = 0.25f;

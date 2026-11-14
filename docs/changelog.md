@@ -1,5 +1,22 @@
 # Patch notes
 
+## 0.5.29 - 2026-11-13
+
+- Officer skills: The captain's ship skills count in every fit, elite effects included. Ships without a captain score as before.
+- Officer skills: Optimize fleet and Order fleet weapons use each ship's own captain. The flagship uses the player's skills. AI cores on automated ships count as captains.
+- Ordnance Expertise: Adds 1.5 dissipation per OP of weapons and wings in the fit, and 20 capacity per OP when elite.
+- Point Defense: +50% damage to missiles and fighters and the elite +200 point-defense range raise point-defense value.
+- Target Analysis: Damage bonuses by target size shorten the time to kill each target size.
+- Energy Weapon Mastery: Energy weapons gain up to +30% damage within 600 range, scored at half flux. The elite -10% energy weapon flux counts.
+- Missile Specialization: Ammo, rate of fire, damage and missile hit points count.
+- Field Modulation: Shield damage taken counts. The elite hard flux dissipation with shields up raises staying power.
+- Systems Expertise: Shorter cooldowns raise the value of Accelerated Ammo Feeder and High Energy Focus. The elite damage reduction counts.
+- Helmsmanship, Damage Control, Impact Mitigation, Combat Endurance, Gunnery Implants: Speed, handling, damage taken, peak time, CR, range and recoil effects count.
+- Polarized Armor: The 90% armor cap counts. Its speed and EMP resistance count at half hard flux. The elite vent rate counts.
+- Not scored: Missile ammo regeneration, damage to and from weapons and engines, overload time, phase cloak upkeep and cooldown, target leading, the elite zero-flux boost, hull regeneration and repairs under fire.
+- CR model: CR loss past peak time follows the ship's own rate (Combat Endurance, Fragile Subsystems).
+- Fit log: Lists the captain skills applied to each fit.
+
 ## 0.5.28 - 2026-11-13
 
 - Compatibility: The game version in mod_info is 0.98.5a-RC4. TriOS no longer marks the mod incompatible. 0.98a still loads it.

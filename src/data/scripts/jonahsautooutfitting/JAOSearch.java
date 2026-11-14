@@ -41,6 +41,8 @@ final class JAOSearch {
         boolean filler(String mod);
         /** Hullmods treated as s-mods in ship() and the OP/applicability checks (0 OP, s-mod effects). */
         void setSMods(Set<String> smods);
+        /** OP of the weapons and wings that stay on the ship (not built in), for Ordnance Expertise. */
+        default float fixedWeaponOp() { return 0f; }
     }
 
     static final class Cand {
@@ -132,9 +134,23 @@ final class JAOSearch {
         return f;
     }
 
+    /** OP spent on weapons and wings, the kept ones included (Ordnance Expertise counts it); 0 without that skill. */
+    float weaponOp() {
+        JAOModel.Ship sh = ship();
+        if (sh.fluxPerWeaponOp <= 0f && sh.capPerWeaponOp <= 0f) return 0f;
+        float op = world.fixedWeaponOp();
+        for (Slot s : slots) if (s.fixed == null && s.pick != null) op += world.op(s.pick, mods);
+        return op;
+    }
+
+    /** ship() with the captain's flux per weapon OP for the current picks (Ordnance Expertise), before vents/caps. */
+    JAOModel.Ship fitShip() {
+        return JAOModel.ordnance(ship(), weaponOp());
+    }
+
     /** Vents and capacitors for the OP left: {vents, caps}. */
     int[] flux() {
-        JAOModel.Ship sh = ship();
+        JAOModel.Ship sh = fitShip();
         int left = world.hullOp() - opUsed();
         return JAOModel.fluxFill(sh, fits(), Math.max(0, left));
     }
@@ -144,7 +160,7 @@ final class JAOSearch {
         evaluations++;
         int left = world.hullOp() - opUsed();
         if (left < 0) return -1f;
-        JAOModel.Ship sh = ship();
+        JAOModel.Ship sh = fitShip();
         List<JAOModel.Fit> f = fits();
         int[] vc = JAOModel.fluxFill(sh, f, left);
         float score = JAOModel.score(JAOModel.withFlux(sh, vc[0], vc[1]), f, params) * (1f - EMPTY_COST * emptyShare());
@@ -609,7 +625,9 @@ final class JAOSearch {
 
     private float objectiveOneWeapon(Slot s, Cand c) {
         List<JAOModel.Fit> f = Collections.singletonList(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear));
-        return JAOModel.score(ship(), f, params);
+        JAOModel.Ship sh = ship();
+        if (sh.fluxPerWeaponOp > 0f || sh.capPerWeaponOp > 0f) sh = JAOModel.ordnance(sh, world.op(c, mods));
+        return JAOModel.score(sh, f, params);
     }
 
     static String role(JAOModel.W w) {
