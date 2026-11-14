@@ -54,7 +54,13 @@
 
 - Stats: one scratch `FleetMemberAPI` per fit. `createFleetMember(SHIP, clone)`, `setFleetCommanderForStats(player, playerFleet.getFleetData())`, then per candidate `setVariant(candidate, false, true)` and `getStats()`.
 - After-creation hullmods (Ballistic Rangefinder, High Scatter Amp, Coherer, PD Integration ...) do not run on the scratch member. The model adds them.
-- Captain (`member.getCaptain()`): only the personality is used (`JAOShip.personalityOf`). It sets the engagement range. Officer skills are not applied: `FleetMember.updateStats` applies the captain's personal skills only to a member inside a fleet (`getFleetData() != null`), and the scratch member has none. The player's fleet-wide skills apply through `setFleetCommanderForStats`.
+- Captain (`JAOShip.captainOf`): an active officer, the player on the flagship, or an AI core. None for the default captain or an inactive officer. Its personality sets the engagement range (`JAOShip.personalityOf`).
+- Captain skills (0.5.29, `JAOShip.applyCaptain`): `FleetMember.updateStats` applies personal skills only to a member inside a fleet (`getFleetData() != null`), and the scratch member is in none. `applyCaptain` does what `CharacterStats.applyPersonalToStats` does, after each `setVariant`: every `SHIP` effect in `SkillSpecAPI.getEffectsAPI()` whose governing skill level reaches `getRequiredSkillLevel()`, through the game's own effect class, id `<skill>_ship_<index>`. Elite effects follow from the level. The fleet planner's `PlanDelegate` passes each ship's own member, so fleet plans use each ship's captain.
+- Ordnance Expertise (`OrdnanceExpertise$Level1`, `$Level3`): reads the variant's weapon OP, which the search changes. `Ship.fluxPerWeaponOp` and `capPerWeaponOp` (the class's `FLUX_PER_OP` 1.5, `CAP_PER_OP` 20) are added by `JAOModel.ordnance` for the fit's weapon and wing OP (`JAOSearch.weaponOp`: picks plus `World.fixedWeaponOp`, kept ones from `computeWeaponOPCost`; built-ins excluded as the game excludes them).
+- Combat listeners added by hand: Energy Weapon Mastery (`Ship.ewm` from `getEnergyWeaponFluxBasedBonusDamageMagnitude`, scored at `EWM_FLUX` 0.5, full to 600 and none past 1000 at the fight's two distances). Polarized Armor speed and EMP resistance at 50% hard flux.
+- Stats read for skills (`JAOShip.skillStats`): damage by target size (`Ship.sizeDmg`, divides each phase in `phases`), damage to fighters (averaged with damage to missiles for point defense), point-defense range (`range`), missile hit points (`pdSurvival`), hard flux dissipation with shields up (`duty`), the armor's damage reduction cap (`armorHullEhp`), CR loss past peak time (peak time term), system cooldown and recharge (`systemUptime`: Accelerated Ammo Feeder and High Energy Focus).
+- Not scored: missile ammo regeneration, damage to and from weapons and engines, overload time, phase cloak upkeep and cooldown, target leading, Helmsmanship's elite zero-flux boost, Combat Endurance's elite hull regeneration, Damage Control's elite repairs under fire.
+- The player's fleet-wide skills apply through `setFleetCommanderForStats`.
 - Derived: shield-tank share, flux budget (dissipation − shield upkeep − system flux), peak time, slot geometry (front arc share, hardpoints, mirror pairs).
 
 ## 6. Weapon model
@@ -584,14 +590,14 @@ Not done: Auto Colonies page and monthly re-order; fleet-tab button; per-line de
 
 Offline, the jtbuild pattern as Auto Colonies:
 - `ao_build.ps1`: javac, banned-class scan, verify with and without LunaLib, game script-loader check.
-- `JAOFitCheck.java`: real `starfarer.api` specs loaded offline where possible, else fixed rows from `data\*.json`. Runs the optimizer on fixed pools and checks OP limits, slot legality, determinism (same seed, same fit), balance (Balanced has both kinetic and HE/energy when both exist), style shifts and empty-pool behaviour.
+- `JAOFitCheck.java`: real `starfarer.api` specs loaded offline where possible, else fixed rows from `data\*.json`. Runs the optimizer on fixed pools and checks OP limits, slot legality, determinism (same seed, same fit), balance (Balanced has both kinetic and HE/energy when both exist), style shifts and empty-pool behaviour. `checks0529`: a captain with Ordnance Expertise raises the Eagle, Dominator and Medusa scores, elite raises them again, no captain leaves the fit unchanged, and each other skill term moves the model.
 - The Python prototypes in `tools\` give expected values.
 
 ## 13. Risks
 
 - `SavedVariantData` is engine code and a game update can change it. It is feature-detected, with the checkbox fallback.
 - A missed cleanup leaves a card in the save. It carries a stock loadout and is purged on load.
-- The scratch-member stats miss after-creation hullmods and captain personal skills (outside a fleet). These are modelled by hand.
+- The scratch-member stats miss after-creation hullmods and the captain skills' combat listeners. These are modelled by hand. Captain skills from mods that read the variant's weapons see only the kept weapons.
 - The scoring constants (kC, k_spread, kA, soft-flux value, PD need, target weights) are tuning knobs and need simulator checks.
 - Scripted mod weapons without a table row are valued on plain numbers only.
 - Performance on 60-slot capitals with large markets is unmeasured.

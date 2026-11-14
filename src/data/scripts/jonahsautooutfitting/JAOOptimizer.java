@@ -885,7 +885,7 @@ class JAOOptimizer {
     private void log(JAOSearch s, JAOShip world, JAOModel.Params p, JAOStyle st, long ms) {
         Map<String, Float> b = new LinkedHashMap<>();
         int[] vc = s.flux();
-        JAOModel.evaluate(JAOModel.withFlux(s.ship(), vc[0], vc[1]), s.fits(), p, b);
+        JAOModel.evaluate(JAOModel.withFlux(s.fitShip(), vc[0], vc[1]), s.fits(), p, b);
         StringBuilder sb = new StringBuilder("Auto Outfitting: ").append(current.getHullSpec().getHullId())
                 .append(module ? " (module)" : "").append(' ').append(p.role != null ? p.role.label + "/" : "").append(st.label).append(" in ").append(ms).append(" ms, ")
                 .append(s.evaluations).append(" evaluations; ");
@@ -900,6 +900,7 @@ class JAOOptimizer {
             if (spec != null && spec.hasTag("dmod")) dmods.add(id);
         }
         if (!dmods.isEmpty()) sb.append("d-mods ").append(dmods).append(" | ");
+        if (!world.captainSkills.isEmpty()) sb.append("captain skills ").append(world.captainSkills).append(" | ");
         for (Map.Entry<String, Float> e : b.entrySet()) sb.append(e.getKey()).append(' ').append(String.format(java.util.Locale.ROOT, "%.3g", e.getValue())).append(' ');
         Global.getLogger(JAOOptimizer.class).info(sb.toString());
     }

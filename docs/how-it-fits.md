@@ -70,7 +70,10 @@
 - Max CR: Degraded Life Support, Faulty Automated Systems, Increased Maintenance and skills run through the CR rules. Aim worsens as CR falls. Ships below 50% and 40% fight worse and malfunction. The malfunction thresholds are read from the game for each ship.
 - Flight deck: Damaged Flight Deck, Malfunctioning Comms and Defective Manufactory lower wing value. Expanded Deck Crew raises it.
 - Turrets: Damaged Weapon Mounts cost point defense and accuracy. Weapon durability is not scored.
-- Officers: The officer's personality sets the fit's range. Officer skills are not counted. A ship without an officer is fitted for the personality from the doctrine aggression slider. On 0.98.5a an inactive officer counts as none.
+- Officers: The officer's personality sets the fit's range. A ship without an officer is fitted for the personality from the doctrine aggression slider. On 0.98.5a an inactive officer counts as none.
+- Officer skills: The captain's skills count in the fit, elite effects included. The flagship counts the player's skills. An AI core counts as a captain. Optimize fleet and Order fleet weapons use each ship's own captain.
+- Officer skills, scored: Ordnance Expertise, Point Defense, Target Analysis, Missile Specialization, Energy Weapon Mastery, Field Modulation, Systems Expertise, Helmsmanship, Damage Control, Impact Mitigation, Combat Endurance, Gunnery Implants and Polarized Armor. Skills from other mods count through the ship stats they change.
+- Officer skills, not scored: Missile ammo regeneration, damage to and from weapons and engines, overload time, phase cloak upkeep and cooldown, target leading, the elite zero-flux boost, hull regeneration and repairs under fire.
 
 ## Weapon groups
 

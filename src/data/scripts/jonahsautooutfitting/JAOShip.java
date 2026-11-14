@@ -26,6 +26,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -51,6 +52,12 @@ final class JAOShip implements JAOSearch.World {
     private final Set<String> originalPerma;
     /** Hullmod applicability for ships off the refit screen (JAOCheckShip), made on first use. */
     private JAOCheckShip checkShip;
+    /** The ship's officer (or the player on the flagship, or an AI core), null for none or an inactive officer. */
+    final PersonAPI captain;
+    /** OP of the weapons and wings left on the ship before the search (kept, owned by mod code), built-ins excluded. */
+    private final float fixedWeaponOp;
+    /** Captain skills applied to the scratch stats (skill ids at elite or not), for the fit log. */
+    final Set<String> captainSkills = new TreeSet<>();
 
     /** budget = OP this search may spend (hull OP minus what it doesn't own). */
     JAOShip(ShipVariantAPI current, AutofitPluginDelegate delegate, MutableCharacterStatsAPI cstats, int budget, int maxVents, int maxCaps) {
@@ -76,6 +83,86 @@ final class JAOShip implements JAOSearch.World {
         }
         largeBallistic = lb;
         personality = personalityOf(delegate.getFleetMember());
+        captain = captainOf(delegate.getFleetMember());
+        float fw = 0f;
+        try { fw = work.computeWeaponOPCost(cstats); } catch (Throwable ignored) { }
+        fixedWeaponOp = fw;
+    }
+
+    /** The member's captain whose skills count: an active officer, the player on the flagship, an AI core. */
+    static PersonAPI captainOf(FleetMemberAPI m) {
+        PersonAPI c = m == null ? null : m.getCaptain();
+        if (c == null || c.isDefault() || c.getStats() == null || !activeOfficer(c)) return null;
+        return c;
+    }
+
+    @Override
+    public float fixedWeaponOp() { return fixedWeaponOp; }
+
+    private static final String SKILLS = "com.fs.starfarer.api.impl.campaign.skills.";
+    private static float oeFlux = -1f, oeCap = -1f, ewmNear = -1f, ewmFar = -1f, paSpeed = -1f, paEmp = -1f;
+    private static boolean skillWarned;
+
+    /** Ordnance Expertise, Energy Weapon Mastery and Polarized Armor numbers from the game's classes (defaults if missing). */
+    private static void readSkillNumbers() {
+        if (oeFlux >= 0f) return;
+        float f = 1.5f, c = 20f, near = 600f, far = 1000f, spd = 20f, emp = 50f;
+        try { f = com.fs.starfarer.api.impl.campaign.skills.OrdnanceExpertise.FLUX_PER_OP; c = com.fs.starfarer.api.impl.campaign.skills.OrdnanceExpertise.CAP_PER_OP; } catch (Throwable ignored) { }
+        try { near = com.fs.starfarer.api.impl.campaign.skills.EnergyWeaponMastery.MIN_RANGE; far = com.fs.starfarer.api.impl.campaign.skills.EnergyWeaponMastery.MAX_RANGE; } catch (Throwable ignored) { }
+        try { spd = com.fs.starfarer.api.impl.campaign.skills.PolarizedArmor.MAX_SPEED_BONUS; emp = com.fs.starfarer.api.impl.campaign.skills.PolarizedArmor.EMP_BONUS_PERCENT; } catch (Throwable ignored) { }
+        oeFlux = f; oeCap = c; ewmNear = near; ewmFar = far; paSpeed = spd; paEmp = emp;
+    }
+
+    /** Hard flux level Polarized Armor is scored at (the skill uses 50% for ships without shields). */
+    static final float POLARIZED_FLUX = 0.5f;
+
+    /**
+     * The captain's ship skill effects on the scratch stats, the way CharacterStats.applyPersonalToStats does it for a
+     * member in a fleet (the scratch member is in none, so the game skips them): every SHIP effect the captain's level
+     * reaches, with the game's own effect classes and the same ids. Ordnance Expertise's flux per weapon OP depends on
+     * the fit, so the model adds it (JAOModel.ordnance); Polarized Armor's flux-based speed and EMP resistance run in a
+     * combat listener, so they're added here at POLARIZED_FLUX. Returns true when Polarized Armor's listener applies.
+     */
+    private boolean applyCaptain(MutableShipStatsAPI st, JAOModel.Ship s) {
+        if (captain == null) return false;
+        boolean polarized = false;
+        try {
+            MutableCharacterStatsAPI cs = captain.getStats();
+            ShipAPI.HullSize hs = hull.getHullSize();
+            readSkillNumbers();
+            for (MutableCharacterStatsAPI.SkillLevelAPI sl : cs.getSkillsCopy()) {
+                com.fs.starfarer.api.characters.SkillSpecAPI skill = sl == null ? null : sl.getSkill();
+                if (skill == null || skill.getEffectsAPI() == null) continue;
+                List<com.fs.starfarer.api.characters.SkillSpecAPI.SkillEffectSpecAPI> effects = skill.getEffectsAPI();
+                for (int i = 0; i < effects.size(); i++) {
+                    com.fs.starfarer.api.characters.SkillSpecAPI.SkillEffectSpecAPI e = effects.get(i);
+                    if (e == null || e.getType() != com.fs.starfarer.api.characters.SkillEffectType.SHIP) continue;
+                    float level = cs.getSkillLevel(e.getGoverningSkill());
+                    if (level < e.getRequiredSkillLevel()) continue;
+                    com.fs.starfarer.api.characters.ShipSkillEffect fx = e.getAsShipEffect();
+                    if (fx == null) continue;
+                    String cls = fx.getClass().getName();
+                    if ((SKILLS + "OrdnanceExpertise$Level1").equals(cls)) { s.fluxPerWeaponOp += oeFlux; captainSkills.add(skill.getId()); continue; }
+                    if ((SKILLS + "OrdnanceExpertise$Level3").equals(cls)) { s.capPerWeaponOp += oeCap; captainSkills.add(skill.getId()); continue; }
+                    if ((SKILLS + "PolarizedArmor$Level2").equals(cls) || (SKILLS + "PolarizedArmor$Level2A").equals(cls)) polarized = true;
+                    try {
+                        fx.apply(st, hs, skill.getId() + "_ship_" + i, level);
+                        captainSkills.add(skill.getId());
+                    } catch (Throwable t) {
+                        warnSkill(skill.getId(), t);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            warnSkill("captain", t);
+        }
+        return polarized;
+    }
+
+    private static void warnSkill(String id, Throwable t) {
+        if (skillWarned) return;
+        skillWarned = true;
+        Global.getLogger(JAOShip.class).warn("Auto Outfitting: couldn't apply captain skill " + id + " to a fit; skipped", t);
     }
 
     static int personalityOf(FleetMemberAPI m) {
@@ -136,6 +223,8 @@ final class JAOShip implements JAOSearch.World {
         MutableShipStatsAPI st = scratch.getStats();
         JAOModel.Ship s = new JAOModel.Ship();
         s.size = size;
+        // the captain's skills (0.5.29): the stats read below carry them
+        boolean polarized = applyCaptain(st, s);
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
         s.armor = st.getArmorBonus().computeEffective(hull.getArmorRating());
         s.cap = st.getFluxCapacity().getModifiedValue();
@@ -240,9 +329,13 @@ final class JAOShip implements JAOSearch.World {
         // weapon-boost systems the AI fires whenever those weapons are in range (research ai_behaviour_1106 SYS-2/3):
         // Accelerated Ammo Feeder doubles ballistic rate at half flux per shot for 5 s in about 17 (+29% ballistic),
         // High Energy Focus about +7.5% energy damage
+        // a shorter system cooldown or faster recharge (Systems Expertise) keeps them on longer
         String sys = hull.getShipSystemId();
-        if ("ammofeed".equals(sys)) { s.rofMult[JAOModel.BAL] *= JAOModel.AMMO_FEED; s.fluxMult[JAOModel.BAL] /= JAOModel.AMMO_FEED; } // same flux per second
-        else if ("highenergyfocus".equals(sys)) s.dmgMult[JAOModel.ENE] *= JAOModel.ENERGY_FOCUS;
+        float sysUp = systemUptime(st);
+        if ("ammofeed".equals(sys)) {
+            float feed = 1f + (JAOModel.AMMO_FEED - 1f) * sysUp;
+            s.rofMult[JAOModel.BAL] *= feed; s.fluxMult[JAOModel.BAL] /= feed; // same flux per second
+        } else if ("highenergyfocus".equals(sys)) s.dmgMult[JAOModel.ENE] *= 1f + (JAOModel.ENERGY_FOCUS - 1f) * sysUp;
         s.turnMult = mult(st.getWeaponTurnRateBonus().computeEffective(1f));
         s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
         s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
@@ -253,6 +346,12 @@ final class JAOShip implements JAOSearch.World {
         s.regenEn = mult(st.getEnergyAmmoRegenMult().getModifiedValue());
         s.empTaken = Math.max(0f, st.getEmpDamageTakenMult().getModifiedValue());
         s.ventRate = Math.max(0f, st.getVentRateMult().getModifiedValue());
+        skillStats(st, s);
+        if (polarized) {
+            // Polarized Armor's combat listener: up to +20 speed and -50% EMP damage taken by hard flux level
+            s.speed += paSpeed * POLARIZED_FLUX;
+            s.empTaken *= 1f - JAOModel.clamp(paEmp / 100f * POLARIZED_FLUX, 0f, 1f);
+        }
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
@@ -289,6 +388,56 @@ final class JAOShip implements JAOSearch.World {
             if (malf > 0f && crit >= 0f && base > 0f) return new float[]{malf, crit, JAOModel.CR_DEGRADE * malf / base};
         } catch (Throwable ignored) { }
         return new float[]{JAOModel.CR_MALF, JAOModel.CR_CRIT, JAOModel.CR_DEGRADE};
+    }
+
+    /**
+     * Stats the captain skills move that the rest of ship() doesn't read (0.5.29): damage by target size and to
+     * fighters, point-defense range, missile hit points, Energy Weapon Mastery's flux-based damage, hard flux dissipation
+     * with shields up, the armor's damage reduction cap and CR loss past peak time. Each read on its own, so a missing
+     * stat (another game version) leaves the default.
+     */
+    private static void skillStats(MutableShipStatsAPI st, JAOModel.Ship s) {
+        try {
+            s.sizeDmg[0] = mult(st.getDamageToFrigates().getModifiedValue());
+            s.sizeDmg[1] = mult(st.getDamageToDestroyers().getModifiedValue());
+            s.sizeDmg[2] = mult(st.getDamageToCruisers().getModifiedValue());
+            s.sizeDmg[3] = mult(st.getDamageToCapital().getModifiedValue());
+        } catch (Throwable ignored) { }
+        try { s.fighterDmg = mult(st.getDamageToFighters().getModifiedValue()); } catch (Throwable ignored) { }
+        try {
+            s.pdRange = st.getNonBeamPDWeaponRangeBonus().getFlatBonus();
+            s.pdBeamRange = st.getBeamPDWeaponRangeBonus().getFlatBonus();
+        } catch (Throwable ignored) { }
+        try { s.missileHp = mult(st.getMissileHealthBonus().computeEffective(1f)); } catch (Throwable ignored) { }
+        try {
+            s.ewm = Math.max(0f, st.getEnergyWeaponFluxBasedBonusDamageMagnitude().getModifiedValue());
+            if (s.ewm > 0f) { readSkillNumbers(); s.ewmNear = ewmNear; s.ewmFar = ewmFar; }
+        } catch (Throwable ignored) { }
+        try { s.hardDiss = JAOModel.clamp(st.getHardFluxDissipationFraction().getModifiedValue(), 0f, 1f); } catch (Throwable ignored) { }
+        try {
+            MutableStat dr = st.getMaxArmorDamageReduction();
+            s.maxDr = JAOModel.clamp(JAOModel.MAX_DR + dr.getModifiedValue() - dr.getBaseValue(), 0.5f, 0.99f);
+        } catch (Throwable ignored) { }
+        try { s.crLoss = Math.max(0f, st.getCRLossPerSecondPercent().computeEffective(1f)); } catch (Throwable ignored) { }
+    }
+
+    /** Share of a system cycle spent active in the stock numbers (Accelerated Ammo Feeder: 5 s in about 17). */
+    static final float SYSTEM_ACTIVE = 0.3f;
+
+    /**
+     * How much longer the ship system is up against the hull's own cycle: 1 normally; Systems Expertise (cooldown -33%,
+     * recharge +50%) about 1.3.
+     */
+    static float systemUptime(MutableShipStatsAPI st) {
+        try {
+            float cd = st.getSystemCooldownBonus().computeEffective(1f);
+            float regen = Math.max(0.1f, st.getSystemRegenBonus().computeEffective(1f));
+            // a system has a cooldown or recharging charges: the larger of the two gains counts
+            float wait = Math.min(Math.max(0.1f, cd), 1f / regen);
+            return 1f / (SYSTEM_ACTIVE + (1f - SYSTEM_ACTIVE) * Math.min(wait, 3f));
+        } catch (Throwable t) {
+            return 1f;
+        }
     }
 
     static final String ESCORT = "escort_package";
