@@ -535,6 +535,8 @@ class JAOOptimizer {
         // bay rules (JAOCompat): a Guru flies only Seeker's plague LPCs, a Trinity Worlds ship only its Nimbus drones;
         // wings only scripts place are never taken from cargo or storage
         List<String> allow = bays > builtInWings ? JAOCompat.bayWings(current) : null;
+        // a built-in hullmod that turns crewed wings into a malfunction (AI Subsystem Integration): drones only (0.5.36)
+        boolean dronesOnly = bays > builtInWings && JAOCompat.dronesOnly(current);
         for (int b = builtInWings; b < bays; b++) {
             JAOSearch.Slot js = new JAOSearch.Slot("bay" + b, 1, false, 1f, true, true);
             String kept = current.getWingId(b);
@@ -545,6 +547,7 @@ class JAOOptimizer {
                     AvailableFighter f = fighters.get(i);
                     if (f.getWingSpec() == null || f.getQuantity() <= 0) continue;
                     if (JAOCompat.boundWing(f.getWingSpec()) || !JAOCompat.wingAllowed(allow, f.getId())) continue;
+                    if (dronesOnly && !JAOCompat.uncrewed(f.getWingSpec())) continue;
                     if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(f.getWingSpec())) continue;
                     JAOSearch.Cand c = new JAOSearch.Cand(JAORatings.wing(f.getWingSpec()), f, "f" + i, f.getPrice());
                     c.priority = priority(f.getId(), true);

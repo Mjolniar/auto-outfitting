@@ -13,6 +13,8 @@ kind,id,value,note
 #       removed_by (built-in hullmod id or pattern -> hullmods its script removes when the ship is shown, split by ;; never added to hulls that have it),
 #       never_use (weapon id or pattern the Optimal fit never picks; the setting "Never use these weapons" adds to it),
 #       role (hull id or pattern -> Skirmisher, Flanker, Line, Anchor, Carrier, Battle carrier, Support, Phase, Missile boat, Civilian)
+#       never_smod (hullmod id or pattern the mod never builds in as an s-mod; the player still can),
+#       drones_only (hullmod id -> when built in, its ship flies only uncrewed wings; value: exemptions split by ;, hullmod ids or $sector memory flags)
 skip_slots,odyssey_ix,WS TORP,ET-IX: code-placed torpedo (slot is BUILT_IN; guard only)
 skip_slots,paragon_ix_elite,WS TORP;WS 001;WS 002,ET-IX: torpedo slot; WS 001/002 cleared on every refit by ix_missile_autoforge
 skip_slots,tigershark_ix,WS 004,ET-IX: Vampyr / Antecedent slot (real SYNERGY LARGE slot)
@@ -78,3 +80,6 @@ never_remove,aitweaks_system_shunt,,AI Tweaks: System Shunt
 never_remove,aitweaks_custom_ship_ai,,AI Tweaks: Custom AI
 never_remove,aitweaks_search_and_destroy,,AI Tweaks: Search and Destroy
 never_remove,aitweaks_skirmisher,,AI Tweaks: Role: Skirmisher
+# 0.5.36: Emergent Threats AI Subsystem Integration: not built in by the mod; built in by the player, crewed wings cause Drone Bay Malfunction
+never_smod,vice_ai_subsystem_integration,,
+drones_only,vice_ai_subsystem_integration,SKR_remote;rat_autonomous_bays;$xo_drone_tactics_is_active,

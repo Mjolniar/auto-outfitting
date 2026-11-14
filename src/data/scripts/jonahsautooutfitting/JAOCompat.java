@@ -87,6 +87,36 @@ final class JAOCompat {
         return allow;
     }
 
+    /**
+     * Whether the ship may fly only uncrewed wings (jao_rules drones_only, 0.5.36): a listed hullmod is built in (hull
+     * or s-mod) and none of the value's exemptions applies (a hullmod id on the ship, or a $sector memory flag that is
+     * set). Emergent Threats' AI Subsystem Integration adds Drone Bay Malfunction (a large CR cut) for crewed wings
+     * unless Remote Control, Autonomous Bays or Drone Tactics is in play.
+     */
+    static boolean dronesOnly(ShipVariantAPI v) {
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("drones_only") || r[1].isEmpty()) continue;
+            boolean builtIn = v.getHullSpec().getBuiltInMods().contains(r[1]) || v.getSMods().contains(r[1]);
+            if (!builtIn) continue;
+            boolean exempt = false;
+            for (String e : r[2].split(";")) {
+                e = e.trim();
+                if (e.isEmpty()) continue;
+                if (e.startsWith("$")) {
+                    try { exempt |= Global.getSector().getMemoryWithoutUpdate().is(e, true); } catch (Throwable ignored) { }
+                } else if (v.hasHullMod(e)) exempt = true;
+            }
+            if (!exempt) return true;
+        }
+        return false;
+    }
+
+    /** A wing with no crew (minimum crew 0 on its fighter hull). */
+    static boolean uncrewed(FighterWingSpecAPI spec) {
+        try { return spec != null && spec.getVariant() != null && spec.getVariant().getHullSpec().getMinCrew() <= 0f; }
+        catch (Throwable t) { return false; }
+    }
+
     static boolean wingAllowed(List<String> allow, String wingId) {
         if (allow == null) return true;
         for (String p : allow) if (JAORatings.glob(p, wingId)) return true;

@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.36 - 2026-11-14
+
+- Emergent Threats: Fixed AI Subsystem Integration being built in on every warship. The mod no longer builds it in. You still can.
+- Emergent Threats: Fixed carriers with AI Subsystem Integration built in getting crewed wings (Drone Bay Malfunction). They get uncrewed wings only.
+- Rules: Added never_smod and drones_only to `jao_rules.csv`.
+
 ## 0.5.35 - 2026-11-14
 
 - Optimize fleet: Spends story points down to Story points to keep. Fixed it stopping at 2 per run.
