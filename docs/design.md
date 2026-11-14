@@ -294,6 +294,15 @@ Other:
 - `purgeBlankLpcs()` cleans cargo and all storages on load, before each save and after each apply.
 - Empty fighter bays count in `JAOSearch.emptyShare` as large mounts.
 
+## 7k2. Officer placement (0.5.39)
+
+- `JAOOfficers`: runs before the fleet plan when the Optimize fleet panel's Place officers box is ticked (sector persistent data `jao_placeOfficers`, off by default).
+- Officers: active human officers from `FleetData.getOfficersCopy()`, not the player, not AI cores, not `Misc.isUnremovable`, not on a locked ship.
+- Ships: warships in the plan, not the flagship, automated, mothballed or locked, not commanded by the player, an AI core or an unremovable officer.
+- Value of officer o on ship s: `JAOFleetPlan.scoreWithCaptain(s, o) - scoreWithCaptain(s, null)` on the ship as it is now (`scoreAsIs` under a `PlanDelegate` captain override; `JAOShip.personFor` reads it, personality included).
+- Assignment (`JAOOfficers.assign`): greedy best pair, then swaps and moves to free ships while the total gains. Staying put counts 3% more (STAY). Officers worth nothing get no ship and keep their own unless another officer takes it.
+- The plan fits every ship under its new captain (`JAOFleetPlan.captains`). Apply clears the captains of changed ships, then sets the new ones, before the refit.
+
 ## 7l. Other mods' scripts, and what production takes
 
 Script hazards and rules (`JAOCompat`, rows in `jao_rules.csv`, scan `modscan_1105_1605.txt`):

@@ -357,7 +357,7 @@ public class JAOScreenButton implements EveryFrameScript {
     /** Optimize fleet: plans the whole fleet, then shows what would change, over the screen; it links to Fleet analysis. */
     void openOptimize() {
         if (overlay != null) return;
-        JAOFleetPanel content = new JAOFleetPanel(JAOFleetPanel.start(refit), this::closeOrder, () -> { closeOrder(); openAnalysis(); }, true);
+        JAOFleetPanel content = new JAOFleetPanel(() -> JAOFleetPanel.start(refit), this::closeOrder, () -> { closeOrder(); openAnalysis(); }, true);
         if (show(content, JAOFleetPanel.W, JAOFleetPanel.H)) content.build(overlay);
     }
 

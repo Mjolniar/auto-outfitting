@@ -29,6 +29,9 @@
 - CR: Away from a market every changed ship loses CR, as on the refit screen. The panel shows each ship's loss before Apply. Refits at a market cost no CR.
 - S-mods: Built only if Build in s-mods is ticked. See [S-mods and story points](s-mods.md).
 - Civilian ships: Get their campaign fit. See [Civilian ships](civilian-ships.md).
+- Place officers: A box in the panel, off by default, saved per game. Each officer goes to the warship where they add the most to the build score: the ship's score with that officer minus its score without one. The fits are planned for the new captains. Changing the box plans the fleet again.
+- Place officers, left alone: The player, AI cores, unremovable officers, officers on locked ships, the flagship, automated ships (AI cores only), mothballed ships and civilian ships.
+- Place officers, staying put: An officer moves only when the new ship gains more than 3% over staying. The panel lists every move. Apply moves the officers before the refit.
 
 ## Order fleet weapons
 

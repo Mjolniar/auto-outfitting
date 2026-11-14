@@ -17,14 +17,21 @@ import java.util.List;
  */
 final class JAOFleetPanel extends JAOOverlayPanel {
     static final float W = 900f, H = 600f;
-    final JAOFleetApply job;   // null when planning couldn't start
+    /** Makes a fresh plan (the panel plans again when "Place officers" changes). */
+    final java.util.function.Supplier<JAOFleetApply> starter;
+    JAOFleetApply job;   // null when planning couldn't start
     /** Opens Fleet analysis (null: no button). */
     final Runnable analysis;
     boolean failed;
-    ButtonAPI apply;
+    ButtonAPI apply, officersBox;
     TooltipMakerAPI status;
 
-    JAOFleetPanel(JAOFleetApply job, Runnable close, Runnable analysis, boolean overlay) { super(close, overlay); this.job = job; this.analysis = analysis; }
+    JAOFleetPanel(java.util.function.Supplier<JAOFleetApply> starter, Runnable close, Runnable analysis, boolean overlay) {
+        super(close, overlay);
+        this.starter = starter;
+        this.job = starter.get();
+        this.analysis = analysis;
+    }
 
     static JAOFleetApply start(Object refit) {
         try {
@@ -38,7 +45,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     @Override String title() { return "Optimize fleet"; }
     @Override float width() { return W; }
     @Override float height() { return H; }
-    @Override String progress() { return job == null ? "" : job.fleet.progress(); }
+    @Override String progress() { return job == null ? "" : job.progress(); }
 
     @Override
     boolean work() {
@@ -55,7 +62,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     @Override
     void buildResult() {
         Color h = Misc.getHighlightColor(), g = Misc.getGrayColor(), bad = Misc.getNegativeHighlightColor();
-        TooltipMakerAPI head = element(W - 20f, 170f, false, 10f, 10f);
+        TooltipMakerAPI head = element(W - 20f, 195f, false, 10f, 10f);
         head.addSectionHeading(title(), Alignment.MID, 0f);
         if (job == null || failed) {
             head.addPara("Couldn't plan the fleet (see starsector.log).", 6f, bad);
@@ -91,9 +98,19 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 .append(job.crShips == 1 ? " ship loses " : " ships lose ").append("up to ").append(Math.round(job.crMax * 100f))
                 .append("% (shown per ship). Refits at a market cost no CR. ");
         if (notes.length() > 0) head.addPara(esc(notes.toString().trim()), 4f, g);
+        if (job.officers != null) {
+            int moves = job.officerMoves();
+            if (moves > 0) head.addPara("Officers: %s move to the ship where they add the most. The player and AI cores stay where they are.", 4f, h, "" + moves);
+            else head.addPara("Officers: every officer is already on the ship where they add the most.", 4f, g);
+        }
 
-        TooltipMakerAPI list = element(W - 20f, H - 250f, true, 10f, 190f);
+        TooltipMakerAPI list = element(W - 20f, H - 275f, true, 10f, 215f);
         Color text = Global.getSettings().getColor("standardTextColor");
+        if (job.officers != null && !job.officers.moves.isEmpty()) {
+            list.addPara("Officers", 0f, h);
+            for (String m : job.officers.moves) list.addPara("    " + esc(m), 0f, text);
+            list.addPara("Ships", 6f, h);
+        }
         int same = 0;
         for (JAOFleetApply.Change c : job.changes) {
             if (!c.any()) { if (!c.ship.locked) same++; continue; }
@@ -119,13 +136,19 @@ final class JAOFleetPanel extends JAOOverlayPanel {
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
         apply = buttons.addButton("Apply to all ships", "apply", 220f, 30f, 0f);
-        apply.setEnabled(job.changedShips > 0);
+        apply.setEnabled(job.changedShips > 0 || job.officerMoves() > 0);
         ButtonAPI c = buttons.addButton("Close", "close", 140f, 30f, 0f);
         c.getPosition().rightOfTop(apply, 10f);
+        ButtonAPI last = c;
         if (analysis != null) {
             ButtonAPI a = buttons.addButton("Fleet analysis", "analysis", 160f, 30f, 0f);
             a.getPosition().rightOfTop(c, 10f);
+            last = a;
         }
+        // officer placement (0.5.39): per save, off by default; changing it plans the fleet again
+        officersBox = buttons.addCheckbox(200f, 24f, "Place officers", "officers", ButtonAPI.UICheckboxSize.SMALL, 0f);
+        officersBox.setChecked(JAOFleetApply.placeOfficers());
+        officersBox.getPosition().rightOfTop(last, 20f).setYAlignOffset(-3f);
     }
 
     /** D-mods on the ship (hullmods tagged dmod). */
@@ -144,6 +167,15 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     public void buttonPressed(Object id) {
         if ("close".equals(id)) {
             close.run();
+        } else if ("officers".equals(id) && officersBox != null) {
+            if (job != null && job.applied) { officersBox.setChecked(JAOFleetApply.placeOfficers()); return; }
+            JAOFleetApply.setPlaceOfficers(officersBox.isChecked());
+            job = starter.get();
+            failed = false;
+            status = null;
+            apply = null;
+            officersBox = null;
+            restart();
         } else if ("analysis".equals(id) && analysis != null) {
             analysis.run();
         } else if ("apply".equals(id) && apply != null && apply.isEnabled() && job != null) {

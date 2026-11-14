@@ -49,6 +49,12 @@ abstract class JAOOverlayPanel implements CustomUIPanelPlugin {
         if (work()) finishBuild(); else showProgress();
     }
 
+    /** Starts over: the progress view until work() is done again (a setting in the result changed). */
+    void restart() {
+        built = false;
+        if (work()) finishBuild(); else showProgress();
+    }
+
     private void finishBuild() {
         clear();
         built = true;

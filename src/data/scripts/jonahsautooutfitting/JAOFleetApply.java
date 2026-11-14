@@ -58,6 +58,18 @@ final class JAOFleetApply {
     final boolean smods;
     /** Refitting here costs CR (no market to refit at: in space, or at a planet with no colony). */
     final boolean fieldRefit;
+    /** Officer placement (0.5.39), when "Place officers" is ticked in the Optimize fleet panel; else null. */
+    final JAOOfficers officers;
+    /** Sector persistent data key of the "Place officers" box (per save; off by default). */
+    static final String PLACE_OFFICERS = "jao_placeOfficers";
+
+    static boolean placeOfficers() {
+        try { return Boolean.TRUE.equals(Global.getSector().getPersistentData().get(PLACE_OFFICERS)); } catch (Throwable t) { return false; }
+    }
+
+    static void setPlaceOfficers(boolean on) {
+        try { Global.getSector().getPersistentData().put(PLACE_OFFICERS, on); } catch (Throwable ignored) { }
+    }
 
     /** What applying the plan changes on one ship. */
     static final class Change {
@@ -105,10 +117,36 @@ final class JAOFleetApply {
         fieldRefit = fieldRefit(refit, market);
         fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
         fleet.variantOf = m -> live(m, false);
+        JAOOfficers o = null;
+        if (placeOfficers()) {
+            try { o = new JAOOfficers(fleet); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: officer placement couldn't start", t); }
+        }
+        officers = o;
     }
+
+    /** The progress line: officer placement first, then the plan. */
+    String progress() {
+        return officers != null && !officers.done ? officers.progress() : fleet.progress();
+    }
+
+    /** Officers the placement moves (0 without it). */
+    int officerMoves() { return officers == null ? 0 : officers.moves.size(); }
 
     /** Plans for about budgetMs; true once the plan and its summary are ready. */
     boolean step(long budgetMs) {
+        // officers first: the plan fits every ship under its new captain
+        if (officers != null && !officers.done) {
+            try {
+                if (!officers.step(budgetMs)) return false;
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: officer placement failed; ships keep their officers", t);
+                officers.done = true;
+                officers.captains.clear();
+                officers.moves.clear();
+                fleet.captains.clear();
+            }
+            return false;
+        }
         if (!fleet.done && !fleet.step(budgetMs)) return false;
         if (!summarized) summarize();
         return true;
@@ -276,6 +314,11 @@ final class JAOFleetApply {
         if (fieldRefit) for (JAOFleetPlan.ShipPlan s : todo) if (!shown(s.member)) was.put(s.member, s.member.getVariant().clone());
         int crCharged = 0;
         float crTaken = 0f;
+        // 0. officers move first (the plan is for the ships under their new captains)
+        int moved = 0;
+        if (officers != null) {
+            try { moved = officers.apply(); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't move the officers", t); }
+        }
         // 1. everything off the planned ships into cargo (each item as it comes off, so nothing is lost if one fails)
         for (JAOFleetPlan.ShipPlan s : todo) {
             try {
@@ -373,6 +416,7 @@ final class JAOFleetApply {
             }
         }
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
+                + (moved > 0 ? ", moved " + moved + " officer" + (moved > 1 ? "s" : "") : "")
                 + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");

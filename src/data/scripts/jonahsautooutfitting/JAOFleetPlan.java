@@ -78,6 +78,8 @@ final class JAOFleetPlan {
     final JAOAutofitPlugin plugin = new JAOAutofitPlugin(Global.getSector().getPlayerPerson());
     /** A ship as it is now (Optimize fleet: the refit screen's own copy for the ship it shows). */
     java.util.function.Function<FleetMemberAPI, ShipVariantAPI> variantOf = FleetMemberAPI::getVariant;
+    /** Officer placement (0.5.39): member id -> the captain each ship is planned under, for ships whose captain changes (null: none). */
+    final Map<String, com.fs.starfarer.api.characters.PersonAPI> captains = new HashMap<>();
     int pass, index, changedThisPass, storyPoints, failed;
     boolean done;
     long nanos;
@@ -362,7 +364,16 @@ final class JAOFleetPlan {
         d.campaign = fit;
         d.market = market;
         d.tradeMode = tradeMode;
+        if (captains.containsKey(member.getId())) { d.captainSet = true; d.captain = captains.get(member.getId()); }
         return d;
+    }
+
+    /** The ship's build score as it is now under this captain (null: none), for officer placement (0.5.39). */
+    float scoreWithCaptain(FleetMemberAPI m, com.fs.starfarer.api.characters.PersonAPI c) {
+        PlanDelegate d = delegate(m, new ArrayList<>());
+        d.captainSet = true;
+        d.captain = c;
+        return new JAOOptimizer(plugin, variantOf.apply(m).clone(), d, JAOSettings.style, false, true).scoreAsIs();
     }
 
     private static void give(List<Object> used) {
@@ -427,6 +438,9 @@ final class JAOFleetPlan {
         boolean campaign;
         MarketAPI market;
         CampaignUIAPI.CoreUITradeMode tradeMode = CampaignUIAPI.CoreUITradeMode.NONE;
+        /** Officer placement (0.5.39): plan the ship under this captain (null: none) instead of its own. */
+        boolean captainSet;
+        com.fs.starfarer.api.characters.PersonAPI captain;
 
         PlanDelegate(List<AvailableWeapon> weapons, List<AvailableFighter> fighters, FleetMemberAPI member, List<String> hullmods) {
             this.weapons = weapons; this.fighters = fighters; this.member = member; this.hullmods = hullmods;

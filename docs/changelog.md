@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.39 - 2026-11-14
+
+- Optimize fleet: Added Place officers, a box in the Optimize fleet panel (off by default, saved per game). It moves each officer to the ship where they add the most to the build score. The fits are planned for the new captains. Changing the box plans the fleet again.
+- Place officers: The player, AI cores and unremovable officers stay where they are. Automated, locked and mothballed ships, the flagship and civilian ships are left out.
+- Place officers: An officer moves only when the new ship gains more than 3% over staying.
+
 ## 0.5.38 - 2026-11-14
 
 - Threat fragment weapons: Scored by the ship's fragment swarm. The swarm holds 20/40/60/100 fragments and regrows 1/2/3/5 a second by hull size. Seeker Fragment uses 2 a second, Kinetic Fragments 1, Unstable Fragment 0.5, Defabrication Swarm 1.2. Weapons past the supply count less.

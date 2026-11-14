@@ -695,7 +695,6 @@ final class JAOModel {
         return evaluate(s, fits, p, null);
     }
 
-    /** Score with an optional breakdown map (for the debug log). */
     /**
      * Weapons that draw on something shared (0.5.38). Threat fragment weapons spend fragments from the ship's swarm
      * (FragmentSwarmHullmod: 20/40/60/100 fragments, regrowing 1/2/3/5 a second by hull size); past what the swarm holds
@@ -731,6 +730,7 @@ final class JAOModel {
         }
     }
 
+    /** Score with an optional breakdown map (for the debug log). */
     static float evaluate(Ship s, List<Fit> fits, Params p, Map<String, Float> out) {
         int n = fits.size();
         Eff[] e = new Eff[n];

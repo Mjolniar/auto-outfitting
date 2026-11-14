@@ -82,8 +82,9 @@ final class JAOShip implements JAOSearch.World {
             if (s.getSlotSize() == WeaponSize.LARGE && (t == WeaponType.BALLISTIC || t == WeaponType.HYBRID || t == WeaponType.COMPOSITE || t == WeaponType.UNIVERSAL)) lb = true;
         }
         largeBallistic = lb;
-        personality = personalityOf(delegate.getFleetMember());
-        captain = captainOf(delegate.getFleetMember());
+        PersonAPI who = personFor(delegate);
+        personality = personalityOf(who);
+        captain = activeCaptain(who);
         float fw = 0f;
         try { fw = work.computeWeaponOPCost(cstats); } catch (Throwable ignored) { }
         fixedWeaponOp = fw;
@@ -91,9 +92,23 @@ final class JAOShip implements JAOSearch.World {
 
     /** The member's captain whose skills count: an active officer, the player on the flagship, an AI core. */
     static PersonAPI captainOf(FleetMemberAPI m) {
-        PersonAPI c = m == null ? null : m.getCaptain();
+        return activeCaptain(m == null ? null : m.getCaptain());
+    }
+
+    /** The person in command whose skills count, or null (none, a default captain, an inactive officer). */
+    static PersonAPI activeCaptain(PersonAPI c) {
         if (c == null || c.isDefault() || c.getStats() == null || !activeOfficer(c)) return null;
         return c;
+    }
+
+    /**
+     * Who commands the ship this fit is for: the captain the fleet plan's officer placement gives it (0.5.39; null for
+     * none), otherwise the member's own.
+     */
+    static PersonAPI personFor(AutofitPluginDelegate d) {
+        if (d instanceof JAOFleetPlan.PlanDelegate && ((JAOFleetPlan.PlanDelegate) d).captainSet) return ((JAOFleetPlan.PlanDelegate) d).captain;
+        FleetMemberAPI m = d == null ? null : d.getFleetMember();
+        return m == null ? null : m.getCaptain();
     }
 
     @Override
@@ -181,7 +196,10 @@ final class JAOShip implements JAOSearch.World {
     }
 
     static int personalityOf(FleetMemberAPI m) {
-        PersonAPI c = m == null ? null : m.getCaptain();
+        return personalityOf(m == null ? null : m.getCaptain());
+    }
+
+    static int personalityOf(PersonAPI c) {
         // a ship without an officer fights with the personality the faction doctrine's aggression sets (Command >
         // Doctrine; FactionPersonalityPickerPluginImpl: 1 cautious, 2 steady, 3 aggressive, 4 aggressive or reckless,
         // 5 reckless). 0.5.12: it was always taken as steady (research builds_update_1106 rule 3)
