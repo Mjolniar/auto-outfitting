@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.37 - 2026-11-14
+
+- United Aurora Federation: Fixed Secondary Focus going on ships as spare-OP filler. It is scored from the fit's medium and large guns by slot type.
+- Spare OP: Hullmods with no effect on the score are the last choice for leftover OP, after fleet hullmods and bigger weapons.
+
 ## 0.5.36 - 2026-11-14
 
 - Emergent Threats: Fixed AI Subsystem Integration being built in on every warship. The mod no longer builds it in. You still can.

@@ -193,6 +193,8 @@ Rules the model reproduces (offline test expectations only):
 
 ## 7g. Leftover OP and drawback hullmods
 
+- No-effect hullmods (0.5.37): in `JAOSearch.spendLeftover` a hullmod whose objective equals the base is taken only when no hullmod, fleet hullmod or weapon change scores at or above the tolerance. UAF Secondary Focus is modelled by `JAOModel.secondaryFocus` from `Fit.slotType/slotSize`; `JAOShip.ship` removes its stat mods (kept weapons only) first.
+
 - `JAOSearch.spendLeftover`: while OP remains after the flux fill, take the best use that fits: any hullmod (filler included, no minimum gain), a bigger weapon in a slot, a weapon for an empty mount. A modelled loss is accepted up to `LEFTOVER_TOLERANCE` 5%.
 - Fleet hullmods (ECM, Nav Relay, Escort Package, Operations Center on the flagship; `JAOSearch.fleetMods`) are the last fallback. If OP is still spare, the variant name says "(N OP spare: drawbacks off)" and the log names the drawback hullmods that would fit.
 - Apply: vents and caps are recomputed from the OP left after fitting, vents first, then caps, up to max. Weapons the game refuses and unused leftover are logged.

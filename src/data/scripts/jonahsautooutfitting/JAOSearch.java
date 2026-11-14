@@ -77,6 +77,8 @@ final class JAOSearch {
         Cand pick;
         /** Share of its fire reaching the main target (JAOModel.bearing), set by the caller. */
         float bear = 1f;
+        /** The slot's weapon type for slot-dependent hullmods (JAOModel.SLOT_*; -1 other). */
+        int slotType = -1;
 
         Slot(String id, int size, boolean hardpoint, float cover, boolean front, boolean bay) {
             this.id = id; this.size = size; this.hardpoint = hardpoint; this.cover = cover; this.front = front; this.bay = bay;
@@ -129,7 +131,12 @@ final class JAOSearch {
         List<JAOModel.Fit> f = new ArrayList<>();
         for (Slot s : slots) {
             Cand c = s.fixed != null ? s.fixed : s.pick;
-            if (c != null) f.add(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear));
+            if (c != null) {
+                JAOModel.Fit fit = new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear);
+                fit.slotType = s.slotType;
+                fit.slotSize = s.size;
+                f.add(fit);
+            }
         }
         return f;
     }
@@ -145,7 +152,10 @@ final class JAOSearch {
 
     /** ship() with the captain's flux per weapon OP for the current picks (Ordnance Expertise), before vents/caps. */
     JAOModel.Ship fitShip() {
-        return JAOModel.ordnance(ship(), weaponOp());
+        JAOModel.Ship sh = JAOModel.ordnance(ship(), weaponOp());
+        // UAF Secondary Focus: its bonus comes from the fitted weapons, which the scratch stats don't have (0.5.37)
+        if (sh.secondaryFocus) sh = JAOModel.secondaryFocus(sh, fits());
+        return sh;
     }
 
     /** Vents and capacitors for the OP left: {vents, caps}. */
@@ -334,6 +344,7 @@ final class JAOSearch {
             String bestMod = null;
             Slot bestSlot = null;
             Cand bestCand = null;
+            String neutralMod = null;
             for (String m : modCands) {
                 // a hullmod that costs nothing spends nothing: as "leftover" spending it was chosen for being harmless,
                 // which put Yunru's zero-OP "Install:" converters on 13 ships (user 11/05); free hullmods that help come
@@ -342,6 +353,9 @@ final class JAOSearch {
                 mods.add(m);
                 float v = objective();
                 mods.remove(m);
+                // a hullmod the model sees no effect from is the last resort (0.5.37: UAF Secondary Focus, scored without
+                // weapons, went on 16 ships as 12-20 OP of "harmless" spending)
+                if (Math.abs(v - base) <= 1e-6f * Math.max(1f, Math.abs(base))) { if (neutralMod == null) neutralMod = m; continue; }
                 if (v > bestV) { bestV = v; bestMod = m; bestSlot = null; bestCand = null; }
             }
             // fleet hullmods score the same as nothing here, so they only win when nothing above is neutral or better
@@ -369,6 +383,7 @@ final class JAOSearch {
                 if (old != null) take(old);
                 s.pick = old;
             }
+            if (bestMod == null && bestSlot == null && neutralMod != null) { bestV = base; bestMod = neutralMod; }
             if (bestV < base * (1f - LEFTOVER_TOLERANCE)) return;
             if (bestMod != null) {
                 mods.add(bestMod);

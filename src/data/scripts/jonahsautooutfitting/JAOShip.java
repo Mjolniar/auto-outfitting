@@ -240,6 +240,18 @@ final class JAOShip implements JAOSearch.World {
         s.size = size;
         // the captain's skills (0.5.29): the stats read below carry them
         boolean polarized = applyCaptain(st, s);
+        // UAF Secondary Focus counts the fitted weapons, and the scratch variant only has the kept ones: its stat changes
+        // come off here and the model adds them for the whole fit (JAOModel.secondaryFocus, 0.5.37)
+        if (work.hasHullMod(JAOModel.SECONDARY_FOCUS_ID)) {
+            s.secondaryFocus = true;
+            String id = JAOModel.SECONDARY_FOCUS_ID;
+            try {
+                st.getEnergyWeaponDamageMult().unmodify(id); st.getBallisticWeaponDamageMult().unmodify(id); st.getBeamWeaponDamageMult().unmodify(id);
+                st.getBallisticRoFMult().unmodify(id); st.getEnergyRoFMult().unmodify(id); st.getMissileRoFMult().unmodify(id);
+                st.getProjectileSpeedMult().unmodify(id);
+                st.getEnergyWeaponFluxCostMod().unmodify(id); st.getBallisticWeaponFluxCostMod().unmodify(id); st.getBeamWeaponFluxCostMult().unmodify(id);
+            } catch (Throwable ignored) { }
+        }
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
         s.armor = st.getArmorBonus().computeEffective(hull.getArmorRating());
         s.cap = st.getFluxCapacity().getModifiedValue();

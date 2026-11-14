@@ -389,6 +389,17 @@ class JAOOptimizer {
         catch (Throwable t) { return false; }
     }
 
+    /** A slot's weapon type as JAOModel.SLOT_* (ballistic, energy, hybrid; -1 other). */
+    static int slotTypeOf(com.fs.starfarer.api.combat.WeaponAPI.WeaponType t) {
+        if (t == null) return -1;
+        switch (t) {
+            case BALLISTIC: return JAOModel.SLOT_BAL;
+            case ENERGY: return JAOModel.SLOT_ENE;
+            case HYBRID: return JAOModel.SLOT_HYB;
+            default: return -1;
+        }
+    }
+
     /** D-mods on the variant that a restoration removes: every d-mod except those the hull itself builds in. */
     static List<String> removableDmods(ShipVariantAPI v) {
         List<String> out = new ArrayList<>();
@@ -478,6 +489,7 @@ class JAOOptimizer {
             if (spec == null || spec.getType() == WeaponType.DECORATIVE) continue;
             JAOSearch.Slot js = new JAOSearch.Slot(slot.getId(), slot.getSlotSize().ordinal(), slot.isHardpoint(),
                     Math.max(0.05f, Math.min(360f, slot.getArc()) / 360f), Misc.isInArc(slot.getAngle(), slot.getArc(), 0f), false);
+            js.slotType = slotTypeOf(slot.getWeaponType());
             js.fixed = new JAOSearch.Cand(JAORatings.weapon(spec), null, "builtin", 0f);
             slots.add(js);
             offs.put(js, Misc.getDistanceFromArc(slot.getAngle(), slot.getArc(), 0f));
@@ -491,6 +503,7 @@ class JAOOptimizer {
                 WeaponSpecAPI owned = current.getWeaponSpec(s.getId());
                 if (owned != null) {
                     JAOSearch.Slot js = new JAOSearch.Slot(s.getId(), s.getSlotSize().ordinal(), s.isHardpoint(), Math.max(0.05f, Math.min(360f, s.getArc()) / 360f), Misc.isInArc(s.getAngle(), s.getArc(), 0f), false);
+                    js.slotType = slotTypeOf(s.getWeaponType());
                     js.fixed = new JAOSearch.Cand(JAORatings.weapon(owned), null, "owned", 0f);
                     slots.add(js);
                     offs.put(js, Misc.getDistanceFromArc(s.getAngle(), s.getArc(), 0f));
@@ -500,6 +513,7 @@ class JAOOptimizer {
             float arc = Math.max(0f, Math.min(360f, s.getArc()));
             boolean front = Misc.isInArc(s.getAngle(), s.getArc(), 0f);
             JAOSearch.Slot js = new JAOSearch.Slot(s.getId(), s.getSlotSize().ordinal(), s.isHardpoint(), Math.max(0.05f, arc / 360f), front, false);
+            js.slotType = slotTypeOf(s.getWeaponType());
             WeaponSpecAPI kept = current.getWeaponSpec(s.getId());
             if (kept != null) {
                 js.fixed = new JAOSearch.Cand(JAORatings.weapon(kept), null, "kept", 0f);
