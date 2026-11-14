@@ -1,5 +1,16 @@
 # Patch notes
 
+## 0.5.38 - 2026-11-14
+
+- Threat fragment weapons: Scored by the ship's fragment swarm. The swarm holds 20/40/60/100 fragments and regrows 1/2/3/5 a second by hull size. Seeker Fragment uses 2 a second, Kinetic Fragments 1, Unstable Fragment 0.5, Defabrication Swarm 1.2. Weapons past the supply count less.
+- Threat fragment weapons: Score nothing on a ship without a fragment swarm, Voltaic Discharge included.
+- Kinetic Fragments: Counts the 4 fragments that fly with each missile, 100 kinetic each.
+- Fragment Swarm: Never removed, never added and never built in by the mod.
+- Abyssal Glare: Counts its rift explosions at the rate on player ships, 100 energy about every 0.5 s.
+- Hungering Rift: The game allows 10 rifts at once per battle. Past 3 launchers in the fleet, each launcher counts less.
+- Tachyon Lance: Fixed its EMP arcs counting at 4 a second. One burst every 2.5 s gives 1.6 a second.
+- Hullmods: Hullmods the game's own autofit never applies are never added.
+
 ## 0.5.37 - 2026-11-14
 
 - United Aurora Federation: Fixed Secondary Focus going on ships as spare-OP filler. It is scored from the fit's medium and large guns by slot type.

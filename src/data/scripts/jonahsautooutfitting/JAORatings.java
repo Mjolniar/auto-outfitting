@@ -77,6 +77,7 @@ public class JAORatings {
         w.dmg = dmg(spec.getDamageType() == null ? null : spec.getDamageType().name());
         w.beam = spec.isBeam();
         w.soft = w.beam || spec.hasTag("damage_soft_flux");
+        w.fragment = spec.hasTag("fragment");
         w.range = spec.getMaxRange();
         w.pd = spec.getAIHints().contains(AIHints.PD);
         w.pdOnly = spec.getAIHints().contains(AIHints.PD_ONLY);
@@ -199,6 +200,11 @@ public class JAORatings {
     /** One jao_weapon_effects.csv row onto a weapon model (also used by the offline checks). */
     static void applyEffectRow(JAOModel.W w, JSONObject row) {
         w.ownedOnly = row.optBoolean("ownedOnly", false) || "TRUE".equalsIgnoreCase(row.optString("ownedOnly"));
+        // 0.5.38: limits the game enforces (always on): fragments spent per shot from the ship's Threat fragment swarm,
+        // at the weapon's sustained shots per second, and launchers a battle-wide projectile cap lets fire at full rate
+        float frag = num(row, "fragmentsPerShot");
+        if (frag > 0f && w.hit > 0f && w.dps > 0f && !w.beam) w.fragUse = frag * w.dps / w.hit;
+        w.fleetMax = Math.max(0f, num(row, "fleetMax"));
         if (!JAOSettings.specialWeapons) return;
         // 0.5.19: share of its listed damage the weapon really deals (Tahlan's Project Silk: the shot is a gas cloud and
         // its chained arcs deal 0.75 of it; Diable's Hexafire: more damage at higher own flux), and its flux cost
@@ -235,8 +241,10 @@ public class JAORatings {
         } else if (extra > 0f && w.hit > 0f && !w.beam) {
             String ch = row.optString("extraChance", "").trim();
             float extraChance = ch.isEmpty() ? 1f : Math.max(0f, Math.min(1f, num(row, "extraChance")));
+            // 0.5.38: extra hits per shot (Kinetic Fragments: the 4 fragments flying with the missile, 100 each)
+            float hits = num(row, "extraHits");
             w.extraHit = extra;
-            w.extraFrac = extra * extraChance / w.hit;
+            w.extraFrac = extra * extraChance * (hits > 0f ? hits : 1f) / w.hit;
             w.extraDmg = dmg(row.optString("extraType", "").trim().toUpperCase(java.util.Locale.ROOT));
             w.extraShields = "TRUE".equalsIgnoreCase(row.optString("extraOnShields"));
         }

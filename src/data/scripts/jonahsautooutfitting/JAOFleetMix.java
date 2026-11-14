@@ -38,6 +38,8 @@ final class JAOFleetMix {
     float armorDps, shieldDps, total;
     final float[] wingBays = new float[4];
     final Map<String, Integer> wingIds = new TreeMap<>();
+    /** Copies of each weapon with a battle-wide cap (Hungering Rift; 0.5.38). */
+    final Map<String, Integer> cappedIds = new TreeMap<>();
     int ships;
 
     /** One fitted weapon or wing. */
@@ -52,6 +54,7 @@ final class JAOFleetMix {
             addDamage(d, w.dps, w.hit);
             return;
         }
+        if (w.fleetMax > 0f) cappedIds.merge(w.id, 1, Integer::sum);
         if (w.pdOnly || (w.pd && !w.pdAlso)) return;
         float dps = w.dps > 0f ? w.dps : w.pool / 90f;
         if (w.pd) dps *= 0.6f;
@@ -77,6 +80,7 @@ final class JAOFleetMix {
         shieldDps += o.shieldDps;
         total += o.total;
         for (Map.Entry<String, Integer> e : o.wingIds.entrySet()) wingIds.merge(e.getKey(), e.getValue(), Integer::sum);
+        for (Map.Entry<String, Integer> e : o.cappedIds.entrySet()) cappedIds.merge(e.getKey(), e.getValue(), Integer::sum);
         ships += o.ships;
     }
 
@@ -103,6 +107,7 @@ final class JAOFleetMix {
     void wings(JAOModel.Params p) {
         p.fleetWingBays = wingBays.clone();
         p.fleetWingIds = new java.util.HashMap<>(wingIds);
+        p.fleetWeaponIds = new java.util.HashMap<>(cappedIds);
     }
 
     /** "kinetic 28%, anti-shield 38%, armor-cracking 49%, bays 17/1/1/7" for logs. */

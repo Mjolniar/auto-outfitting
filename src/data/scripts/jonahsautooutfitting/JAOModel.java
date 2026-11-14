@@ -354,6 +354,13 @@ final class JAOModel {
          *  charges, and charges regained per second. dps above is the recharge-limited rate. 0 = none. */
         float burstDps, ammoMax, regen;
         boolean ownedOnly;
+        /** Threat fragment weapons: swarm fragments spent per second at sustained fire (jao_weapon_effects fragmentsPerShot, 0.5.38). */
+        float fragUse;
+        /** Tagged fragment: fires only from a ship with a fragment swarm (Voltaic Discharge needs 10 in it and spends none). */
+        boolean fragment;
+        /** A battle-wide cap on the weapon's projectiles (Hungering Rift: 10 rifts at once): launchers the fleet fires at full
+         *  rate (jao_weapon_effects fleetMax; 0 = no cap; 0.5.38). */
+        float fleetMax;
     }
 
     static final class Target {
@@ -454,6 +461,8 @@ final class JAOModel {
         float crLoss = 1f;
         /** UAF Secondary Focus fitted: its bonus comes from the fit's weapons (secondaryFocus()). */
         boolean secondaryFocus;
+        /** Threat fragment swarm (0.5.38): fragments regrown per second and the swarm's size (0 = no swarm). */
+        float fragRegen, fragSize;
 
         Ship copy() {
             Ship s = new Ship();
@@ -474,6 +483,7 @@ final class JAOModel {
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss; s.secondaryFocus = secondaryFocus;
+            s.fragRegen = fragRegen; s.fragSize = fragSize;
             return s;
         }
     }
@@ -610,6 +620,8 @@ final class JAOModel {
         /** The rest of the fleet (JAOFleetContext): fighter bays by role, and copies of each wing id. */
         float[] fleetWingBays = new float[4];
         Map<String, Integer> fleetWingIds = new HashMap<>();
+        /** The rest of the fleet: copies of each weapon with a battle-wide cap (W.fleetMax). */
+        Map<String, Integer> fleetWeaponIds = new HashMap<>();
         /** Line ships on Auto/Balanced carry both kinetic and armor-cracking damage (COVERAGE). */
         boolean coverage;
     }
@@ -684,6 +696,41 @@ final class JAOModel {
     }
 
     /** Score with an optional breakdown map (for the debug log). */
+    /**
+     * Weapons that draw on something shared (0.5.38). Threat fragment weapons spend fragments from the ship's swarm
+     * (FragmentSwarmHullmod: 20/40/60/100 fragments, regrowing 1/2/3/5 a second by hull size); past what the swarm holds
+     * plus regrows in a fight they wait. A weapon with a battle-wide cap (Hungering Rift: 10 rifts at once) fires at full
+     * rate on at most fleetMax launchers across the fleet.
+     */
+    static void limitShared(Ship s, List<Fit> fits, Params p, Eff[] e) {
+        int n = fits.size();
+        float need = 0f;
+        Map<String, Integer> capped = null;
+        for (int i = 0; i < n; i++) {
+            W w = fits.get(i).w;
+            if (w.wing) continue;
+            need += w.fragUse * s.rofMult[w.cls];
+            if (w.fleetMax > 0f) {
+                if (capped == null) capped = new HashMap<>();
+                capped.merge(w.id, 1, Integer::sum);
+            }
+        }
+        float supply = s.fragRegen + s.fragSize / Math.max(30f, p.fightSeconds);
+        float frag = need > supply ? supply / need : 1f;
+        for (int i = 0; i < n; i++) {
+            W w = fits.get(i).w;
+            if (w.wing) continue;
+            float m = 1f;
+            if (w.fragUse > 0f) m *= frag;
+            if ((w.fragment || w.fragUse > 0f) && s.fragSize <= 0f) m = 0f;
+            if (w.fleetMax > 0f) {
+                int total = capped.get(w.id) + (p.fleetWeaponIds == null ? 0 : p.fleetWeaponIds.getOrDefault(w.id, 0));
+                if (total > w.fleetMax) m *= w.fleetMax / total;
+            }
+            if (m < 1f) { e[i].dps *= m; e[i].pool *= m; }
+        }
+    }
+
     static float evaluate(Ship s, List<Fit> fits, Params p, Map<String, Float> out) {
         int n = fits.size();
         Eff[] e = new Eff[n];
@@ -716,6 +763,7 @@ final class JAOModel {
                 rminAll = Math.min(rminAll, x.range);
             }
         }
+        limitShared(s, fits, p, e);
 
         // MagicLib interference eats dissipation; then the flux budget the AI fires within (mechanics 3.4, 8.3)
         float diss = s.diss - interferenceLoss(s, fits);

@@ -252,6 +252,9 @@ final class JAOShip implements JAOSearch.World {
                 st.getEnergyWeaponFluxCostMod().unmodify(id); st.getBallisticWeaponFluxCostMod().unmodify(id); st.getBeamWeaponFluxCostMult().unmodify(id);
             } catch (Throwable ignored) { }
         }
+        // Threat fragment swarm (0.5.38): the fragments its weapons spend, by hull size, with Secondary Fabricator and
+        // Fragment Coordinator (dynamic stats, read the way FragmentSwarmHullmod reads them)
+        if (work.hasHullMod("fragment_swarm")) fragmentSwarm(st, hull.getHullSize(), s);
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
         s.armor = st.getArmorBonus().computeEffective(hull.getArmorRating());
         s.cap = st.getFluxCapacity().getModifiedValue();
@@ -423,6 +426,19 @@ final class JAOShip implements JAOSearch.World {
      * with shields up, the armor's damage reduction cap and CR loss past peak time. Each read on its own, so a missing
      * stat (another game version) leaves the default.
      */
+    static void fragmentSwarm(MutableShipStatsAPI st, ShipAPI.HullSize size, JAOModel.Ship s) {
+        try {
+            s.fragSize = st.getDynamic().getValue(com.fs.starfarer.api.impl.campaign.ids.Stats.FRAGMENT_SWARM_SIZE_MOD,
+                    com.fs.starfarer.api.impl.combat.threat.FragmentSwarmHullmod.getBaseSwarmSize(size));
+            s.fragRegen = com.fs.starfarer.api.impl.combat.threat.FragmentSwarmHullmod.getBaseSwarmRespawnRateMult(size)
+                    * st.getDynamic().getValue(com.fs.starfarer.api.impl.campaign.ids.Stats.FRAGMENT_SWARM_RESPAWN_RATE_MULT);
+        } catch (Throwable t) {
+            int i = Math.max(0, Math.min(3, s.size));
+            s.fragSize = new float[]{20f, 40f, 60f, 100f}[i];
+            s.fragRegen = new float[]{1f, 2f, 3f, 5f}[i];
+        }
+    }
+
     private static void skillStats(MutableShipStatsAPI st, JAOModel.Ship s) {
         try {
             s.sizeDmg[0] = mult(st.getDamageToFrigates().getModifiedValue());
@@ -631,6 +647,8 @@ final class JAOShip implements JAOSearch.World {
     private boolean check(String mod, Set<String> mods) {
         HullModSpecAPI spec = Global.getSettings().getHullModSpec(mod);
         if (spec == null) return false;
+        // the game's own autofit never adds these (Fragment Swarm: it needs an item, and only fragment weapons use it; 0.5.38)
+        if (spec.hasTag("do_not_apply_hullmod_during_autofit")) return false;
         if (hull.isPhase() && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
         if (!hull.isPhase() && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;

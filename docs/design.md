@@ -459,7 +459,9 @@ Weapons:
 - At most one `feedback_weapon` per ship.
 - MagicLib interference weapons cost (n-1) x 20/40/80 dissipation each when 2+ are fitted.
 - SEEKER plague items cost 3/6/12% max CR each on non-plague hulls (x0.666 with Hardened Subsystems), scored through `crStart`.
-- Fragment weapons need `fragment_swarm`.
+- Fragment weapons need `fragment_swarm` (0.5.38: never removed, never added, never built in). They share the swarm: 20/40/60/100 fragments regrowing 1/2/3/5 a second by hull size, raised by Secondary Fabricator and Fragment Coordinator (`JAOShip.fragmentSwarm`). `fragmentsPerShot` in `jao_weapon_effects.csv` gives each weapon's use. Supply = regrowth + swarm size / fight length. Past it, fragment weapons count at supply / need (`JAOModel.limitShared`). Without a swarm they count 0.
+- Battle-wide caps (0.5.38): Hungering Rift allows 10 rifts at once per battle, both sides. `fleetMax` 3: past 3 launchers in the fleet (this ship plus `Params.fleetWeaponIds`), each counts at 3 / total.
+- Hullmods tagged `do_not_apply_hullmod_during_autofit` are never added (0.5.38).
 - `vice_seeker` and `archaic_c` weapons get range only from their own hullmods.
 - A_S-F artillery hulls need a target designator fitted.
 - Hull-wide modifiers appear in scratch-member stats: TTE_bolt energy +20% damage / -20% flux / +15% range; TW trinity range x0.9; TBJ +70-100% range.
@@ -542,7 +544,7 @@ D-mods (0.5.32): `JAOSMods` runs on `JAOOptimizer.restored`, a copy without `rem
 
 Planner (`JAOSMods`):
 1. Candidates: known, buildable hullmods that are not `no_build_in`, hidden or never_add; combat value per `jao_hullmods.csv`.
-2. Penalty s-mods (`smodPenalty`: Heavy Armor, Expanded Missile Racks, Missile Autoloader, Fragment Swarm) stay candidates. The scratch member applies the penalty stats; the model scores handling (mobility factor) and missile rate (pool x min(1, missile rate of fire)). Heavy Armor: -25% turning and acceleration. Expanded Missile Racks: missile rate of fire x0.8. Missile Autoloader: 10 s cooldown, ammo x1.35 (was x1.5).
+2. Penalty s-mods (`smodPenalty`: Heavy Armor, Expanded Missile Racks, Missile Autoloader) stay candidates. Fragment Swarm is never built in (0.5.38). The scratch member applies the penalty stats; the model scores handling (mobility factor) and missile rate (pool x min(1, missile rate of fire)). Heavy Armor: -25% turning and acceleration. Expanded Missile Racks: missile rate of fire x0.8. Missile Autoloader: 10 s cooldown, ammo x1.35 (was x1.5).
 3. Each candidate is tried as an s-mod: 0 OP plus its s-mod effects, measured on the scratch member via `addPermaMod(id, true)`. A cheap screen keeps the base fit's weapons and re-chooses hullmods, vents and caps. The top 3 get a full re-optimisation.
 4. Greedy, best first. Each pick must add the minimum gain.
 5. Wait: the same search over every buildable hullmod in the loaded game. If that set beats the best available set by the margin, only the slots its missing hullmods would take are held. Other slots get the best available set of that size. The log names what is held ("not known yet" or "dock at a spaceport").

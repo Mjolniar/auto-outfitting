@@ -80,6 +80,8 @@ never_remove,aitweaks_system_shunt,,AI Tweaks: System Shunt
 never_remove,aitweaks_custom_ship_ai,,AI Tweaks: Custom AI
 never_remove,aitweaks_search_and_destroy,,AI Tweaks: Search and Destroy
 never_remove,aitweaks_skirmisher,,AI Tweaks: Role: Skirmisher
+never_remove,fragment_swarm,,Threat Fragment Swarm: needs an item and powers the fragment weapons (0.5.38)
 # 0.5.36: Emergent Threats AI Subsystem Integration: not built in by the mod; built in by the player, crewed wings cause Drone Bay Malfunction
 never_smod,vice_ai_subsystem_integration,,
+never_smod,fragment_swarm,,its s-mod cuts max CR by 20% and adds 50% maintenance (0.5.38)
 drones_only,vice_ai_subsystem_integration,SKR_remote;rat_autonomous_bays;$xo_drone_tactics_is_active,
