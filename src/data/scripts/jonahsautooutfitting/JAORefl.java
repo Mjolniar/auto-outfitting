@@ -36,6 +36,44 @@ final class JAORefl {
 
     private JAORefl() { }
 
+    private static MethodHandle fleetDataSetter;
+    private static boolean fleetDataTried, fleetDataLogged;
+
+    /**
+     * Gives a fleet member the fleet data its stats are computed with (0.5.47, build audit). 0.98.5a's
+     * setFleetCommanderForStats drops its FleetDataAPI argument, so skills scaled by fleet size (Automated Ships, Phase
+     * Corps, Flux Regulation, Crew Training, Carrier Group) read as their full bonus on a test ship. Sets the member's
+     * private fleetDataForStats field through a method handle; false when the game doesn't allow it.
+     */
+    static boolean setFleetDataForStats(Object member, Object fleetData) {
+        if (member == null || fleetData == null) return false;
+        try {
+            if (!fleetDataTried) {
+                fleetDataTried = true;
+                MethodHandles.Lookup pl = MethodHandles.privateLookupIn(member.getClass(), MethodHandles.lookup());
+                for (Class<?> c = fleetData.getClass(); c != null && fleetDataSetter == null; c = c.getSuperclass()) {
+                    try { fleetDataSetter = pl.findSetter(member.getClass(), "fleetDataForStats", c); } catch (Throwable ignored) { }
+                }
+                if (fleetDataSetter == null) {
+                    for (Class<?> i : fleetData.getClass().getInterfaces()) {
+                        try { fleetDataSetter = pl.findSetter(member.getClass(), "fleetDataForStats", i); break; } catch (Throwable ignored) { }
+                    }
+                }
+            }
+            if (fleetDataSetter == null) {
+                if (!fleetDataLogged) {
+                    fleetDataLogged = true;
+                    com.fs.starfarer.api.Global.getLogger(JAORefl.class).info("Auto Outfitting: test ships can't take the fleet's data; fleet-size skills read at their full bonus");
+                }
+                return false;
+            }
+            fleetDataSetter.invoke(member, fleetData);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** A public no-argument method by name, cached per class (NONE when there is none). */
     static Object method(Class<?> c, String name) {
         String key = c.getName() + "#" + name;

@@ -502,6 +502,8 @@ final class JAOModel {
         float misRate = 1f;
         /** Lidar Array while active (0.5.46): net throughput of hardpoint ballistic and energy guns, and of the rest. */
         float lidarHp = 1f, lidarOther = 1f;
+        /** Systems (0.5.47): point defense need x this (flak, flares); share of the fight the weapons are off (flux shunts). */
+        float pdNeedMult = 1f, noFire;
         /** RAT Chronos (0.5.46): non-missile base range capped at 500/600/700 by size, then every base range x0.8. */
         boolean chronos;
         /** Base range by weapon id or tag (0.5.46, jao_rules weapon_range): {target, flat, percent}. */
@@ -534,7 +536,7 @@ final class JAOModel {
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
-            s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.chronos = chronos; s.weaponRange = weaponRange;
+            s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
             return s;
         }
     }
@@ -866,9 +868,11 @@ final class JAOModel {
             // uses a fight x share; each use saves about one 10 s launcher cycle of a 90 s fight
             case "MIS": if (cls.equals("COOLDOWN")) s.misRate *= 1f + mult * share * 10f / 90f; break;
             case "NET_HARDPOINT": s.lidarHp *= eff; break;
+            case "PD": if (cls.equals("NEED")) s.pdNeedMult *= eff; break;
             case "NET_OTHER": s.lidarOther *= eff; break;
             default:
-                if (what.equals("DISS")) s.diss *= eff;
+                if (what.equals("NOFIRE")) s.noFire = 1f - (1f - s.noFire) * (1f - clamp(mult * share, 0f, 0.9f));
+                else if (what.equals("DISS")) s.diss *= eff;
                 else if (what.equals("CAP")) s.cap *= eff;
         }
     }
@@ -898,6 +902,8 @@ final class JAOModel {
             // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
             if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * (w.cls == MIS ? s.misRate : 1f) * Math.max(10f, p.fightSeconds));
             x.range = w.hullmod ? w.range : range(w, s);
+            // weapons off while a system runs (0.5.47: flux shunts)
+            if (!w.wing && !w.hullmod && s.noFire > 0f) { x.dps *= 1f - s.noFire; x.flux *= 1f - s.noFire; }
             // Lidar Array while active (0.5.46): hardpoint guns fire faster, turrets and beams pause
             if (!w.wing && !w.hullmod && w.cls != MIS && (s.lidarHp != 1f || s.lidarOther != 1f)) {
                 float lm = fits.get(i).hardpoint && !w.beam ? s.lidarHp : s.lidarOther;
@@ -1125,7 +1131,7 @@ final class JAOModel {
         if (s.noVent) capPenalty *= 0.93f;
 
         // point defense floor (destroyers and up need some); past the need, PD only counts as half a gun
-        float need = PD_NEED[Math.max(0, Math.min(3, s.size))] * p.pdFloor * p.pdMult;
+        float need = PD_NEED[Math.max(0, Math.min(3, s.size))] * p.pdFloor * p.pdMult * s.pdNeedMult;
         // past the floor, more point defense still stops more missiles and fighters, up to about twice the floor (0.5.11:
         // with no credit past the floor, small energy mounts filled with LR PD lasers at 50 dps where the community puts
         // 2-3 Burst PD lasers at 210; research meta_report 5)

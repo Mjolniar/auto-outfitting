@@ -82,6 +82,7 @@ final class JAOShip implements JAOSearch.World {
         PersonAPI player = Global.getSector() == null ? null : Global.getSector().getPlayerPerson();
         CampaignFleetAPI fleet = Global.getSector() == null ? null : Global.getSector().getPlayerFleet();
         if (player != null) scratch.setFleetCommanderForStats(player, fleet == null ? null : fleet.getFleetData());
+        if (fleet != null) JAORefl.setFleetDataForStats(scratch, fleet.getFleetData());
         boolean lb = false;
         for (WeaponSlotAPI s : hull.getAllWeaponSlotsCopy()) {
             WeaponType t = s.getWeaponType();

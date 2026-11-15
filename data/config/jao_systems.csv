@@ -92,3 +92,10 @@ kol_lidar,NET_HARDPOINT_BE,1.40,0.7,"LidarStats: as Lidar Array; no passive rang
 kol_lidar,NET_OTHER_NONMISSILE,0.52,0.7,"speed and weapon turn -50% while active"
 kol_lidar_smol,NET_HARDPOINT_BE,1.40,0.7,"LidarStats_smol"
 kol_lidar_smol,NET_OTHER_NONMISSILE,0.52,0.7,""
+# 0.5.47: PD_NEED (point defense need x effect), NOFIRE (mult = share of the time weapons are off while the system runs)
+canister_flak,PD_NEED,0.8,1.0,"Canister Flak covers part of the point defense need (judgment)"
+flarelauncher_active,PD_NEED,0.85,1.0,"active flares (judgment)"
+flarelauncher,PD_NEED,0.9,1.0,"flares, 5 uses (judgment)"
+flarelauncher_fighter,PD_NEED,0.95,1.0,"fighter flares (judgment)"
+ix_flux_shunt,NOFIRE,0.2,0.8,"3 s charge-down of 15 with weapons off"
+vice_flux_shunt,NOFIRE,0.2,0.8,"3 s charge-down of 15 with weapons off"

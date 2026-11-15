@@ -552,6 +552,18 @@ class JAOOptimizer {
         List<String> allow = bays > builtInWings ? JAOCompat.bayWings(current) : null;
         // a built-in hullmod that turns crewed wings into a malfunction (AI Subsystem Integration): drones only (0.5.36)
         boolean dronesOnly = bays > builtInWings && JAOCompat.dronesOnly(current);
+        // built-in wings fly too (0.5.47, build audit): their point defense and role count in the score and the fleet's
+        // wing balance; fixed, never refitted
+        for (int b = 0; b < builtInWings && b < bays; b++) {
+            try {
+                String id = hull.getBuiltInWings().get(b);
+                com.fs.starfarer.api.loading.FighterWingSpecAPI spec = id == null ? null : Global.getSettings().getFighterWingSpec(id);
+                if (spec == null) continue;
+                JAOSearch.Slot fixed = new JAOSearch.Slot("builtinbay" + b, 1, false, 1f, true, true);
+                fixed.fixed = new JAOSearch.Cand(JAORatings.wing(spec), null, "builtin", 0f);
+                slots.add(fixed);
+            } catch (Throwable ignored) { }
+        }
         for (int b = builtInWings; b < bays; b++) {
             JAOSearch.Slot js = new JAOSearch.Slot("bay" + b, 1, false, 1f, true, true);
             String kept = current.getWingId(b);

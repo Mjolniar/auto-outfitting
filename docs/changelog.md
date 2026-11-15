@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.47 - 2026-11-14
+
+- Fleet-size skills: The test ship gets the fleet's data, so Automated Ships, Phase Corps, Flux Regulation, Crew Training and Carrier Group scale with the fleet as in the game. They were read at their full bonus.
+- Built-in wings: Count in the ship's score (their point defense and role) and in the fleet's wing balance.
+- Point defense need: Canister Flak and flare systems lower it (judgment 0.8 to 0.95).
+- Flux Shunt (IX and ET): Its 3 s with weapons off is counted next to its venting.
+
 ## 0.5.46 - 2026-11-14
 
 - Guns and missiles with charges: Capped at the magazine plus what regenerates in a 90 s fight. Regeneration was counted twice (Autopulse 450, now 350; slow-regenerating missiles 1.5 to 2 times too high).
