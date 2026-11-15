@@ -1,5 +1,6 @@
 package data.scripts.jonahsautooutfitting;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -358,6 +359,8 @@ final class JAOModel {
         float fragUse;
         /** Tagged fragment: fires only from a ship with a fragment swarm (Voltaic Discharge needs 10 in it and spends none). */
         boolean fragment;
+        /** Damage a hullmod deals by itself (HullmodWeapon, 0.5.40): no mount, no group, no range band, no ship bonuses. */
+        boolean hullmod;
         /** A battle-wide cap on the weapon's projectiles (Hungering Rift: 10 rifts at once): launchers the fleet fires at full
          *  rate (jao_weapon_effects fleetMax; 0 = no cap; 0.5.38). */
         float fleetMax;
@@ -463,6 +466,8 @@ final class JAOModel {
         boolean secondaryFocus;
         /** Threat fragment swarm (0.5.38): fragments regrown per second and the swarm's size (0 = no swarm). */
         float fragRegen, fragSize;
+        /** Hullmods on the ship that deal damage by themselves (jao_hullmod_damage.csv, 0.5.40). */
+        List<HullmodWeapon> hullmodWeapons = java.util.Collections.emptyList();
 
         Ship copy() {
             Ship s = new Ship();
@@ -483,7 +488,7 @@ final class JAOModel {
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss; s.secondaryFocus = secondaryFocus;
-            s.fragRegen = fragRegen; s.fragSize = fragSize;
+            s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons;
             return s;
         }
     }
@@ -695,6 +700,77 @@ final class JAOModel {
         return evaluate(s, fits, p, null);
     }
 
+    /** HullmodWeapon kinds: attacks at its own rate; fires at targets the ship's non-beam weapons just hit. */
+    static final int HW_TIMED = 0, HW_ON_HITS = 1;
+
+    /**
+     * A hullmod that deals damage by itself (jao_hullmod_damage.csv, 0.5.40; user 11/14: "valuation for offensive
+     * hullmods"), for this ship's hull size and s-mod state. Scored as a weapon without a mount: in range up to its own
+     * reach, no bearing limit, no weapon group, no range band, no ship weapon bonuses; its flux counts.
+     */
+    static final class HullmodWeapon {
+        String id;
+        int kind = HW_TIMED, dmgType = EN;
+        /** Attacks a second (timed kind), damage and EMP per attack, reach, flux per point of damage. */
+        float rate, dmg, emp, range = 1000f, fluxPerDmg;
+        /** Hits missiles and fighters as well as ships. */
+        boolean pd;
+        /** On-hits kind (Shrouded Thunderhead): seconds between attempts, misfire weight, weight of recent hits (one per
+         *  hit in the last window seconds, held to minWeight..maxWeight), how fresh a hit must be, share of shots that hit. */
+        float refire = 0.33f, misfire = 100f, minWeight = 20f, maxWeight = 100f, window = 5f, recent = 0.1f, hitChance = 0.6f;
+    }
+
+    /** The fits plus one mountless weapon per damage-dealing hullmod on the ship. */
+    static List<Fit> withHullmodWeapons(Ship s, List<Fit> fits) {
+        List<Fit> out = new ArrayList<>(fits);
+        for (HullmodWeapon h : s.hullmodWeapons) {
+            float rate = h.kind == HW_ON_HITS ? onHitsRate(h, shotsPerSecond(s, fits)) : h.rate;
+            if (rate <= 0f || h.dmg <= 0f) continue;
+            W w = new W();
+            w.id = "hullmod:" + h.id;
+            w.name = h.id;
+            w.hullmod = true;
+            w.cls = ENE;
+            w.dmg = h.dmgType;
+            w.dps = rate * h.dmg;
+            w.hit = h.dmg;
+            w.burst = h.dmg;
+            w.flux = w.dps * h.fluxPerDmg;
+            w.emp = rate * h.emp;
+            w.range = h.range;
+            w.pd = h.pd;
+            w.pdAlso = h.pd;
+            w.projSpeed = 100000f;
+            out.add(new Fit(w, true, 1f, true, 1f));
+        }
+        return out;
+    }
+
+    /** Shots a second the ship's non-beam weapons fire at ships (plain point defense a quarter of the time). */
+    static float shotsPerSecond(Ship s, List<Fit> fits) {
+        float n = 0f;
+        for (Fit f : fits) {
+            W w = f.w;
+            if (w.wing || w.beam || w.hullmod || w.pdOnly || w.dps <= 0f || w.hit <= 0f) continue;
+            n += w.dps / w.hit * s.rofMult[w.cls] * (w.pd && !w.pdAlso ? 0.25f : 1f);
+        }
+        return n;
+    }
+
+    /**
+     * Shrouded Thunderhead's bolts a second (ShroudedThunderheadHullmod): every refire seconds it tries, when a non-beam
+     * hit landed in the last recent seconds, and picks one of the recent hits (weight: hits in the last window seconds,
+     * held to minWeight..maxWeight) against a misfire weight.
+     */
+    static float onHitsRate(HullmodWeapon h, float shots) {
+        float hits = shots * h.hitChance;
+        if (hits <= 0f) return 0f;
+        float weight = clamp(hits * h.window, h.minWeight, h.maxWeight);
+        float pick = weight / (weight + h.misfire);
+        float fresh = 1f - (float) Math.exp(-hits * h.recent);
+        return pick * fresh / Math.max(0.05f, h.refire);
+    }
+
     /**
      * Weapons that draw on something shared (0.5.38). Threat fragment weapons spend fragments from the ship's swarm
      * (FragmentSwarmHullmod: 20/40/60/100 fragments, regrowing 1/2/3/5 a second by hull size); past what the swarm holds
@@ -732,20 +808,21 @@ final class JAOModel {
 
     /** Score with an optional breakdown map (for the debug log). */
     static float evaluate(Ship s, List<Fit> fits, Params p, Map<String, Float> out) {
+        if (!s.hullmodWeapons.isEmpty()) fits = withHullmodWeapons(s, fits);
         int n = fits.size();
         Eff[] e = new Eff[n];
         float load = 0f, rminAll = Float.MAX_VALUE;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             Eff x = new Eff();
-            float rof = w.wing ? 1f : s.rofMult[w.cls];
+            float rof = w.wing || w.hullmod ? 1f : s.rofMult[w.cls];
             // wings fly from this ship's deck: its refit time, replacement rate and engagement range (deckFactor)
-            float dm = w.wing ? s.deck : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
+            float dm = w.wing ? s.deck : w.hullmod ? 1f : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
             if (w.beam && s.hsa) dm *= 1.1f;
             float base = w.wing ? w.dps : chargedDps(w, s, p.fightSeconds);
             float fluxScale = w.dps > 0f ? base / w.dps : 1f;
             x.dps = base * dm * rof * w.prior;
-            x.flux = w.wing ? 0f : w.flux * fluxScale * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
+            x.flux = w.wing ? 0f : w.hullmod ? w.flux : w.flux * fluxScale * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
             x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f) * w.prior;
             // a slower missile rate (Expanded Missile Racks' s-mod penalty) delivers less of the pool within a fight
             if (w.cls == MIS && !w.wing) x.pool *= Math.min(1f, rof);
@@ -753,14 +830,14 @@ final class JAOModel {
             // the magazine (0.5.6: a CFT Twin Rocket holds 100 s of fire, and Expanded Missile Racks doubled what the 90-s
             // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
             if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * Math.max(10f, p.fightSeconds));
-            x.range = range(w, s);
+            x.range = w.hullmod ? w.range : range(w, s);
             x.front = fits.get(i).front;
             e[i] = x;
             if (!w.wing) {
                 // plain point defense mostly waits for missiles and fighters; dual-role guns (PD + PD_ALSO, e.g.
                 // Devastator) shoot ships whenever there's nothing else and pay full flux for it
                 load += w.pd && !w.pdAlso ? 0.5f * x.flux : x.flux;
-                rminAll = Math.min(rminAll, x.range);
+                if (!w.hullmod) rminAll = Math.min(rminAll, x.range);
             }
         }
         limitShared(s, fits, p, e);
@@ -782,7 +859,7 @@ final class JAOModel {
         Map<String, float[]> groups = new HashMap<>();
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (w.wing || w.pd || w.cls == MIS) continue;
+            if (w.wing || w.pd || w.cls == MIS || w.hullmod) continue;
             float wt = (w.size == 0 ? 1f : w.size == 1 ? 3f : 7f) * (fits.get(i).hardpoint ? 2f : 1f) + (w.cls == BAL ? 1f : 0f);
             float[] g = groups.computeIfAbsent(w.id, k -> new float[]{0f, Float.MAX_VALUE});
             g[0] += wt;
@@ -809,7 +886,7 @@ final class JAOModel {
         float rclose = reng;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (!w.wing && !w.pd && !w.pdOnly && w.cls != MIS) rclose = Math.min(rclose, e[i].range);
+            if (!w.wing && !w.pd && !w.pdOnly && w.cls != MIS && !w.hullmod) rclose = Math.min(rclose, e[i].range);
         }
         if (s.personality == 1 && rminAll < Float.MAX_VALUE) rclose = Math.min(rclose, Math.max(0.7f * rminAll, rminAll - 200f));
         rclose = Math.max(100f, rclose);
@@ -829,7 +906,7 @@ final class JAOModel {
         if (s.ewm > 0f) {
             for (int i = 0; i < n; i++) {
                 W w = fits.get(i).w;
-                if (w.wing || w.cls != ENE) continue;
+                if (w.wing || w.cls != ENE || w.hullmod) continue;
                 float f = (1f - close) * ewmRange(s, Math.min(e[i].range, reng)) + close * ewmRange(s, Math.min(e[i].range, rclose));
                 float m = 1f + s.ewm * EWM_FLUX * f;
                 e[i].dps *= m;
@@ -956,7 +1033,7 @@ final class JAOModel {
             float all = 0f, longGuns = 0f;
             for (int i = 0; i < n; i++) {
                 W w = fits.get(i).w;
-                if (w.wing || w.pd || w.cls == MIS) continue;
+                if (w.wing || w.pd || w.cls == MIS || w.hullmod) continue;
                 all += e[i].dps;
                 if (w.range > s.threshold + 100f) longGuns += e[i].dps;
             }
@@ -988,7 +1065,7 @@ final class JAOModel {
         // range band and let the AI link fire, so each distinct gun past three costs a little
         java.util.Set<String> groupIds = new java.util.HashSet<>(), gunIds = new java.util.HashSet<>();
         for (Fit f : fits) {
-            if (f.w.wing) continue;
+            if (f.w.wing || f.w.hullmod) continue;
             groupIds.add(f.w.pd || f.w.pdOnly ? "#pd" : f.w.id);
             if (!f.w.pd && !f.w.pdOnly && f.w.cls != MIS) gunIds.add(f.w.id);
         }
@@ -998,7 +1075,7 @@ final class JAOModel {
         float gunDps = 0f, offBand = 0f;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (w.wing || w.pd || w.pdOnly || w.cls == MIS || e[i].dps <= 0f) continue;
+            if (w.wing || w.pd || w.pdOnly || w.cls == MIS || w.hullmod || e[i].dps <= 0f) continue;
             gunDps += e[i].dps;
             if (Math.abs(e[i].range - reng) > 200f) offBand += e[i].dps;
         }
@@ -1034,7 +1111,7 @@ final class JAOModel {
         // Executor, Conquest, Invictus; research meta_report 3.1): full weight at 20 degrees a second or slower
         float hpW = 0f, gunW = 0f;
         for (Fit f : fits) {
-            if (f.w.wing || f.w.pd || f.w.pdOnly || f.w.cls == MIS) continue;
+            if (f.w.wing || f.w.pd || f.w.pdOnly || f.w.cls == MIS || f.w.hullmod) continue;
             float wt = f.w.size == 0 ? 1f : f.w.size == 1 ? 2f : 4f;
             gunW += wt;
             if (f.hardpoint) hpW += wt;

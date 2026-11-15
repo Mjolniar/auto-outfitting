@@ -210,6 +210,7 @@ final class JAOSMods {
         if (JAOCompat.neverAdd(id)) return false;
         // never built in by the mod (0.5.36: AI Subsystem Integration took the first s-mod on every warship); the player can
         if (JAORatings.ruleMatches("never_smod", id)) return false;
+        if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
         JSONObject row = JAORatings.hullmods().get(id);
         if (row != null && !"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE")) && !JAOShip.SMOD_VALUE.contains(id)) return false;
         // s-mods whose s-mod effect is a penalty (Heavy Armor maneuver -25%, Expanded Missile Racks missile rate of

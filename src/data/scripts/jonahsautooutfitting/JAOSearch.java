@@ -167,6 +167,7 @@ final class JAOSearch {
 
     /** The objective: build score with the left-over OP in vents/caps, minus nothing; -1 when over the OP limit. */
     float objective() {
+        JAOCoop.checkpoint();
         evaluations++;
         int left = world.hullOp() - opUsed();
         if (left < 0) return -1f;

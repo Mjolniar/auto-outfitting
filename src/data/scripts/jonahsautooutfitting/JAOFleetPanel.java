@@ -166,10 +166,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     @Override
     public void buttonPressed(Object id) {
         if ("close".equals(id)) {
+            if (job != null) job.fleet.cancel();
             close.run();
         } else if ("officers".equals(id) && officersBox != null) {
             if (job != null && job.applied) { officersBox.setChecked(JAOFleetApply.placeOfficers()); return; }
             JAOFleetApply.setPlaceOfficers(officersBox.isChecked());
+            if (job != null) job.fleet.cancel();
             job = starter.get();
             failed = false;
             status = null;

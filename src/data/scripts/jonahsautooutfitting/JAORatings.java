@@ -33,7 +33,7 @@ import java.util.Set;
  * (merged by id), so nothing here is keyed to a particular mod.
  */
 public class JAORatings {
-    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv", TIERS = "data/config/jao_weapon_tiers.csv";
+    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv", TIERS = "data/config/jao_weapon_tiers.csv", HULLMOD_DAMAGE = "data/config/jao_hullmod_damage.csv";
 
     private static final Map<String, JAOModel.W> weapons = new HashMap<>(), wings = new HashMap<>();
     private static Map<String, JSONObject> effects, hullmods;
@@ -511,6 +511,44 @@ public class JAORatings {
     static Map<String, JSONObject> effects() {
         if (effects == null) effects = merged("weaponId", EFFECTS);
         return effects;
+    }
+
+    private static Map<String, JSONObject> hullmodDamage;
+
+    /** Hullmods that deal damage by themselves (jao_hullmod_damage.csv, 0.5.40). */
+    static Map<String, JSONObject> hullmodDamage() {
+        if (hullmodDamage == null) hullmodDamage = merged("hullmodId", HULLMOD_DAMAGE);
+        return hullmodDamage;
+    }
+
+    /** One jao_hullmod_damage.csv row for a hull size (0-3) and s-mod state; null when it deals nothing. */
+    static JAOModel.HullmodWeapon hullmodWeapon(String id, JSONObject row, int size, boolean smod) {
+        JAOModel.HullmodWeapon h = new JAOModel.HullmodWeapon();
+        h.id = id;
+        h.kind = "onHits".equalsIgnoreCase(row.optString("kind", "").trim()) ? JAOModel.HW_ON_HITS : JAOModel.HW_TIMED;
+        h.rate = bySize(row.optString("rate", ""), size);
+        if (smod) { float m = num(row, "smodRateMult"); if (m > 0f) h.rate *= m; }
+        h.dmg = bySize(row.optString("damage", ""), size);
+        h.dmgType = dmg(row.optString("damageType", "ENERGY").trim().toUpperCase(java.util.Locale.ROOT));
+        h.emp = h.dmg * num(row, "empPerDamage");
+        float r = num(row, "range");
+        if (r > 0f) h.range = r;
+        h.fluxPerDmg = num(row, "fluxPerDamage");
+        h.pd = "TRUE".equalsIgnoreCase(row.optString("pd", "").trim());
+        if (num(row, "refire") > 0f) h.refire = num(row, "refire");
+        if (num(row, "misfire") > 0f) h.misfire = num(row, "misfire");
+        if (num(row, "minWeight") > 0f) h.minWeight = num(row, "minWeight");
+        if (num(row, "maxWeight") > 0f) h.maxWeight = num(row, "maxWeight");
+        if (num(row, "window") > 0f) h.window = num(row, "window");
+        if (num(row, "recent") > 0f) h.recent = num(row, "recent");
+        return h.dmg > 0f && (h.rate > 0f || h.kind == JAOModel.HW_ON_HITS) ? h : null;
+    }
+
+    /** "75" or "1;2;3;4" (frigate;destroyer;cruiser;capital). */
+    static float bySize(String v, int size) {
+        String[] p = v.trim().split(";");
+        String x = p.length >= 4 ? p[Math.max(0, Math.min(3, size))] : p[0];
+        try { return Float.parseFloat(x.trim()); } catch (NumberFormatException e) { return 0f; }
     }
 
     static Map<String, JSONObject> hullmods() {

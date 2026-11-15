@@ -251,6 +251,7 @@ final class JAOShip implements JAOSearch.World {
 
     @Override
     public JAOModel.Ship ship(Set<String> mods) {
+        JAOCoop.checkpoint();
         setMods(mods);
         scratch.setVariant(work, false, true);
         MutableShipStatsAPI st = scratch.getStats();
@@ -273,6 +274,8 @@ final class JAOShip implements JAOSearch.World {
         // Threat fragment swarm (0.5.38): the fragments its weapons spend, by hull size, with Secondary Fabricator and
         // Fragment Coordinator (dynamic stats, read the way FragmentSwarmHullmod reads them)
         if (work.hasHullMod("fragment_swarm")) fragmentSwarm(st, hull.getHullSize(), s);
+        // hullmods that deal damage by themselves (0.5.40): weapons without a mount in the model
+        s.hullmodWeapons = hullmodWeapons();
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
         s.armor = st.getArmorBonus().computeEffective(hull.getArmorRating());
         s.cap = st.getFluxCapacity().getModifiedValue();
@@ -444,6 +447,21 @@ final class JAOShip implements JAOSearch.World {
      * with shields up, the armor's damage reduction cap and CR loss past peak time. Each read on its own, so a missing
      * stat (another game version) leaves the default.
      */
+    /** Damage-dealing hullmods on the work variant (jao_hullmod_damage.csv), for this hull size and s-mod state. */
+    private List<JAOModel.HullmodWeapon> hullmodWeapons() {
+        List<JAOModel.HullmodWeapon> out = null;
+        for (Map.Entry<String, JSONObject> e : JAORatings.hullmodDamage().entrySet()) {
+            String id = e.getKey();
+            if (!work.hasHullMod(id)) continue;
+            boolean smod = work.getSMods().contains(id) || work.getSModdedBuiltIns().contains(id);
+            JAOModel.HullmodWeapon h = JAORatings.hullmodWeapon(id, e.getValue(), size, smod);
+            if (h == null) continue;
+            if (out == null) out = new ArrayList<>();
+            out.add(h);
+        }
+        return out == null ? java.util.Collections.emptyList() : out;
+    }
+
     static void fragmentSwarm(MutableShipStatsAPI st, ShipAPI.HullSize size, JAOModel.Ship s) {
         try {
             s.fragSize = st.getDynamic().getValue(com.fs.starfarer.api.impl.campaign.ids.Stats.FRAGMENT_SWARM_SIZE_MOD,
@@ -667,6 +685,8 @@ final class JAOShip implements JAOSearch.World {
         if (spec == null) return false;
         // the game's own autofit never adds these (Fragment Swarm: it needs an item, and only fragment weapons use it; 0.5.38)
         if (spec.hasTag("do_not_apply_hullmod_during_autofit")) return false;
+        // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
+        if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
         if (hull.isPhase() && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
         if (!hull.isPhase() && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;
@@ -709,7 +729,7 @@ final class JAOShip implements JAOSearch.World {
         } catch (Throwable t) {
             return false;
         }
-        if (!JAOSettings.allowDrawbacks) {
+        if (!JAOSettings.allowDrawbacks && !(JAOSettings.shroudedHullmods && spec.hasTag("shrouded"))) {
             String why = drawback(mod, mods);
             if (why != null) { drawbacks.putIfAbsent(mod, why); return false; }
         }

@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.40 - 2026-11-14
+
+- Hullmods that deal damage: Scored as weapons without a mount (`jao_hullmod_damage.csv`). Shrouded Lens: 75 energy 1/2/3/4 times a second by hull size, range 400, hits missiles too. Shrouded Thunderhead: Rift Lightning of 200/300/400/500 energy on targets the ship's non-beam weapons just hit, rate from the fit's hit rate. Both cost 1 flux per damage.
+- Use Shrouded hullmods: Added to the settings, off by default. Off: Shrouded hullmods are never added; ones already on a ship stay. On: they are scored and used, and their +50% crew casualties are accepted. A fleet with a Shrouded hullmod makes the Luddic Path, the Luddic Church and the Knights of Ludd hostile when they see it.
+- Optimize fleet and Order fleet weapons: Fixed the game freezing while big fleets are planned. Planning takes turns with the game between frames, so the progress line keeps updating even when one ship takes seconds (IX Paragon: about 20 s).
+- Random Assortment of Things: Fixed Optimize fleet and Optimal removing RAT alterations, which lost the installed item.
+- Docs: The GitHub page keeps the README and these patch notes. The other guides are removed.
+
 ## 0.5.39 - 2026-11-14
 
 - Optimize fleet: Added Place officers, a box in the Optimize fleet panel (off by default, saved per game). It moves each officer to the ship where they add the most to the build score. The fits are planned for the new captains. Changing the box plans the fleet again.

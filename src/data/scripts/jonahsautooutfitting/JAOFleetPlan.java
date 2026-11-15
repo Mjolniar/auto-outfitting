@@ -178,18 +178,42 @@ final class JAOFleetPlan {
     boolean step(long budgetMs) {
         if (!lockedReady) readyLocked();
         long t0 = System.nanoTime(), end = t0 + budgetMs * 1_000_000L;
-        while (!done && System.nanoTime() < end) {
-            planOne(ships.get(index));
-            if (++index >= ships.size()) {
-                index = 0;
-                pass++;
-                if (pass >= PASSES || (pass > 1 && changedThisPass == 0)) done = true;
-                changedThisPass = 0;
+        // 0.5.40: on a worker thread in turns with the game's (JAOCoop), so a ship whose fit takes seconds doesn't
+        // freeze the screen; the progress line updates between slices
+        if (JAOCoop.enabled && !done) {
+            if (coop == null) coop = new JAOCoop(() -> { while (!done) { advance(); JAOCoop.checkpoint(); } }, "Auto Outfitting fleet plan");
+            coop.run(budgetMs);
+            nanos += System.nanoTime() - t0;
+            if (coop.error != null) {
+                Throwable e = coop.error;
+                coop = null;
+                if (e instanceof RuntimeException) throw (RuntimeException) e;
+                throw new RuntimeException(e);
             }
+            return done;
         }
+        while (!done && System.nanoTime() < end) advance();
         nanos += System.nanoTime() - t0;
         return done;
     }
+
+    /** One ship planned, then the next (and the next pass after the last). */
+    private void advance() {
+        planOne(ships.get(index));
+        if (++index >= ships.size()) {
+            index = 0;
+            pass++;
+            if (pass >= PASSES || (pass > 1 && changedThisPass == 0)) done = true;
+            changedThisPass = 0;
+        }
+    }
+
+    /** Stops a plan running on its worker thread (its panel closed). */
+    void cancel() {
+        if (coop != null) coop.cancel();
+    }
+
+    private JAOCoop coop;
 
     String progress() {
         if (done) return "Planned " + ships.size() + " ships";
@@ -243,6 +267,7 @@ final class JAOFleetPlan {
             }
             changedThisPass++;
         } catch (Throwable t) {
+            if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
             // whatever the failed fit had taken goes back; the ship keeps its old plan, or (never planned) what it carries
             if (d != null) give(d.used);
             if (old != null) take(oldUsed);
@@ -283,6 +308,7 @@ final class JAOFleetPlan {
             s.scripted.addAll(probe.wings.keySet());
             changedThisPass++;
         } catch (Throwable t) {
+            if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
             failed++;
             s.failed = true;
             Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't plan " + s.name + "'s logistics fit", t);

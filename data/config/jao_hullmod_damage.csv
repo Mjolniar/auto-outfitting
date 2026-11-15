@@ -1,0 +1,8 @@
+hullmodId,kind,rate,damage,damageType,empPerDamage,range,fluxPerDamage,pd,smodRateMult,refire,misfire,minWeight,maxWeight,window,recent,note
+# Hullmods that deal damage by themselves, scored as a weapon without a mount (0.5.40). Read by JAOShip when the hullmod is on the ship.
+# kind: timed (attacks at its own rate) or onHits (fires at targets the ship's non-beam weapons just hit).
+# rate (attacks a second) and damage: one value or four split by ; (frigate;destroyer;cruiser;capital). empPerDamage: EMP per point of damage.
+# pd: TRUE when it also hits missiles and fighters. smodRateMult: rate multiplier when s-modded.
+# onHits only: refire (seconds between attempts), misfire (weight), minWeight and maxWeight (weight of recent hits, one per hit in the last window seconds), recent (seconds a hit stays fresh).
+shrouded_lens,timed,1;2;3;4,75,ENERGY,0,400,1,TRUE,1.5,,,,,,,Shrouded Lens: a 75 energy explosion (radius 50) on a random ship or missile within 400; 1/2/3/4 a second by hull size and x1.5 s-modded; 75 flux each
+shrouded_thunderhead,onHits,,200;300;400;500,ENERGY,2,3000,1,FALSE,,0.33,100,20,100,5,0.1,Shrouded Thunderhead: Rift Lightning at a target a non-beam weapon hit in the last 0.1 s; one try every 0.22-0.44 s against a misfire weight of 100; 200/300/400/500 energy and twice that EMP by hull size; 1 flux per damage

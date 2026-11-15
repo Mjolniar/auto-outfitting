@@ -107,7 +107,8 @@ class JAOOptimizer {
             if (!module && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
+                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)
+                        || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
                     if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                     current.removeMod(id);
                 }
@@ -755,7 +756,8 @@ class JAOOptimizer {
         if (strip) {
             for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
+                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)
+                        || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
                 if (current.getPermaMods().contains(id)) continue; // s-mods stay
                 if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                 current.removeMod(id);
