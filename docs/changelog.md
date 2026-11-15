@@ -1,5 +1,15 @@
 # Patch notes
 
+## 0.5.41 - 2026-11-14
+
+- Weapon effects: 112 rows added and 6 fixed from a code read of Tahlan, Diable, Emergent Threats, RAT, Imperium, Stardust, Knights of Ludd, Ship/Weapon Pack, UAF, Yunru, Roider and TTE weapons (`jao_weapon_effects.csv`, 185 rows).
+- Tachyon Lance: Fixed its EMP arcs to 0.62 a second. Its firing cycle with the cooldown is 6.5 s.
+- Tahlan: Deathgaze, Strahlhammer and Strahlblick per-second effects fixed to their full firing cycle. They were counted 1.7 to 3.5 times too high.
+- Tahlan: Manannan is never fitted. On a ship without its unlock it deals 50000 damage to its own ship.
+- Hullmods: 63 rows added and 30 fixed (`jao_hullmods.csv`). Combat-only effects are marked so the stats don't count them.
+- Rules: 39 rules added: hullmods a hull's own script removes, items AO must not remove (Roider, Yunru Quickstart, SWP Extreme Modifications, Ship Mastery override), fighter effects (`wing_mult`).
+- Hullmods: Incompatibility now checks both hullmods' rows.
+
 ## 0.5.40 - 2026-11-14
 
 - Hullmods that deal damage: Scored as weapons without a mount (`jao_hullmod_damage.csv`). Shrouded Lens: 75 energy 1/2/3/4 times a second by hull size, range 400, hits missiles too. Shrouded Thunderhead: Rift Lightning of 200/300/400/500 energy on targets the ship's non-beam weapons just hit, rate from the fit's hit rate. Both cost 1 flux per damage.

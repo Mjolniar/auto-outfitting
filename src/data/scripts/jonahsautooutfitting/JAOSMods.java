@@ -217,7 +217,7 @@ final class JAOSMods {
         // fire x0.8, Autoloader 10 s cooldown): with "Allow hullmods with drawbacks" on they stay candidates (the
         // scratch fleet member applies the penalty and the model scores it); off, never
         if (!JAOSettings.allowDrawbacks && row != null && "TRUE".equalsIgnoreCase(row.optString("smodPenalty"))) return false;
-        if (row != null && "listener".equals(row.optString("how")) && !JAOShip.MODELLED.contains(id)) return false;
+        if (row != null && "listener".equals(row.optString("how")) && !JAOShip.modelled(id)) return false;
         return true;
     }
 

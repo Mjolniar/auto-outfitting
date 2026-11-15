@@ -649,7 +649,7 @@ class JAOOptimizer {
             if (row != null) {
                 if (!"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE"))) continue;
                 String how = row.optString("how", "stats");
-                if ("listener".equals(how) && !JAOShip.MODELLED.contains(id)) continue;
+                if ("listener".equals(how) && !JAOShip.modelled(id)) continue;
             }
             out.add(id);
         }

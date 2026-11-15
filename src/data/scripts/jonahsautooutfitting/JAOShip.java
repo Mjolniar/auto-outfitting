@@ -646,6 +646,11 @@ final class JAOShip implements JAOSearch.World {
     }
 
     /** Listener hullmods the model has its own numbers for (see ship()). */
+    /** A listener hullmod whose effect the model carries: in MODELLED, or a damage-dealing hullmod (jao_hullmod_damage.csv, 0.5.41). */
+    static boolean modelled(String id) {
+        return MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id);
+    }
+
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(
             "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "adaptive_coils", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
 
@@ -693,6 +698,11 @@ final class JAOShip implements JAOSearch.World {
         // incompatibilities the table knows (most mods also refuse in isApplicableToShip)
         JSONObject row = JAORatings.hullmods().get(mod);
         if (row != null) for (String other : row.optString("incompatible", "").split(" ")) if (!other.isEmpty() && (mods.contains(other) || work.hasHullMod(other))) return false;
+        // and the other way round (0.5.41): a fitted hullmod whose own row lists this one (Yunru's targeting core and ITU)
+        for (String other : mods) {
+            JSONObject o = other.equals(mod) ? null : JAORatings.hullmods().get(other);
+            if (o != null && (" " + o.optString("incompatible", "") + " ").contains(" " + mod + " ")) return false;
+        }
         if (mod.equals(HullMods.INTEGRATED_TARGETING_UNIT) && mods.contains(HullMods.DEDICATED_TARGETING_CORE)) return false;
         if (mod.equals(HullMods.DEDICATED_TARGETING_CORE) && mods.contains(HullMods.INTEGRATED_TARGETING_UNIT)) return false;
         // the game's limit on logistics hullmods counts only ordinary ones: built-in hullmods and s-mods don't (0.5.18;

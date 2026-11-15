@@ -86,3 +86,43 @@ never_remove,fragment_swarm,,Threat Fragment Swarm: needs an item and powers the
 never_smod,vice_ai_subsystem_integration,,
 never_smod,fragment_swarm,,its s-mod cuts max CR by 20% and adds 50% maintenance (0.5.38)
 drones_only,vice_ai_subsystem_integration,SKR_remote;rat_autonomous_bays;$xo_drone_tactics_is_active,
+# 0.5.41: build audit rules (removed_by, never_add, never_remove, wing_mult, never_use)
+removed_by,A_S-F_integratedRangefinders,ballistic_rangefinder,A_S-F: Integrated Rangefinders (Marlow; Gardina; Glentoran) removes Ballistic Rangefinder
+removed_by,A_S-F_MaliceCoils,phase_anchor;adaptive_coils,A_S-F: Novel Coil Geometry (Persenachia) removes Phase Anchor and Adaptive Phase Coils
+removed_by,A_S-F_PhantasmagoriaHullmod,safetyoverrides,A_S-F: Probability Space Hypervessel (Phantasmagoria) removes Safety Overrides
+removed_by,diableavionics_cramped,converted_hangar;magazines;missleracks;VEmagazines;VEmissleracks;cargo_expansion;additional_crew_quarters;fuel_expansion;additional_berthing;auxiliary_fuel_tanks;expanded_cargo_holds;surveying_equipment;recovery_shuttles;operations_center,Diable: Cramped Hull (Vapor; Versant; Hayle; Derecho) removes these when the ship is shown
+removed_by,diableavionics_tuning,safetyoverrides,Diable: Versant Frame removes Safety Overrides
+removed_by,diableavionics_virtuousMasterHullmod,safetyoverrides,Diable: Virtuous frame removes Safety Overrides
+removed_by,diableavionics_siroccocenter,operations_center,Diable: Dust Devil command center removes Operations Center
+removed_by,ii_reinforced_emplacements,diableavionics_mount,Imperium: Reinforced Emplacements (built in on 7 Imperium hulls) removes Dampened Mounts Package
+removed_by,roider_firestormmod,ballistic_rangefinder,Roider: Firestorm Integration removes Ballistic Rangefinder
+removed_by,roider_argosHangar,expanded_deck_crew,Roider: Drone Reserves (Argos) removes Expanded Deck Crew
+removed_by,roider_bombardmentmod,dedicated_targeting_core;targetingunit;ilk_SensorSuite,Roider: bombard targeting core removes DTC; ITU and ILK Sensor Suite (no hull uses it now)
+never_remove,roider_trackerSwap,,Roider: changes built-in wings AO cannot score; strip removes it and AO never adds it back
+never_remove,roider_glitzSwitch,,Roider: same
+never_remove,roider_garruchaDraw,,Roider: Desperado's only bay; same
+never_remove,yunru_quickstart,,Yunru: its CR effect is a hidden hullmod added after ship creation that deletes itself when Quickstart goes
+wing_mult,yunru_retuned_lpc,1.10,Yunru Retuned Wings: fighters +50 speed and wing range +50% on launch
+wing_mult,rat_temporalAssault,1.15,RAT: fighters time x1.5 for 7 s per 24 s cycle (judgment: AI uses it every cooldown)
+wing_mult,rat_perseverance,1.1,RAT: fighter hull damage taken x0.4 for 8 s per 25 s (average x0.78; value share is a judgment)
+wing_mult,rat_autonomous_bays,1.1,RAT: each fighter has a gamma-core pilot with 3 random combat skills at level 2 (judgment)
+never_add,yunru_irt,,Yunru: no backward thrust; the model counts speed and turn x1.33-2.0 at no cost (optional; matters only with drawbacks allowed)
+removed_by,kol_refit,advancedshieldemitter;adaptiveshields;frontemitter;extendedshieldemitter,KoL: Knight Refit (and Knight Shields) remove these after creation
+removed_by,logi_oracle,surveying_equipment;operations_center;nav_relay;ecm;hiressensors,KoL: Oracle Sensor Suite (Apoapsis) removes these after creation
+removed_by,zea_dawn_builtin,solar_shielding,KoL: Dawntide removes Solar Shielding before creation
+removed_by,zea_dusk_builtin,adaptive_coils,KoL: Duskfall removes Adaptive Phase Coils
+removed_by,zea_conformal_shield,extendedshieldemitter;adaptiveshields,KoL: arc capped at 140/170/160 and omni shields forced forward in combat; these do nothing
+removed_by,stardust_StardustCore,solar_shielding,Stardust: Stardust Core Field removes Solar Shielding
+removed_by,swp_phasedrive,adaptive_coils,SWP: Excelsior Phase Drive removes Adaptive Phase Coils
+removed_by,ii_titan_bombardment,efficiency_overhaul,Imperium: Olympus removes Efficiency Overhaul
+removed_by,tbj_juggernaut_*,targetingunit;dedicated_targeting_core,TBJ: Juggernaut hulls remove ITU and DTC
+removed_by,tbj_mothership_hull,targetingunit;dedicated_targeting_core,TBJ: Ghostworld
+removed_by,tbj_planetoid_hull,targetingunit;dedicated_targeting_core,TBJ: Hek
+removed_by,tbj_adv_broadside,targetingunit;dedicated_targeting_core,TBJ: Prevalent
+never_remove,swp_extrememods,,SWP: 0-OP player choice for +1 s-mod slot; installable only when every slot is used
+never_add,ix_hunter_killer,,ET-IX: converter that adds ix_hunter_killer_perm and removes itself (missing from the 11/11 dump)
+wing_mult,niko_MPC_fighterSolarShielding,1.06,WWLB: fighters take x0.7 energy damage; judgment: energy is about 45% of damage fighters take
+wing_mult,converted_bay,0.88,vanilla Colossus Mk.III: its fighters get Defective Manufactory (25% slower; 25% more damage taken)
+never_add,sms_engineering_override,,SMS: +2 s-mod slots; turns off every mastery effect on the ship
+never_remove,sms_engineering_override,,SMS: made a perma mod once an s-mod is built in
+never_add,oce_omega_core_upgrades,,OCE: holds an Omega core while installed; hidden without Special Hullmod Upgrades
