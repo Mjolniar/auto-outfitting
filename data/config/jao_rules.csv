@@ -44,8 +44,8 @@ never_remove,SKR_siegfriedLoadout,,
 one_per_ship,feedback_weapon,1,More than one makes vice_feedback_error damage the own ship
 interference,SKR_gatlingLance,STRONG,(n-1) x 80 dissipation each when 2+ interference weapons are fitted (x0.5 with Resistant Flux Conduits)
 interference,SKR_blackout,STRONG,
-interference,SKR_glare,STRONG,
-interference,SKR_ravager,STRONG,
+interference,SKR_glare,MILD,Seeker settings: MILD (0.5.43; was STRONG)
+interference,SKR_ravager,MILD,Seeker settings: MILD (0.5.43; was STRONG)
 interference,armaa_curvyLaser,MILD,(n-1) x 40
 interference,SKR_targetPainterSmall,WEAK,(n-1) x 20
 interference,SKR_targetPainterMedium,WEAK,
@@ -154,3 +154,16 @@ wing_mult,vice_modular_fleet_override,1.1,ET: fighter weapon damage +10%
 wing_mult,vice_fleet_override,1.15,ET: fighter weapon damage +15% (built in on 4 LG/Diktat carriers)
 wing_mult,tw_drone_tactics,1.03,TW: fighter weapon damage +3% (+5% with Drone Control Node and +7% with Enhanced Control Node)
 drones_only,vice_adaptive_drone_bay,SKR_remote;rat_autonomous_bays,ET: crewed wing in a non-built-in bay adds Drone Bay Malfunction (max CR -100%); needs the code change below
+# 0.5.43: build audit rules (Arma Armatura, UAF, Tahlan hullmods)
+removed_by,uaf_experimental_fighter,augmentedengines;additional_berthing;auxiliary_fuel_tanks;expanded_cargo_holds;hiressensors;operations_center;recovery_shuttles;surveying_equipment,UAF: Lynx (uaf_wing_lynx) removes these after ship creation
+removed_by,uaf_eyeseau_command,solar_shielding;surveying_equipment;ecm;eccm;nav_relay;operations_center;uaf_eyeseau_science,UAF: built into Aeria Charlotte; removes these after ship creation
+removed_by,cataphract,converted_hangar;cargo_expansion;additional_crew_quarters;fuel_expansion;additional_berthing;auxiliary_fuel_tanks;expanded_cargo_holds;surveying_equipment;recovery_shuttles;operations_center;expanded_deck_crew;combat_docking_module;roider_fighterClamps,ArmaA: Cataphract LSM removes these (applyEffectsAfterShipCreation)
+removed_by,cataphract2,converted_hangar;cargo_expansion;additional_crew_quarters;fuel_expansion;additional_berthing;auxiliary_fuel_tanks;expanded_cargo_holds;surveying_equipment;recovery_shuttles;operations_center;expanded_deck_crew;combat_docking_module;roider_fighterClamps,ArmaA: Cataphract S-II removes these
+removed_by,strikeCraft,converted_fighterbay;roider_fighterClamps,ArmaA: Strikecraft removes these
+removed_by,armaa_SeraphTargetingSoftware,converted_hangar;cargo_expansion;additional_crew_quarters;fuel_expansion;additional_berthing;auxiliary_fuel_tanks;expanded_cargo_holds;surveying_equipment;recovery_shuttles;operations_center;pointdefenseai;safetyoverrides,ArmaA: Garegga's targeting software removes these
+removed_by,armaa_SilverSwordHM,pointdefenseai;safetyoverrides,ArmaA: Valkazard's Silversword removes these
+never_add,cataphract,,ArmaA: 0 OP mech hullmod with no hull check; gives EMP and subsystem resistance to any hull and removes 13 hullmods
+removed_by,tahlan_paralleltargeting,ballistic_rangefinder,Tahlan: Parallel Targeting Core (Nibelung) removes Ballistic Rangefinder
+removed_by,tahlan_phaseharmonics,phase_anchor,Tahlan: Phase Harmonics (NX-A) removes Phase Anchor
+removed_by,tahlan_heavyconduits,fluxbreakers;advancedshieldemitter;extendedshieldemitter;hardenedshieldemitter;stabilizedshieldemitter;frontemitter;adaptiveshields;frontshield;shield_shunt;ix_reactive_combat_shields;vice_adaptive_temporal_shell;vice_adaptive_flux_dissipator,Tahlan: Lostech Engineering (Lostech hulls) removes Resistant Flux Conduits and every hullmod tagged shields
+never_remove,tahlan_cieveLink,,Tahlan: Quantum Link Device; removing it takes the CIEVE officer off the ship (CieveScript)

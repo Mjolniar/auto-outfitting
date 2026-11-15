@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.43 - 2026-11-14
+
+- United Aurora Federation: Fixed Secondary Focus. UAF's code gives a fixed bonus to every cruiser or capital with it: rate of fire +13%, damage +6.5%, weapon flux -11%, projectile speed +11%. The fitted guns don't change it. 0.5.37 scored it per gun, which was wrong.
+- Weapon effects: 55 rows added for A_S-F, SEEKER and Valkyrians weapons.
+- Hullmods: 25 rows added or fixed for Arma Armatura, UAF and Tahlan. Arma Armatura rows with no stat effect are no longer used as filler.
+- Rules: 12 added (hullmods a hull removes; Tahlan Quantum Link Device stays, its removal takes the CIEVE officer off the ship).
+- SEEKER: Glare and Ravager interference set to MILD, matching SEEKER's own settings.
+
 ## 0.5.42 - 2026-11-14
 
 - Emergent Threats: Fixed AO's test fits using up Synthesis cores. Adaptive Tactical Core takes one from cargo when an uncaptained ship is checked; AO no longer adds it.

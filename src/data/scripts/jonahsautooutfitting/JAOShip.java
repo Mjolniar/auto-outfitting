@@ -259,18 +259,7 @@ final class JAOShip implements JAOSearch.World {
         s.size = size;
         // the captain's skills (0.5.29): the stats read below carry them
         boolean polarized = applyCaptain(st, s);
-        // UAF Secondary Focus counts the fitted weapons, and the scratch variant only has the kept ones: its stat changes
-        // come off here and the model adds them for the whole fit (JAOModel.secondaryFocus, 0.5.37)
-        if (work.hasHullMod(JAOModel.SECONDARY_FOCUS_ID)) {
-            s.secondaryFocus = true;
-            String id = JAOModel.SECONDARY_FOCUS_ID;
-            try {
-                st.getEnergyWeaponDamageMult().unmodify(id); st.getBallisticWeaponDamageMult().unmodify(id); st.getBeamWeaponDamageMult().unmodify(id);
-                st.getBallisticRoFMult().unmodify(id); st.getEnergyRoFMult().unmodify(id); st.getMissileRoFMult().unmodify(id);
-                st.getProjectileSpeedMult().unmodify(id);
-                st.getEnergyWeaponFluxCostMod().unmodify(id); st.getBallisticWeaponFluxCostMod().unmodify(id); st.getBeamWeaponFluxCostMult().unmodify(id);
-            } catch (Throwable ignored) { }
-        }
+        // UAF Secondary Focus (0.5.43): a fixed bonus the stats carry (its per-slot counts are never used by UAF's own code)
         // Threat fragment swarm (0.5.38): the fragments its weapons spend, by hull size, with Secondary Fabricator and
         // Fragment Coordinator (dynamic stats, read the way FragmentSwarmHullmod reads them)
         if (work.hasHullMod("fragment_swarm")) fragmentSwarm(st, hull.getHullSize(), s);

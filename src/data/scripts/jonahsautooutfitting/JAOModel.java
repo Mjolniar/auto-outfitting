@@ -485,8 +485,6 @@ final class JAOModel {
         float maxDr = MAX_DR;
         /** Combat readiness lost per second past peak time (Combat Endurance x0.75; Fragile Subsystems more). */
         float crLoss = 1f;
-        /** UAF Secondary Focus fitted: its bonus comes from the fit's weapons (secondaryFocus()). */
-        boolean secondaryFocus;
         /** Threat fragment swarm (0.5.38): fragments regrown per second and the swarm's size (0 = no swarm). */
         float fragRegen, fragSize;
         /** Hullmods on the ship that deal damage by themselves (jao_hullmod_damage.csv, 0.5.40). */
@@ -510,7 +508,7 @@ final class JAOModel {
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
-            s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss; s.secondaryFocus = secondaryFocus;
+            s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons;
             return s;
         }
@@ -530,43 +528,6 @@ final class JAOModel {
 
     /** Slot weapon types for slot-dependent hullmods. */
     static final int SLOT_BAL = 0, SLOT_ENE = 1, SLOT_HYB = 3;
-
-    /**
-     * UAF Secondary Focus (data.hullmods.uaf_secondaryfocus, UAF 0.8.4c, decompiled 2026-11-14): every weapon in a medium
-     * or large mount of its own size adds, by slot type and size, {rate of fire, flux cost, damage, projectile speed} in
-     * percent; the sums apply to every weapon on the ship (rate of fire to ballistic, energy and missile; damage and flux
-     * to ballistic, energy and beam). Rows: ballistic, energy, hybrid; columns medium, large.
-     */
-    static final float[][][] SECONDARY_FOCUS = {
-            {{6f, -1.5f, 0f, 0f}, {8f, -9f, -3f, 0f}},       // ballistic medium, large
-            {{0f, -1f, -0.5f, 3f}, {-2f, 0f, 6f, 0f}},      // energy medium, large
-            {{6f, 0.5f, 0f, 0f}, {-5f, 0f, 4f, 8f}}};       // hybrid medium, large
-    static final String SECONDARY_FOCUS_ID = "uaf_secondary_focus";
-
-    /** {rate of fire, flux cost, damage, projectile speed} percent sums for these fits. */
-    static float[] secondaryFocusSums(List<Fit> fits) {
-        float[] sum = new float[4];
-        for (Fit f : fits) {
-            if (f.w.wing || f.slotSize < 1 || f.slotSize > 2 || f.w.size != f.slotSize) continue;
-            int row = f.slotType == SLOT_BAL ? 0 : f.slotType == SLOT_ENE ? 1 : f.slotType == SLOT_HYB ? 2 : -1;
-            if (row < 0) continue;
-            float[] v = SECONDARY_FOCUS[row][f.slotSize - 1];
-            for (int k = 0; k < 4; k++) sum[k] += v[k];
-        }
-        return sum;
-    }
-
-    /** The ship with Secondary Focus's bonus for these fits (a copy; the same ship when nothing counts). */
-    static Ship secondaryFocus(Ship base, List<Fit> fits) {
-        float[] sum = secondaryFocusSums(fits);
-        if (sum[0] == 0f && sum[1] == 0f && sum[2] == 0f) return base;
-        Ship s = base.copy();
-        float rof = Math.max(0.1f, 1f + sum[0] / 100f), flux = Math.max(0.1f, 1f + sum[1] / 100f), dmg = Math.max(0.1f, 1f + sum[2] / 100f);
-        for (int c = 0; c < 3; c++) s.rofMult[c] *= rof;
-        s.dmgMult[BAL] *= dmg; s.dmgMult[ENE] *= dmg; s.beamDmgMult *= dmg;
-        s.fluxMult[BAL] *= flux; s.fluxMult[ENE] *= flux; s.beamFluxMult *= flux;
-        return s;
-    }
 
     /** Average flux level Energy Weapon Mastery is scored at (the AI fights at about half flux). */
     static final float EWM_FLUX = 0.5f;

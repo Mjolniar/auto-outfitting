@@ -154,7 +154,6 @@ final class JAOSearch {
     JAOModel.Ship fitShip() {
         JAOModel.Ship sh = JAOModel.ordnance(ship(), weaponOp());
         // UAF Secondary Focus: its bonus comes from the fitted weapons, which the scratch stats don't have (0.5.37)
-        if (sh.secondaryFocus) sh = JAOModel.secondaryFocus(sh, fits());
         return sh;
     }
 
