@@ -1,5 +1,15 @@
 # Patch notes
 
+## 0.5.44 - 2026-11-14
+
+- Phase ships: Fixed 89 hulls with a damper or flak defense (Vanguard, Invictus and others) being scored as phase ships. They can take Heavy Armor and other non-phase hullmods, and their role and survival are scored as normal ships.
+- Ship systems: Scored from a new table (`jao_systems.csv`, 79 rows). Lidar Array +35% ballistic and energy range, missile forges extra magazines, fighter feeds and reserve wings, flux shunts, and the mod copies of the vanilla systems. Accelerated Ammo Feeder copies are matched by their script. High Energy Focus is x1.115, was x1.075.
+- Officers: The test ship carries the real captain. Ships with an officer no longer get Support Doctrine; officer-only fleet skills (Wolfpack, Carrier Group, Cybernetic Augmentation) count. Officer placement values follow.
+- Support Doctrine: Its 1.5 flux a second per weapon OP counts for every weapon of the fit on ships without an officer. It counted only kept weapons.
+- Armor: Armor counted for damage reduction follows the ship's effective armor bonus (UAF Supercap x0.5 on 16 hulls, Imperial Armor Package, TBJ Hek).
+- Time rate: Ships with a faster time rate (timeflow hulls and hullmods) fire, dissipate and move faster in the score.
+- Ammo bonuses: Flat bonuses (RAT Missile Reserves +2) count per 10 rounds. They were read as x3.
+
 ## 0.5.43 - 2026-11-14
 
 - United Aurora Federation: Fixed Secondary Focus. UAF's code gives a fixed bonus to every cruiser or capital with it: rate of fire +13%, damage +6.5%, weapon flux -11%, projectile speed +11%. The fitted guns don't change it. 0.5.37 scored it per gun, which was wrong.

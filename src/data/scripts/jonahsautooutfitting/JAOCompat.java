@@ -316,7 +316,7 @@ final class JAOCompat {
      * phasing well enough to rule it out on its own).
      */
     static boolean notOnPhase(String id, com.fs.starfarer.api.combat.ShipHullSpecAPI hull) {
-        if (hull == null || !(hull.isPhase() || hull.getShieldType() == com.fs.starfarer.api.combat.ShieldAPI.ShieldType.PHASE)) return false;
+        if (hull == null || !JAOShip.phaseCloak(hull)) return false;
         return JAORatings.ruleMatches("not_on_phase", id);
     }
 

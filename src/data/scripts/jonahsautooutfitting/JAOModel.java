@@ -66,7 +66,7 @@ final class JAOModel {
                 float rate = 0f;
                 for (float[] m : INCOMING_MIX) {
                     int dt = (int) m[0];
-                    rate += m[2] * ARMOR_MULT[dt] * armorFactor(m[1] * ARMOR_MULT[dt], cur, s.maxDr);
+                    rate += m[2] * ARMOR_MULT[dt] * armorFactor(m[1] * ARMOR_MULT[dt], cur * s.armorEffMult, s.maxDr);
                 }
                 t += pool / steps / Math.max(1e-4f, rate * at);
             }
@@ -74,7 +74,7 @@ final class JAOModel {
         float floor = a0 * MIN_ARMOR, hr = 0f;
         for (float[] m : INCOMING_MIX) {
             int dt = (int) m[0];
-            hr += m[2] * armorFactor(m[1] * ARMOR_MULT[dt], floor, s.maxDr);
+            hr += m[2] * armorFactor(m[1] * ARMOR_MULT[dt], floor * s.armorEffMult, s.maxDr);
         }
         float perHit = ARMOR_EHP_SCALE * (t + s.hull / Math.max(1e-4f, hr * ht));
         float linear = s.hull / ht + KA[Math.max(0, Math.min(3, s.size))] * a0 / at;
@@ -487,6 +487,9 @@ final class JAOModel {
         float crLoss = 1f;
         /** Threat fragment swarm (0.5.38): fragments regrown per second and the swarm's size (0 = no swarm). */
         float fragRegen, fragSize;
+        /** Armor counted for damage reduction per point of armor (EffectiveArmorBonus: UAF Supercap x0.5, Imperial Armor
+         *  Package x0.5; 1 = none; 0.5.44). The armor pool itself is `armor`. */
+        float armorEffMult = 1f;
         /** Hullmods on the ship that deal damage by themselves (jao_hullmod_damage.csv, 0.5.40). */
         List<HullmodWeapon> hullmodWeapons = java.util.Collections.emptyList();
 
@@ -509,7 +512,7 @@ final class JAOModel {
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
-            s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons;
+            s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
             return s;
         }
     }
@@ -788,6 +791,49 @@ final class JAOModel {
                 if (total > w.fleetMax) m *= w.fleetMax / total;
             }
             if (m < 1f) { e[i].dps *= m; e[i].pool *= m; }
+        }
+    }
+
+    /** Weapon classes an affects suffix names: BAL, ENE, MIS, BE, BEM (BEAM handled apart). */
+    private static int[] classes(String c) {
+        switch (c) {
+            case "BAL": return new int[]{BAL};
+            case "ENE": return new int[]{ENE};
+            case "MIS": return new int[]{MIS};
+            case "BE": return new int[]{BAL, ENE};
+            case "BEM": return new int[]{BAL, ENE, MIS};
+            default: return new int[0];
+        }
+    }
+
+    /**
+     * One jao_systems.csv effect on the ship (0.5.44): effect = 1 + (mult - 1) x uptime x sysUp; range, venting and
+     * reloads add mult x uptime x sysUp.
+     */
+    static void applySystem(Ship s, String what, float mult, float uptime, float sysUp) {
+        float share = clamp(uptime, 0f, 1f) * Math.max(0f, sysUp);
+        float eff = Math.max(0.05f, 1f + (mult - 1f) * share);
+        int us = what.indexOf('_');
+        String kind = us < 0 ? what : what.substring(0, what.lastIndexOf('_'));
+        String cls = us < 0 ? "" : what.substring(what.lastIndexOf('_') + 1);
+        switch (kind) {
+            case "ROF": for (int c : classes(cls)) s.rofMult[c] *= eff; break;
+            case "ROFFLUX": for (int c : classes(cls)) { s.rofMult[c] *= eff; s.fluxMult[c] /= eff; } break;
+            case "FLUXSHOT":
+                if (cls.equals("BEAM")) s.beamFluxMult *= eff; else for (int c : classes(cls)) s.fluxMult[c] *= eff;
+                break;
+            case "DMG":
+                if (cls.equals("BEAM")) s.beamDmgMult *= eff; else for (int c : classes(cls)) s.dmgMult[c] *= eff;
+                break;
+            case "RANGE_PCT": for (int c : classes(cls)) s.rangePct[c] += mult * share; break;
+            case "RANGE_FLAT": for (int c : classes(cls)) s.rangeFlat[c] += mult * share; break;
+            case "REGEN": s.regenBal *= eff; s.regenEn *= eff; break;
+            case "MIS_RELOAD": s.ammoMult *= 1f + mult * share; break;
+            case "WING": if (cls.equals("REFIT")) s.deck /= eff; else s.deck *= eff; break;
+            case "VENT": s.diss += mult * share; break;
+            default:
+                if (what.equals("DISS")) s.diss *= eff;
+                else if (what.equals("CAP")) s.cap *= eff;
         }
     }
 

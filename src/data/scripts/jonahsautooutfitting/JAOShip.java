@@ -85,12 +85,34 @@ final class JAOShip implements JAOSearch.World {
         PersonAPI who = personFor(delegate);
         personality = personalityOf(who);
         captain = activeCaptain(who);
+        // the test ship carries the real captain (0.5.44, build audit): fleet skills that depend on having an officer
+        // (Support Doctrine only without one; Wolfpack, Carrier Group, Cybernetic Augmentation only with one) then see
+        // the right state; the game's updateStats still leaves personal skills to applyCaptain (no fleet data)
+        if (captain != null) {
+            try { scratch.setCaptain(captain); } catch (Throwable ignored) { }
+        }
         float fw = 0f;
         try { fw = work.computeWeaponOPCost(cstats); } catch (Throwable ignored) { }
         fixedWeaponOp = fw;
     }
 
     /** The member's captain whose skills count: an active officer, the player on the flagship, an AI core. */
+    /**
+     * A phase ship (0.5.44, build audit): the hull is phase, or its defense is a phase cloak. A PHASE defense slot that
+     * holds a damper or flak (Vanguard, Invictus and 87 more) is not.
+     */
+    static boolean phaseCloak(ShipHullSpecAPI h) {
+        if (h == null) return false;
+        if (h.isPhase()) return true;
+        if (h.getShieldType() != ShieldType.PHASE) return false;
+        try {
+            com.fs.starfarer.api.combat.ShipSystemSpecAPI d = Global.getSettings().getShipSystemSpec(h.getShipDefenseId());
+            return d == null || d.isPhaseCloak();
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
     static PersonAPI captainOf(FleetMemberAPI m) {
         return activeCaptain(m == null ? null : m.getCaptain());
     }
@@ -259,6 +281,14 @@ final class JAOShip implements JAOSearch.World {
         s.size = size;
         // the captain's skills (0.5.29): the stats read below carry them
         boolean polarized = applyCaptain(st, s);
+        // Support Doctrine on a ship without an officer gives Ordnance Expertise's 1.5 flux a second per weapon OP, which
+        // the game reads from the test variant's kept weapons only: count it per weapon OP of the whole fit (0.5.44)
+        if (captain == null && supportDoctrine()) {
+            // its only dissipation mod; the effect id is <skill>_ships_<i> (fleet effects) or _ship_<i>, so clear both
+            for (int i = 0; i < 6; i++) { try { st.getFluxDissipation().unmodify("support_doctrine_ships_" + i); st.getFluxDissipation().unmodify("support_doctrine_ship_" + i); } catch (Throwable ignored) { } }
+            readSkillNumbers();
+            s.fluxPerWeaponOp += oeFlux;
+        }
         // UAF Secondary Focus (0.5.43): a fixed bonus the stats carry (its per-slot counts are never used by UAF's own code)
         // Threat fragment swarm (0.5.38): the fragments its weapons spend, by hull size, with Secondary Fabricator and
         // Fragment Coordinator (dynamic stats, read the way FragmentSwarmHullmod reads them)
@@ -267,10 +297,15 @@ final class JAOShip implements JAOSearch.World {
         s.hullmodWeapons = hullmodWeapons();
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
         s.armor = st.getArmorBonus().computeEffective(hull.getArmorRating());
+        // armor counted for damage reduction (0.5.44, build audit: UAF Supercap, Imperial Armor Package, TBJ Hek)
+        try {
+            float eff = st.getEffectiveArmorBonus().computeEffective(Math.max(1f, s.armor));
+            if (s.armor > 0f && eff > 0f) s.armorEffMult = JAOModel.clamp(eff / s.armor, 0.05f, 20f);
+        } catch (Throwable ignored) { }
         s.cap = st.getFluxCapacity().getModifiedValue();
         s.diss = st.getFluxDissipation().getModifiedValue();
         ShieldType type = hull.getShieldType();
-        s.phase = type == ShieldType.PHASE || hull.isPhase();
+        s.phase = phaseCloak(hull);
         s.shield = (type == ShieldType.FRONT || type == ShieldType.OMNI) && hull.getShieldSpec() != null && !work.hasHullMod(HullMods.SHIELD_SHUNT);
         if (s.shield) {
             s.shieldEff = hull.getShieldSpec().getFluxPerDamageAbsorbed() * st.getShieldAbsorptionMult().getModifiedValue();
@@ -279,6 +314,14 @@ final class JAOShip implements JAOSearch.World {
             s.arc = st.getShieldArcBonus().computeEffective(hull.getShieldSpec().getArc());
         }
         s.speed = st.getMaxSpeed().getModifiedValue();
+        // the ship's own time rate (0.5.44: timeflow hulls and hullmods): it fires, dissipates and moves faster
+        try {
+            float tm = st.getTimeMult().getModifiedValue();
+            if (tm > 0.2f && Math.abs(tm - 1f) > 0.001f) {
+                s.diss *= tm;
+                s.speed *= tm;
+            }
+        } catch (Throwable ignored) { }
         s.baseSpeed = hull.getEngineSpec() == null ? s.speed : hull.getEngineSpec().getMaxSpeed();
         if (hull.getEngineSpec() != null && hull.getEngineSpec().getMaxTurnRate() > 0f && hull.getEngineSpec().getAcceleration() > 0f) {
             float turn = st.getMaxTurnRate().getModifiedValue() / hull.getEngineSpec().getMaxTurnRate();
@@ -303,11 +346,16 @@ final class JAOShip implements JAOSearch.World {
         s.rofMult[JAOModel.BAL] = st.getBallisticRoFMult().getModifiedValue();
         s.rofMult[JAOModel.ENE] = st.getEnergyRoFMult().getModifiedValue();
         s.rofMult[JAOModel.MIS] = st.getMissileRoFMult().getModifiedValue();
+        try {
+            float tm = st.getTimeMult().getModifiedValue();
+            if (tm > 0.2f && Math.abs(tm - 1f) > 0.001f) for (int c = 0; c < s.rofMult.length; c++) s.rofMult[c] *= tm;
+        } catch (Throwable ignored) { }
         s.fluxMult[JAOModel.BAL] = st.getBallisticWeaponFluxCostMod().computeEffective(1f);
         s.fluxMult[JAOModel.ENE] = st.getEnergyWeaponFluxCostMod().computeEffective(1f);
         s.fluxMult[JAOModel.MIS] = st.getMissileWeaponFluxCostMod().computeEffective(1f);
         s.beamFluxMult = st.getBeamWeaponFluxCostMult().getModifiedValue();
-        s.ammoMult = st.getMissileAmmoBonus().computeEffective(1f);
+        // per 10 rounds (0.5.44): a flat bonus (RAT Missile Reserves +2) read on 1 round counted as x3
+        s.ammoMult = st.getMissileAmmoBonus().computeEffective(10f) / 10f;
         s.pdDmg = st.getDamageToMissiles().getModifiedValue();
         s.armorTaken = st.getArmorDamageTakenMult().getModifiedValue();
         s.hullTaken = st.getHullDamageTakenMult().getModifiedValue();
@@ -372,16 +420,14 @@ final class JAOShip implements JAOSearch.World {
         // a shorter system cooldown or faster recharge (Systems Expertise) keeps them on longer
         String sys = hull.getShipSystemId();
         float sysUp = systemUptime(st);
-        if ("ammofeed".equals(sys)) {
-            float feed = 1f + (JAOModel.AMMO_FEED - 1f) * sysUp;
-            s.rofMult[JAOModel.BAL] *= feed; s.fluxMult[JAOModel.BAL] /= feed; // same flux per second
-        } else if ("highenergyfocus".equals(sys)) s.dmgMult[JAOModel.ENE] *= 1f + (JAOModel.ENERGY_FOCUS - 1f) * sysUp;
+        // 0.5.44: every system in jao_systems.csv (Accelerated Ammo Feeder x1.3, High Energy Focus x1.115, Lidar Array
+        // +35% range, missile forges, fighter feeds and the mod copies); applied at the end, once the stats are read
         s.turnMult = mult(st.getWeaponTurnRateBonus().computeEffective(1f));
         s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
         s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
         s.malfunction = Math.max(0f, st.getWeaponMalfunctionChance().getModifiedValue());
-        s.ammoBal = mult(st.getBallisticAmmoBonus().computeEffective(1f));
-        s.ammoEn = mult(st.getEnergyAmmoBonus().computeEffective(1f));
+        s.ammoBal = mult(st.getBallisticAmmoBonus().computeEffective(10f) / 10f);
+        s.ammoEn = mult(st.getEnergyAmmoBonus().computeEffective(10f) / 10f);
         s.regenBal = mult(st.getBallisticAmmoRegenMult().getModifiedValue());
         s.regenEn = mult(st.getEnergyAmmoRegenMult().getModifiedValue());
         s.empTaken = Math.max(0f, st.getEmpDamageTakenMult().getModifiedValue());
@@ -395,6 +441,7 @@ final class JAOShip implements JAOSearch.World {
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
+        applySystems(s, sysUp);
         return s;
     }
 
@@ -496,6 +543,44 @@ final class JAOShip implements JAOSearch.World {
      * How much longer the ship system is up against the hull's own cycle: 1 normally; Systems Expertise (cooldown -33%,
      * recharge +50%) about 1.3.
      */
+    /** The hull's system and defense ids, and their stats script classes for "class:" rows. */
+    private List<String> systemKeys() {
+        List<String> keys = new ArrayList<>();
+        for (String id : new String[]{hull.getShipSystemId(), hull.getShipDefenseId()}) {
+            if (id == null || id.isEmpty()) continue;
+            keys.add(id);
+            try {
+                com.fs.starfarer.api.combat.ShipSystemSpecAPI spec = Global.getSettings().getShipSystemSpec(id);
+                if (spec != null && spec.getStatsScriptClassName() != null) keys.add("class:" + spec.getStatsScriptClassName());
+            } catch (Throwable ignored) { }
+        }
+        return keys;
+    }
+
+    /** jao_systems.csv effects of the hull's systems on the model ship (0.5.44). */
+    private void applySystems(JAOModel.Ship s, float sysUp) {
+        List<String> keys = systemKeys();
+        if (keys.isEmpty()) return;
+        // rows for the system's own id win; rows matched by its stats script only count for copies without their own rows
+        boolean byId = false;
+        for (String[] r : JAORatings.systems()) if (!r[0].startsWith("class:") && keys.contains(r[0])) { byId = true; break; }
+        for (String[] r : JAORatings.systems()) {
+            if (!keys.contains(r[0]) || (byId && r[0].startsWith("class:"))) continue;
+            float mult, up;
+            try { mult = Float.parseFloat(r[2]); up = Float.parseFloat(r[3]); } catch (NumberFormatException e) { continue; }
+            JAOModel.applySystem(s, r[1], mult, up, sysUp);
+        }
+    }
+
+    /** The fleet commander has Support Doctrine (ships without an officer get part of Helmsmanship, Ordnance Expertise and more). */
+    static boolean supportDoctrine() {
+        try {
+            return Global.getSector() != null && Global.getSector().getPlayerStats().getSkillLevel("support_doctrine") > 0f;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     static float systemUptime(MutableShipStatsAPI st) {
         try {
             float cd = st.getSystemCooldownBonus().computeEffective(1f);
@@ -681,8 +766,8 @@ final class JAOShip implements JAOSearch.World {
         if (spec.hasTag("do_not_apply_hullmod_during_autofit")) return false;
         // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
         if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
-        if (hull.isPhase() && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
-        if (!hull.isPhase() && spec.hasTag(HullMods.TAG_PHASE)) return false;
+        if (phaseCloak(hull) && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
+        if (!phaseCloak(hull) && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;
         // incompatibilities the table knows (most mods also refuse in isApplicableToShip)
         JSONObject row = JAORatings.hullmods().get(mod);

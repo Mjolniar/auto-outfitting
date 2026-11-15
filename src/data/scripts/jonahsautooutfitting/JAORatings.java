@@ -33,7 +33,7 @@ import java.util.Set;
  * (merged by id), so nothing here is keyed to a particular mod.
  */
 public class JAORatings {
-    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv", TIERS = "data/config/jao_weapon_tiers.csv", HULLMOD_DAMAGE = "data/config/jao_hullmod_damage.csv";
+    static final String EFFECTS = "data/config/jao_weapon_effects.csv", HULLMODS = "data/config/jao_hullmods.csv", RULES = "data/config/jao_rules.csv", TIERS = "data/config/jao_weapon_tiers.csv", HULLMOD_DAMAGE = "data/config/jao_hullmod_damage.csv", SYSTEMS = "data/config/jao_systems.csv";
 
     private static final Map<String, JAOModel.W> weapons = new HashMap<>(), wings = new HashMap<>();
     private static Map<String, JSONObject> effects, hullmods;
@@ -595,6 +595,26 @@ public class JAORatings {
         }
         Float f = tiers.get(id);
         return f == null ? 1f : f;
+    }
+
+    private static List<String[]> systems;
+
+    /** jao_systems.csv rows {systemId, affects, mult, uptime} (0.5.44): several rows per system. */
+    static List<String[]> systems() {
+        if (systems != null) return systems;
+        systems = new ArrayList<>();
+        try {
+            JSONArray a = Global.getSettings().loadCSV(SYSTEMS, JAOSettings.MOD);
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject o = a.getJSONObject(i);
+                String id = o.optString("systemId", "").trim();
+                if (id.isEmpty() || id.startsWith("#")) continue;
+                systems.add(new String[]{id, o.optString("affects", "").trim(), o.optString("mult", "").trim(), o.optString("uptime", "").trim()});
+            }
+        } catch (Throwable t) {
+            Global.getLogger(JAORatings.class).warn("Auto Outfitting: can't read " + SYSTEMS, t);
+        }
+        return systems;
     }
 
     static List<String[]> rules() {

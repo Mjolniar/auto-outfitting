@@ -867,7 +867,7 @@ class JAOOptimizer {
     /** Applicability like any hullmod; with drawbacks off, also no higher supply, recovery, deployment or fuel cost. */
     private boolean logisticsAllowed(JAOShip world, String id, Set<String> mods, List<String> skipped) {
         HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-        if (hull().isPhase() && spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.HullMods.TAG_NON_PHASE)) return false;
+        if (JAOShip.phaseCloak(hull()) && spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.HullMods.TAG_NON_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) return false;
         boolean drawbacks = JAOSettings.allowDrawbacks;
         JAOSettings.allowDrawbacks = true;   // combat drawbacks don't matter on a ship that never fights
@@ -936,7 +936,7 @@ class JAOOptimizer {
         int op;
         try { op = hull.getOrdnancePoints(null); } catch (Throwable t) { op = 0; }
         int size = Math.max(0, JAORatings.sizeIndex(hull.getHullSize()));
-        boolean phase = hull.isPhase() || hull.getShieldType() == com.fs.starfarer.api.combat.ShieldAPI.ShieldType.PHASE;
+        boolean phase = JAOShip.phaseCloak(hull);
         return JAORole.detect(hull.getDesignation(), size, phase, hull.getFighterBays(), op > 0 ? slots / op : 1f,
                 slots > 0f ? missile / slots : 0f, hull.isCivilianNonCarrier(), hull.getShipSystemId());
     }

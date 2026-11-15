@@ -9,7 +9,7 @@
 - Fleet analysis: Shows the fleet's weak points.
 - Lock this ship: Keeps a ship out of Optimize fleet and fleet orders.
 - Settings: In the LunaLib menu (F3) when LunaLib is installed. Each setting has its description there.
-- Data files: `data/config/jao_weapon_effects.csv`, `jao_hullmods.csv`, `jao_hullmod_damage.csv` and `jao_rules.csv` hold what the stats miss. They can be edited.
+- Data files: `data/config/jao_weapon_effects.csv`, `jao_hullmods.csv`, `jao_hullmod_damage.csv`, `jao_systems.csv` and `jao_rules.csv` hold what the stats miss. They can be edited.
 - Other autofit goals: Not changed.
 - Forum: [topic 36377](https://fractalsoftworks.com/forum/index.php?topic=36377.0).
 - Patch notes: [changelog](docs/changelog.md).
