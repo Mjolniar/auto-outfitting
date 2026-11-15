@@ -96,13 +96,15 @@ final class JAOCompat {
     static boolean dronesOnly(ShipVariantAPI v) {
         for (String[] r : JAORatings.rules()) {
             if (!r[0].equals("drones_only") || r[1].isEmpty()) continue;
-            boolean builtIn = v.getHullSpec().getBuiltInMods().contains(r[1]) || v.getSMods().contains(r[1]);
-            if (!builtIn) continue;
+            // on the ship at all (0.5.46: Adaptive Drone Bay counts when fitted)
+            if (!v.hasHullMod(r[1])) continue;
             boolean exempt = false;
             for (String e : r[2].split(";")) {
                 e = e.trim();
                 if (e.isEmpty()) continue;
                 if (e.startsWith("$")) {
+                    // Drone Tactics counts only with AI Subsystem Integration as an s-mod or the Abomination Interface (AISubsystemIntegration)
+                    if (e.equals("$xo_drone_tactics_is_active") && !(v.getSMods().contains("vice_ai_subsystem_integration") || v.hasHullMod("vice_abomination_interface"))) continue;
                     try { exempt |= Global.getSector().getMemoryWithoutUpdate().is(e, true); } catch (Throwable ignored) { }
                 } else if (v.hasHullMod(e)) exempt = true;
             }

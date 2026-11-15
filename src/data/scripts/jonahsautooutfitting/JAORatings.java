@@ -78,6 +78,7 @@ public class JAORatings {
         w.beam = spec.isBeam();
         w.soft = w.beam || spec.hasTag("damage_soft_flux");
         w.fragment = spec.hasTag("fragment");
+        try { if (spec.getTags() != null && !spec.getTags().isEmpty()) w.tags = new java.util.HashSet<>(spec.getTags()); } catch (Throwable ignored) { }
         w.range = spec.getMaxRange();
         w.pd = spec.getAIHints().contains(AIHints.PD);
         w.pdOnly = spec.getAIHints().contains(AIHints.PD_ONLY);

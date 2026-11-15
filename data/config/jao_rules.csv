@@ -175,3 +175,17 @@ shield_taken,ix_reactive_combat_shields,0.8,IX Reactive Combat Shields: shield d
 beams_hard,vice_adaptive_emitter_diodes,,ET Adaptive Emitter Diodes: beams deal hard flux on shields
 beams_hard,vice_laser_collimator,taclaser;vice_twin_tactical_laser;hil;vice_lrburstpd;vice_siege_burst,ET Laser Collimator: these beams deal hard flux on shields
 range_mult,tw_trinity_retrofit,0.9,TW Trinity Retrofit: every weapon's range x0.9 (WeaponRangeModifier)
+# 0.5.46: weapon_range (hullmod -> weapon id or tag = base range flat or percent, split by ;); more beams_hard
+weapon_range,vice_modular_seeker_lens,vice_seeker=300,ET Modular Seeker Lens: +300 base range to seeker weapons
+weapon_range,ix_seeker_lens,vice_seeker=200,IX Seeker Lens: +200 base range to seeker weapons
+weapon_range,vice_seeker_lens,vice_seeker=800,ET Seeker Lens (built in): +800 base range to seeker weapons
+weapon_range,tw_seeker_lens,vice_seeker=800,TW Seeker Lens (built in): +800 base range to seeker weapons
+weapon_range,vice_adaptive_trajectory_analyzer,archaic_c=50%,ET Adaptive Trajectory Analyzer: archaic weapons +50% base range
+weapon_range,tw_optimized_targeting_core,archaic_c=75%,TW Optimized Targeting Core: archaic weapons +75% base range
+weapon_range,ix_dawnstar_lacerator,lacerator_tw=200;daythorn_mapb_ix=200;daythorn_tapb_ix=200,IX Dawnstar Lacerator: +200 base range to these
+beams_hard,vice_intrepid_hull,vice_neutron_autolance,ET Intrepid: Neutron Autolance deals hard flux on shields
+beams_hard,orr_revised_armaments,orr_nal,ET Onslaught (CGR): its beam deals hard flux on shields
+beams_hard,ix_dawnstar_proton,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar: these beams deal hard flux
+beams_hard,ix_dawnstar_neutron,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar: these beams deal hard flux
+beams_hard,ix_dawnstar_electron,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar: these beams deal hard flux
+beams_hard,ix_dawnstar_lacerator,lacerator_tw;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar Lacerator: these beams deal hard flux

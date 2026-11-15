@@ -73,6 +73,12 @@ final class JAOShip implements JAOSearch.World {
         work.setNumFluxVents(0);
         work.setNumFluxCapacitors(0);
         scratch = Global.getFactory().createFleetMember(FleetMemberType.SHIP, work);
+        // the real member's id (0.5.46, build audit): hullmods that key on it (IndEvo Forge World Experiment's rolled stats,
+        // Starship Legends traits) then show this ship's own numbers, and no new save entries are made per test
+        try {
+            FleetMemberAPI real = delegate.getFleetMember();
+            if (real != null && real.getId() != null) scratch.setId(real.getId());
+        } catch (Throwable ignored) { }
         PersonAPI player = Global.getSector() == null ? null : Global.getSector().getPlayerPerson();
         CampaignFleetAPI fleet = Global.getSector() == null ? null : Global.getSector().getPlayerFleet();
         if (player != null) scratch.setFleetCommanderForStats(player, fleet == null ? null : fleet.getFleetData());
@@ -554,7 +560,7 @@ final class JAOShip implements JAOSearch.World {
         for (String[] r : JAORatings.rules()) {
             boolean has = false;
             switch (r[0]) {
-                case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": has = work.hasHullMod(r[1]); break;
+                case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": case "weapon_range": has = work.hasHullMod(r[1]); break;
                 default: continue;
             }
             if (!has) continue;
@@ -576,10 +582,27 @@ final class JAOShip implements JAOSearch.World {
                         }
                         break;
                     case "range_mult": { float m = Float.parseFloat(r[2]); for (int c = 0; c < s.rangeMult.length; c++) s.rangeMult[c] *= m; break; }
+                    case "weapon_range": {
+                        List<Object[]> list = new ArrayList<>(s.weaponRange);
+                        for (String part : r[2].split(";")) {
+                            String[] kv = part.split("=");
+                            if (kv.length != 2) continue;
+                            String v = kv[1].trim();
+                            boolean pct = v.endsWith("%");
+                            float n = Float.parseFloat(pct ? v.substring(0, v.length() - 1) : v);
+                            list.add(new Object[]{kv[0].trim(), pct ? 0f : n, pct ? n : 0f});
+                        }
+                        s.weaponRange = list;
+                        break;
+                    }
                     default: break;
                 }
             } catch (RuntimeException ignored) { }
         }
+        // RAT Chronos conversion or a Chronos core in command (ChronosRangeModifier)
+        try {
+            s.chronos = work.hasHullMod("rat_chronos_conversion") || (captain != null && "rat_chronos_core".equals(captain.getAICoreId()));
+        } catch (Throwable ignored) { }
         try {
             if (captain != null && captain.getStats().getSkillLevel("combat_endurance") >= 2f) {
                 s.hullRegen += 0.005f * s.hull;
@@ -769,7 +792,7 @@ final class JAOShip implements JAOSearch.World {
     static boolean modelled(String id) {
         if (MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id)) return true;
         for (String[] r : JAORatings.rules()) {
-            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult")) && r[1].equals(id)) return true;
+            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult") || r[0].equals("weapon_range")) && r[1].equals(id)) return true;
         }
         return false;
     }

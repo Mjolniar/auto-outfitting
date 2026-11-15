@@ -1,5 +1,15 @@
 # Patch notes
 
+## 0.5.46 - 2026-11-14
+
+- Guns and missiles with charges: Capped at the magazine plus what regenerates in a 90 s fight. Regeneration was counted twice (Autopulse 450, now 350; slow-regenerating missiles 1.5 to 2 times too high).
+- Lidar Array: While active, hardpoint ballistic and energy guns fire faster and turrets and beams pause (hardpoints x1.28, the rest x0.66). Also for the Knights of Ludd versions.
+- Random Assortment of Things: Chronos conversion and Chronos cores cap non-missile base range at 500/600/700 by size, then x0.8.
+- Weapon range hullmods: Seeker lenses (+200/+300/+800 to seeker weapons), Adaptive Trajectory Analyzer (+50%) and Optimized Targeting Core (+75%) on archaic weapons, Dawnstar Lacerator (+200). New rule kind `weapon_range`.
+- Hard-flux beams: Added Intrepid's Neutron Autolance, CGR Onslaught's beam and the Dawnstar beams.
+- Test fits: The test ship carries the real ship's id. IndEvo Forge World Experiment stats and Starship Legends traits now show, and IndEvo no longer stores an entry per test.
+- Emergent Threats: Drones only also when Adaptive Drone Bay is fitted. Drone Tactics exempts a ship only with AI Subsystem Integration as an s-mod or the Abomination Interface.
+
 ## 0.5.45 - 2026-11-14
 
 - Beams with charges: Sustained damage is capped at a charge's damage times charges a second. A burst beam spends one per burst.

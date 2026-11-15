@@ -30,6 +30,8 @@ final class JAOModel {
     static final float EMP_FACING = 0.5f, EMP_LAMBDA = 2f;
     /** Share of a fight a ship spends damaged, for hull repair (judgment). */
     static final float HULL_REGEN_SHARE = 0.5f;
+    /** RAT Chronos base range cap by weapon size (ChronosRangeModifier). */
+    static final float[] CHRONOS_CAP = {500f, 600f, 700f};
 
     /** Share of the target's weapons down under this much component damage a second. */
     static float empDisabled(float compRate, int ts) {
@@ -384,6 +386,8 @@ final class JAOModel {
         boolean fragment;
         /** Damage a hullmod deals by itself (HullmodWeapon, 0.5.40): no mount, no group, no range band, no ship bonuses. */
         boolean hullmod;
+        /** The weapon's tags (0.5.46: weapon_range rules match a tag or an id). */
+        java.util.Set<String> tags = java.util.Collections.emptySet();
         /** A battle-wide cap on the weapon's projectiles (Hungering Rift: 10 rifts at once): launchers the fleet fires at full
          *  rate (jao_weapon_effects fleetMax; 0 = no cap; 0.5.38). */
         float fleetMax;
@@ -496,6 +500,12 @@ final class JAOModel {
         float hullRegen, hullRegenCap;
         /** Missile launchers fire more volleys a fight (0.5.45: Fast Missile Racks and copies reset their cooldowns). */
         float misRate = 1f;
+        /** Lidar Array while active (0.5.46): net throughput of hardpoint ballistic and energy guns, and of the rest. */
+        float lidarHp = 1f, lidarOther = 1f;
+        /** RAT Chronos (0.5.46): non-missile base range capped at 500/600/700 by size, then every base range x0.8. */
+        boolean chronos;
+        /** Base range by weapon id or tag (0.5.46, jao_rules weapon_range): {target, flat, percent}. */
+        List<Object[]> weaponRange = java.util.Collections.emptyList();
         /** Beams that deal hard flux on shields (0.5.45: emitter diodes, Laser Collimator): every beam, or these ids. */
         boolean hardBeamsAll;
         java.util.Set<String> hardBeamIds = java.util.Collections.emptySet();
@@ -524,7 +534,7 @@ final class JAOModel {
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
-            s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate;
+            s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.chronos = chronos; s.weaponRange = weaponRange;
             return s;
         }
     }
@@ -647,6 +657,16 @@ final class JAOModel {
     static float range(W w, Ship s) {
         if (w.wing) return w.range;
         float base = w.range + (s.valkRange != 0f && w.id != null && w.id.startsWith("valk") ? s.valkRange : 0f);
+        float addPct = 0f;
+        for (Object[] r : s.weaponRange) {
+            String target = (String) r[0];
+            if (target.equals(w.id) || w.tags.contains(target)) { base += (Float) r[1]; addPct += (Float) r[2]; }
+        }
+        if (addPct != 0f) base *= 1f + addPct / 100f;
+        if (s.chronos) {
+            if (w.cls != MIS) base = Math.min(base, CHRONOS_CAP[Math.max(0, Math.min(2, w.size))]);
+            base *= 0.8f;
+        }
         if (w.cls == BAL && !w.pd) {
             float add = w.size == 0 ? s.bfSmall : w.size == 1 ? s.bfMedium : 0f;
             if (add > 0f) base = Math.max(base, Math.min(base + add, s.bfCap));
@@ -845,6 +865,8 @@ final class JAOModel {
             case "VENT": s.diss += mult * share; break;
             // uses a fight x share; each use saves about one 10 s launcher cycle of a 90 s fight
             case "MIS": if (cls.equals("COOLDOWN")) s.misRate *= 1f + mult * share * 10f / 90f; break;
+            case "NET_HARDPOINT": s.lidarHp *= eff; break;
+            case "NET_OTHER": s.lidarOther *= eff; break;
             default:
                 if (what.equals("DISS")) s.diss *= eff;
                 else if (what.equals("CAP")) s.cap *= eff;
@@ -876,6 +898,12 @@ final class JAOModel {
             // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
             if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * (w.cls == MIS ? s.misRate : 1f) * Math.max(10f, p.fightSeconds));
             x.range = w.hullmod ? w.range : range(w, s);
+            // Lidar Array while active (0.5.46): hardpoint guns fire faster, turrets and beams pause
+            if (!w.wing && !w.hullmod && w.cls != MIS && (s.lidarHp != 1f || s.lidarOther != 1f)) {
+                float lm = fits.get(i).hardpoint && !w.beam ? s.lidarHp : s.lidarOther;
+                x.dps *= lm;
+                x.flux *= lm;
+            }
             x.front = fits.get(i).front;
             e[i] = x;
             if (!w.wing) {
@@ -1380,7 +1408,10 @@ final class JAOModel {
         float sust = Math.min(w.burstDps, w.dps * regen);
         float ratio = w.burstDps / Math.max(1f, sust);
         float mag = ratio > 1.01f ? w.ammoMax * ammo / (w.regen * regen * (ratio - 1f)) : 0f;
-        return sust + (w.burstDps - sust) * Math.min(1f, MAG_REFILLS * mag / Math.max(30f, fight));
+        float charged = sust + (w.burstDps - sust) * Math.min(1f, MAG_REFILLS * mag / Math.max(30f, fight));
+        // no more than the magazine plus what regenerates in the fight (0.5.46, build audit: slow-regenerating missiles)
+        float most = w.dps * regen + w.dps * w.ammoMax * ammo / (Math.max(1e-3f, w.regen) * Math.max(30f, fight));
+        return Math.min(charged, most);
     }
 
     /**
