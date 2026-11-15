@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.49 - 2026-11-15
+
+- Advanced Modifications: Added support for its 23 hullmods. Effects that only show in combat are counted: Infinity Targeting Core range and double damage, hull and armor repair, shield immunity windows, flux bursts, timeflow and damage taken.
+- Advanced Modifications: Alpha Subsystem, Delta Subsystem, Weapon Control Supercomputer and Crystallized Armor use up cores or transplutonics on install with no refund. Autofit adds them only to ships that already paid.
+- Advanced Modifications: Crystallized Armor counts as removing the shield. Combat-only drawbacks (Crystallized Armor, Galvanized Armor, Nano Hull, Delta Shield) follow "Allow hullmods with drawbacks".
+- Rules: Added the rule kinds combat, no_shield, drawback and paid_install to jao_rules.csv.
+
 ## 0.5.48 - 2026-11-14
 
 - Civilian ships: OP left after every logistics and survival hullmod goes into vents and capacitors, alternating, up to the hull's limits. Before, it stayed unspent.

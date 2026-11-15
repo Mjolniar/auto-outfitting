@@ -498,6 +498,8 @@ final class JAOModel {
         float armorEffMult = 1f;
         /** Hull repaired in combat (0.5.45): hit points a second, and the most a fight repairs (0 = no cap). */
         float hullRegen, hullRegenCap;
+        /** Armor repaired in combat (0.5.49, jao_rules combat ARMOR_REGEN): fraction of the armor a second. */
+        float armorRegen;
         /** Missile launchers fire more volleys a fight (0.5.45: Fast Missile Racks and copies reset their cooldowns). */
         float misRate = 1f;
         /** Lidar Array while active (0.5.46): net throughput of hardpoint ballistic and energy guns, and of the rest. */
@@ -537,6 +539,7 @@ final class JAOModel {
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
             s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
+            s.armorRegen = armorRegen;
             return s;
         }
     }
@@ -870,10 +873,21 @@ final class JAOModel {
             case "NET_HARDPOINT": s.lidarHp *= eff; break;
             case "PD": if (cls.equals("NEED")) s.pdNeedMult *= eff; break;
             case "NET_OTHER": s.lidarOther *= eff; break;
+            // hullmod combat effects (0.5.49, jao_rules combat): damage taken, armor repair
+            case "TAKEN":
+                if (cls.equals("SHIELD") || cls.equals("ALL")) s.shieldTaken *= eff;
+                if (cls.equals("ARMOR") || cls.equals("ALL")) s.armorTaken *= eff;
+                if (cls.equals("HULL") || cls.equals("ALL")) s.hullTaken *= eff;
+                break;
+            case "ARMOR": if (cls.equals("REGEN")) s.armorRegen += mult * share; break;
             default:
                 if (what.equals("NOFIRE")) s.noFire = 1f - (1f - s.noFire) * (1f - clamp(mult * share, 0f, 0.9f));
                 else if (what.equals("DISS")) s.diss *= eff;
                 else if (what.equals("CAP")) s.cap *= eff;
+                else if (what.equals("UPKEEP")) s.upkeep *= eff;
+                else if (what.equals("SPEED")) s.speed *= eff;
+                else if (what.equals("HARDDISS")) s.hardDiss = clamp(s.hardDiss + mult * share, 0f, 1f);
+                else if (what.equals("TIME")) { s.diss *= eff; s.speed *= eff; for (int c = 0; c < s.rofMult.length; c++) s.rofMult[c] *= eff; }
         }
     }
 
@@ -1104,6 +1118,8 @@ final class JAOModel {
             if (s.hullRegenCap > 0f) add = Math.min(add, s.hullRegenCap);
             ehp += add / Math.max(0.1f, s.hullTaken);
         }
+        // armor repaired in combat (0.5.49): the same share of the fight, counted as armor points
+        if (s.armorRegen > 0f && s.armor > 0f) ehp += s.armorRegen * s.armor * Math.max(60f, p.fightSeconds) * HULL_REGEN_SHARE / Math.max(0.1f, s.armorTaken);
         // weapons the EMP keeps down fire less at this ship while its hull is hit
         float empSup = wsum > 0f ? clamp(EMP_LAMBDA * empS / wsum, 0f, 0.6f) : 0f;
         ehp /= 1f - empSup;

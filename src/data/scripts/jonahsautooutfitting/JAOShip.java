@@ -313,7 +313,7 @@ final class JAOShip implements JAOSearch.World {
         s.diss = st.getFluxDissipation().getModifiedValue();
         ShieldType type = hull.getShieldType();
         s.phase = phaseCloak(hull);
-        s.shield = (type == ShieldType.FRONT || type == ShieldType.OMNI) && hull.getShieldSpec() != null && !work.hasHullMod(HullMods.SHIELD_SHUNT);
+        s.shield = (type == ShieldType.FRONT || type == ShieldType.OMNI) && hull.getShieldSpec() != null && !work.hasHullMod(HullMods.SHIELD_SHUNT) && !ruleOn("no_shield");
         if (s.shield) {
             s.shieldEff = hull.getShieldSpec().getFluxPerDamageAbsorbed() * st.getShieldAbsorptionMult().getModifiedValue();
             s.shieldTaken = st.getShieldDamageTakenMult().getModifiedValue();
@@ -562,6 +562,7 @@ final class JAOShip implements JAOSearch.World {
             boolean has = false;
             switch (r[0]) {
                 case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": case "weapon_range": has = work.hasHullMod(r[1]); break;
+                case "combat": has = work.hasHullMod(r[1]); break;
                 default: continue;
             }
             if (!has) continue;
@@ -574,6 +575,15 @@ final class JAOShip implements JAOSearch.World {
                         break;
                     }
                     case "shield_taken": s.shieldTaken *= Float.parseFloat(r[2]); break;
+                    case "combat": {
+                        // KIND:mult:share[:conditions] (0.5.49): a jao_systems effect kind, or TAKEN_SHIELD/ARMOR/HULL/ALL,
+                        // ARMOR_REGEN, UPKEEP, SPEED, HARDDISS, TIME; conditions split by & (+hullmod, -hullmod, hull size,
+                        // SHIELDHULL / NOSHIELDHULL = the hull spec has a front or omni shield)
+                        String[] v = r[2].split(":");
+                        if (v.length < 3 || (v.length > 3 && !conditionsMet(v[3]))) break;
+                        JAOModel.applySystem(s, v[0].trim(), Float.parseFloat(v[1].trim()), Float.parseFloat(v[2].trim()), 1f);
+                        break;
+                    }
                     case "beams_hard":
                         if (r[2].isEmpty()) s.hardBeamsAll = true;
                         else {
@@ -610,6 +620,47 @@ final class JAOShip implements JAOSearch.World {
                 s.hullRegenCap = Math.max(s.hullRegenCap, Math.max(2000f, 0.5f * s.hull));
             }
         } catch (Throwable ignored) { }
+    }
+
+    /** A jao_rules row of this kind names a hullmod on the ship (0.5.49: no_shield). */
+    boolean ruleOn(String kind) {
+        for (String[] r : JAORatings.rules()) if (r[0].equals(kind) && work.hasHullMod(r[1])) return true;
+        return false;
+    }
+
+    /** Conditions of a combat row, split by &: +hullmod, -hullmod, FRIGATE/DESTROYER/CRUISER/CAPITAL, SHIELDHULL, NOSHIELDHULL. */
+    boolean conditionsMet(String conds) {
+        for (String c : conds.split("&")) {
+            c = c.trim();
+            if (c.isEmpty()) continue;
+            boolean shieldHull = hull.getShieldType() == ShieldType.FRONT || hull.getShieldType() == ShieldType.OMNI;
+            if (c.startsWith("+")) { if (!work.hasHullMod(c.substring(1))) return false; }
+            else if (c.startsWith("-")) { if (work.hasHullMod(c.substring(1))) return false; }
+            else if (c.equals("SHIELDHULL")) { if (!shieldHull) return false; }
+            else if (c.equals("NOSHIELDHULL")) { if (shieldHull) return false; }
+            else if (!hull.getHullSize().name().startsWith(c)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Hullmods that take cargo items when installed and never give them back (0.5.49, jao_rules paid_install: Advanced
+     * Modifications' subsystems, Weapon Control Supercomputer and Crystallized Armor). Only ships that already paid get
+     * them: the ship has it now, or the mod's memory flag ($ + member id + hullmod id) is set. Checked before
+     * isApplicableToShip, which takes the items when the variant already has the hullmod.
+     */
+    boolean paidOrFree(String mod) {
+        boolean listed = false;
+        for (String[] r : JAORatings.rules()) if (r[0].equals("paid_install") && r[1].equals(mod)) { listed = true; break; }
+        if (!listed) return true;
+        try {
+            FleetMemberAPI m = delegate.getFleetMember();
+            if (m == null) return false;
+            if (m.getVariant() != null && m.getVariant().hasHullMod(mod)) return true;
+            return Global.getSector() != null && Global.getSector().getMemoryWithoutUpdate().contains("$" + m.getId() + mod);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** The hull's system and defense ids, and their stats script classes for "class:" rows. */
@@ -793,7 +844,8 @@ final class JAOShip implements JAOSearch.World {
     static boolean modelled(String id) {
         if (MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id)) return true;
         for (String[] r : JAORatings.rules()) {
-            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult") || r[0].equals("weapon_range")) && r[1].equals(id)) return true;
+            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult") || r[0].equals("weapon_range")
+                    || r[0].equals("combat") || r[0].equals("no_shield")) && r[1].equals(id)) return true;
         }
         return false;
     }
@@ -839,6 +891,7 @@ final class JAOShip implements JAOSearch.World {
         if (spec.hasTag("do_not_apply_hullmod_during_autofit")) return false;
         // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
         if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
+        if (!paidOrFree(mod)) return false;
         if (phaseCloak(hull) && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
         if (!phaseCloak(hull) && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;
@@ -937,7 +990,7 @@ final class JAOShip implements JAOSearch.World {
     private float[] snapshot() {
         MutableShipStatsAPI st = scratch.getStats();
         float arc = hull.getShieldSpec() == null ? 0f : hull.getShieldSpec().getArc();
-        boolean shield = (hull.getShieldType() == ShieldType.FRONT || hull.getShieldType() == ShieldType.OMNI) && !work.hasHullMod(HullMods.SHIELD_SHUNT);
+        boolean shield = (hull.getShieldType() == ShieldType.FRONT || hull.getShieldType() == ShieldType.OMNI) && !work.hasHullMod(HullMods.SHIELD_SHUNT) && !ruleOn("no_shield");
         return new float[]{
                 st.getHullBonus().computeEffective(hull.getHitpoints()), st.getArmorBonus().computeEffective(hull.getArmorRating()),
                 st.getFluxCapacity().getModifiedValue(), st.getFluxDissipation().getModifiedValue(),
@@ -966,6 +1019,8 @@ final class JAOShip implements JAOSearch.World {
     /** The first stat mod makes worse (by more than 0.5%), or null when it only helps. */
     String drawback(String mod, Set<String> mods) {
         if (KNOWN_DRAWBACKS.containsKey(mod)) return KNOWN_DRAWBACKS.get(mod);
+        // drawbacks only combat shows (0.5.49, jao_rules drawback)
+        for (String[] r : JAORatings.rules()) if (r[0].equals("drawback") && r[1].equals(mod)) return r[2].isEmpty() ? "combat drawback" : r[2];
         try {
             setMods(mods);
             scratch.setVariant(work, false, true);

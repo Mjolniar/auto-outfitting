@@ -189,3 +189,58 @@ beams_hard,ix_dawnstar_proton,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix
 beams_hard,ix_dawnstar_neutron,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar: these beams deal hard flux
 beams_hard,ix_dawnstar_electron,dawnstar_lcpb_ix;dawnstar_hcpb_ix;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar: these beams deal hard flux
 beams_hard,ix_dawnstar_lacerator,lacerator_tw;daythorn_mapb_ix;daythorn_tapb_ix,IX Dawnstar Lacerator: these beams deal hard flux
+# 0.5.49: Advanced Modifications. paid_install (takes cargo items on install, never refunded: only ships that paid get it), no_shield (removes the shield),
+#         drawback (combat-only drawback, for Allow hullmods with drawbacks), combat (KIND:mult:share[:conditions]: jao_systems kinds plus TAKEN_SHIELD/ARMOR/HULL/ALL,
+#         ARMOR_REGEN, UPKEEP, SPEED, HARDDISS, TIME; conditions +hullmod, -hullmod, hull size, SHIELDHULL, NOSHIELDHULL split by &). Values for a 90 s fight.
+paid_install,ah_alpha_subsystem,sector_memory,1 Alpha Core on install
+paid_install,ah_delta_subsystem,sector_memory,3 Beta Cores on install
+paid_install,ah_weapon_control_supercomputer,sector_memory,5 Gamma Cores on install
+paid_install,ah_crystalized_armor,sector_memory,200/300/500/1000 transplutonics by hull size on install
+no_shield,ah_crystalized_armor,,applyEffectsAfterShipCreation sets the shield to NONE
+drawback,ah_crystalized_armor,removes the shield,
+drawback,ah_galvanized_armor,speed down with hard flux,
+drawback,ah_nano_hull,dissipation down while damaged,
+drawback,ah_delta_shield,shield upkeep rises with hard flux,
+combat,ah_combat_analyzer,DMG_BE:1.0375:1:-ah_alpha_subsystem,+1% per 12 s up to 30%: 3.75% average over 90 s
+combat,ah_combat_analyzer,DMG_BE:1.05:1:+ah_alpha_subsystem,Alpha: +1% per 9 s up to 40%
+combat,ah_crystalized_armor,TAKEN_ARMOR:0.8:1:SHIELDHULL&-ah_delta_subsystem,armor damage taken x0.8 on hulls built with a shield
+combat,ah_crystalized_armor,TAKEN_ARMOR:0.75:1:SHIELDHULL&+ah_delta_subsystem,Delta: x0.75
+combat,ah_crystalized_armor,ARMOR_REGEN:0.004:1:-ah_delta_subsystem,"0.4% of armor a second, no cap"
+combat,ah_crystalized_armor,ARMOR_REGEN:0.008:1:+ah_delta_subsystem,Delta: 0.8%
+combat,ah_delta_shield,TAKEN_SHIELD:0.79:1,1 - (0.15 + 0.5 x hard flux) against the x0.85 the stats show; 0.35 average hard flux (judgment)
+combat,ah_delta_shield,UPKEEP:87.5:1,upkeep 2.5 x hard flux against x0.01 in the stats; 0.35 average hard flux (judgment)
+combat,ah_emergency_system,TAKEN_ALL:0:0.03:-ah_delta_subsystem,once a fight below 20% hull: 3-5 s with no damage taken (judgment 3% of a fight)
+combat,ah_emergency_system,TAKEN_ALL:0:0.06:+ah_delta_subsystem,Delta: twice
+combat,ah_enhanced_structure,ARMOR_REGEN:0.001:1:+ah_delta_subsystem,Delta: 0.1% of armor a second
+combat,ah_flux_shield_matrix,TAKEN_SHIELD:0:0.2:-ah_delta_subsystem,no shield damage for 10 s after each 40 s charge
+combat,ah_flux_shield_matrix,TAKEN_ARMOR:0.15:0.167:+ah_delta_subsystem,Delta: armor and hull damage taken x0.15 for 10 s after each 50 s charge
+combat,ah_flux_shield_matrix,TAKEN_HULL:0.15:0.167:+ah_delta_subsystem,Delta: as above
+combat,ah_fusion_cores,DISS:3.5:0.11:-ah_alpha_subsystem,"above 75% flux: dissipation +250% for 5 s, 3 charges, 60 s cooldown: about 2 uses in 90 s"
+combat,ah_fusion_cores,HARDDISS:1:0.11:-ah_alpha_subsystem,full hard flux dissipation during the same 5 s
+combat,ah_fusion_cores,DISS:3.5:0.17:+ah_alpha_subsystem,"Alpha: 30 s cooldown, 4 charges: about 3 uses"
+combat,ah_fusion_cores,HARDDISS:1:0.17:+ah_alpha_subsystem,Alpha: as above
+combat,ah_galvanized_armor,TAKEN_ARMOR:0.755:1:SHIELDHULL&-ah_delta_subsystem,x(1 - 0.7 x hard flux); 0.35 average hard flux (judgment)
+combat,ah_galvanized_armor,TAKEN_ARMOR:0.72:1:SHIELDHULL&+ah_delta_subsystem,Delta: 0.8 x hard flux
+combat,ah_galvanized_armor,TAKEN_ARMOR:0.88:1:NOSHIELDHULL,half effect without a shield
+combat,ah_galvanized_armor,SPEED:0.79:1:SHIELDHULL,speed x(1 - 0.6 x hard flux)
+combat,ah_galvanized_armor,SPEED:0.895:1:NOSHIELDHULL,half effect without a shield
+combat,ah_infinity,RANGE_PCT_BE:30:1:FRIGATE,ballistic and energy range +30/40/50/60% by hull size; the bonus for other ships with it is not counted
+combat,ah_infinity,RANGE_PCT_BE:40:1:DESTROYER,as above
+combat,ah_infinity,RANGE_PCT_BE:50:1:CRUISER,as above
+combat,ah_infinity,RANGE_PCT_BE:60:1:CAPITAL,as above
+combat,ah_infinity,DMG_BE:1.05:1,5% chance of double damage
+hull_regen,ah_nano_hull,0.0075;0,Nano Hull: 0.6% of hull a second per 20% missing; 0.75% average (judgment)
+combat,ah_nano_hull,DISS:0.7:0.5:-ah_delta_subsystem,dissipation x hull level while repairing (judgment 0.7 for half the fight)
+combat,ah_nano_hull,DISS:0.85:0.5:+ah_delta_subsystem,Delta: half the penalty
+combat,ah_overcharge,ROF_BEM:1.25:0.2:-ah_delta_subsystem,"rate of fire +25% for 4 s when the ship system starts, 14 s cooldown (judgment 20% of a fight)"
+combat,ah_overcharge,TAKEN_ALL:0.7:0.23:+ah_delta_subsystem,"Delta: damage taken x0.7 for 6 s, 20 s cooldown, no rate of fire bonus"
+combat,ah_prismatic_shield,TAKEN_SHIELD:0.8125:0.3,above 60% hard flux x0.65 instead of x0.8 (judgment 30% of a fight)
+combat,ah_submatter_shield,HARDDISS:1:0.7,full hard flux dissipation while the ship system is off (judgment 70%)
+combat,ah_thermal_conduits,HARDDISS:0.1:0.85,10% hard flux dissipation while the ship system is off
+combat,ah_thermal_conduits,DISS:1.24:0.6,above 20% flux +8% dissipation per 10% flux; 50% flux for 60% of the fight (judgment)
+combat,ah_thermal_conduits,DMG_ENE:1.075:0.6,"+2.5% energy damage per 10% flux above 20%, same judgment"
+combat,ah_vista,TIME:1.095:1,"timeflow +10% rising 1% per 40 s, x hull level: 9.5% average (judgment)"
+combat,ah_weapon_control_supercomputer,ROF_BE:1.1:1:-ah_alpha_subsystem,rate of fire +20% x (1 - flux); 50% average flux (judgment)
+combat,ah_weapon_control_supercomputer,DMG_BE:1.1:1:-ah_alpha_subsystem,damage +20% x flux
+combat,ah_weapon_control_supercomputer,ROF_BE:1.125:1:+ah_alpha_subsystem,Alpha: 25%
+combat,ah_weapon_control_supercomputer,DMG_BE:1.25:1:+ah_alpha_subsystem,Alpha: 25% x2
