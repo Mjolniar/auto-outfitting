@@ -730,6 +730,16 @@ class JAOOptimizer {
      */
     static final String[] SURVIVAL = {"reinforcedhull", "blast_doors"};
 
+    /** {vents, capacitors} for OP nothing else on a civilian ship uses: alternating, vents first, up to the hull's limits. */
+    static int[] civilianFlux(int left, int maxVents, int maxCaps) {
+        int v = 0, c = 0;
+        while (left > 0 && (v < maxVents || c < maxCaps)) {
+            if (v < maxVents && (v <= c || c >= maxCaps)) v++; else c++;
+            left--;
+        }
+        return new int[]{v, c};
+    }
+
     /** Salvage and survey ships (Salvage Rig: designation, or the built-in Salvage Gantry). */
     static boolean salvageRig(ShipHullSpecAPI hull) {
         String d = hull.getDesignation() == null ? "" : hull.getDesignation().toLowerCase(java.util.Locale.ROOT);
@@ -750,7 +760,7 @@ class JAOOptimizer {
      * s-mods setting on, keepers (cruisers, capitals, salvage rigs) first build in the fleet-wide ones (FLEET_WIDE; story
      * points on Confirm only), which leaves the ordinary slots for the ship's own job. Logistics hullmods need a
      * spaceport, so away from one only the existing ones stay. The OP the logistics limit leaves goes to SURVIVAL
-     * (Reinforced Bulkheads, Blast Doors); no vents or capacitors (user 11/06: useless on a ship that never fights).
+     * (Reinforced Bulkheads, Blast Doors); what is still left goes to vents and capacitors (0.5.48), never before.
      */
     private void runLogistics(ShipHullSpecAPI hull, long t0) {
         // the fleet plan refits from bare like every other ship (only hullmods the refit rules here allow come off)
@@ -842,9 +852,11 @@ class JAOOptimizer {
         }
         for (String m : mods) if (!smods.contains(m) && !current.hasHullMod(m)) current.addMod(m);
         int built = smods.isEmpty() ? 0 : buildIn(smods, real, hull);
-        // no vents or capacitors: a ship that never fights has no use for them (user 11/06)
-        current.setNumFluxVents(0);
-        current.setNumFluxCapacitors(0);
+        // vents and capacitors only with OP nothing else can use (0.5.48, user 11/14: "only if there is nowhere else to
+        // put it"; 11/06: no flux on a ship that never fights): after every logistics and survival hullmod above
+        int[] flux = civilianFlux(hullOp - current.computeOPCost(plugin.stats()), plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+        current.setNumFluxVents(flux[0]);
+        current.setNumFluxCapacitors(flux[1]);
         current.getWeaponGroups().clear();
         current.setSource(VariantSource.REFIT);
         boolean docked = false;

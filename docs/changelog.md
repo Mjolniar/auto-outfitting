@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.48 - 2026-11-14
+
+- Civilian ships: OP left after every logistics and survival hullmod goes into vents and capacitors, alternating, up to the hull's limits. Before, it stayed unspent.
+
 ## 0.5.47 - 2026-11-14
 
 - Fleet-size skills: The test ship gets the fleet's data, so Automated Ships, Phase Corps, Flux Regulation, Crew Training and Carrier Group scale with the fleet as in the game. They were read at their full bonus.

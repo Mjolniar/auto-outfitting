@@ -88,7 +88,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (!s.civilian && dmods(s.member) > 0) dmodShips++;
         if (dmodShips > 0) notes.append(dmodShips).append(dmodShips == 1 ? " ship has" : " ships have")
                 .append(" d-mods: each is fitted for its own armor, flux, speed, max CR, flight deck and turrets. ");
-        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons or flux")
+        if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons, vents and capacitors only with OP left over")
                 .append(job.smods && JAOSettings.civilianSmods ? "; cruisers, capitals and salvage rigs build in fleet-wide ones). " : "). ");
         if (job.fleet.locked > 0) notes.append(job.fleet.locked).append(job.fleet.locked == 1
                 ? " locked ship stays as it is, and what it carries isn't used for other ships"
