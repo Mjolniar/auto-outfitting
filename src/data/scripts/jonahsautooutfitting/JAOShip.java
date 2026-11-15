@@ -442,6 +442,7 @@ final class JAOShip implements JAOSearch.World {
         s.maxCaps = maxCaps;
         s.personality = personality;
         applySystems(s, sysUp);
+        applyHullmodRules(s);
         return s;
     }
 
@@ -543,6 +544,50 @@ final class JAOShip implements JAOSearch.World {
      * How much longer the ship system is up against the hull's own cycle: 1 normally; Systems Expertise (cooldown -33%,
      * recharge +50%) about 1.3.
      */
+    /**
+     * jao_rules effects of hullmods the stats can't show (0.5.45, build audit): hull_regen (fraction of hull a second;
+     * cap per second, 0 = none), shield_taken (multiplier on shield damage taken), beams_hard (beams deal hard flux on
+     * shields: blank = every beam, or weapon ids split by ;), range_mult (every weapon's range). And Combat Endurance's
+     * elite repair: 0.5% of hull a second, at most max(2000, half the hull) a fight.
+     */
+    private void applyHullmodRules(JAOModel.Ship s) {
+        for (String[] r : JAORatings.rules()) {
+            boolean has = false;
+            switch (r[0]) {
+                case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": has = work.hasHullMod(r[1]); break;
+                default: continue;
+            }
+            if (!has) continue;
+            try {
+                switch (r[0]) {
+                    case "hull_regen": {
+                        String[] v = r[2].split(";");
+                        float rate = Float.parseFloat(v[0].trim()) * s.hull, cap = v.length > 1 ? Float.parseFloat(v[1].trim()) : 0f;
+                        s.hullRegen += cap > 0f ? Math.min(rate, cap) : rate;
+                        break;
+                    }
+                    case "shield_taken": s.shieldTaken *= Float.parseFloat(r[2]); break;
+                    case "beams_hard":
+                        if (r[2].isEmpty()) s.hardBeamsAll = true;
+                        else {
+                            java.util.Set<String> ids = new java.util.HashSet<>(s.hardBeamIds);
+                            for (String id : r[2].split(";")) if (!id.trim().isEmpty()) ids.add(id.trim());
+                            s.hardBeamIds = ids;
+                        }
+                        break;
+                    case "range_mult": { float m = Float.parseFloat(r[2]); for (int c = 0; c < s.rangeMult.length; c++) s.rangeMult[c] *= m; break; }
+                    default: break;
+                }
+            } catch (RuntimeException ignored) { }
+        }
+        try {
+            if (captain != null && captain.getStats().getSkillLevel("combat_endurance") >= 2f) {
+                s.hullRegen += 0.005f * s.hull;
+                s.hullRegenCap = Math.max(s.hullRegenCap, Math.max(2000f, 0.5f * s.hull));
+            }
+        } catch (Throwable ignored) { }
+    }
+
     /** The hull's system and defense ids, and their stats script classes for "class:" rows. */
     private List<String> systemKeys() {
         List<String> keys = new ArrayList<>();
@@ -722,7 +767,11 @@ final class JAOShip implements JAOSearch.World {
     /** Listener hullmods the model has its own numbers for (see ship()). */
     /** A listener hullmod whose effect the model carries: in MODELLED, or a damage-dealing hullmod (jao_hullmod_damage.csv, 0.5.41). */
     static boolean modelled(String id) {
-        return MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id);
+        if (MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id)) return true;
+        for (String[] r : JAORatings.rules()) {
+            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult")) && r[1].equals(id)) return true;
+        }
+        return false;
     }
 
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(

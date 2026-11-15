@@ -1,5 +1,18 @@
 # Patch notes
 
+## 0.5.45 - 2026-11-14
+
+- Beams with charges: Sustained damage is capped at a charge's damage times charges a second. A burst beam spends one per burst.
+- Beams with several rays: Armor hit strength is split between the rays (Kaleidoscope 5, Strahlhammer and Fauchard 2).
+- Hydra and other MIRVs with DEM warheads: Armor hit strength comes from the warhead's payload beam (250, was 500).
+- Hull repair: Field Repair Nanites, Adaptive Entropy Arrester and IX Entropy Arrester count their repair as extra hull. Elite Combat Endurance counts 0.5% of hull a second, at most 2000 or half the hull a fight.
+- Reactive Combat Shields: Counted as shield damage taken x0.8.
+- Emitter diodes and Laser Collimator: Their beams count as hard flux on shields. They were scored by their penalties only.
+- Trinity Worlds: Weapon range x0.9 on its hulls.
+- Missile reload systems: Fast Missile Racks and the UAF and A_S-F versions give launchers more volleys a fight (about x1.5).
+- Fleet roles: Bays with built-in wings no longer make a ship a carrier (Venture, Apex).
+- Rules: Added hull_regen, shield_taken, beams_hard and range_mult.
+
 ## 0.5.44 - 2026-11-14
 
 - Phase ships: Fixed 89 hulls with a damper or flak defense (Vanguard, Invictus and others) being scored as phase ships. They can take Heavy Armor and other non-phase hullmods, and their role and survival are scored as normal ships.

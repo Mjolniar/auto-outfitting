@@ -167,3 +167,11 @@ removed_by,tahlan_paralleltargeting,ballistic_rangefinder,Tahlan: Parallel Targe
 removed_by,tahlan_phaseharmonics,phase_anchor,Tahlan: Phase Harmonics (NX-A) removes Phase Anchor
 removed_by,tahlan_heavyconduits,fluxbreakers;advancedshieldemitter;extendedshieldemitter;hardenedshieldemitter;stabilizedshieldemitter;frontemitter;adaptiveshields;frontshield;shield_shunt;ix_reactive_combat_shields;vice_adaptive_temporal_shell;vice_adaptive_flux_dissipator,Tahlan: Lostech Engineering (Lostech hulls) removes Resistant Flux Conduits and every hullmod tagged shields
 never_remove,tahlan_cieveLink,,Tahlan: Quantum Link Device; removing it takes the CIEVE officer off the ship (CieveScript)
+# 0.5.45: hull_regen (fraction of hull a second;cap per second, 0 = none), shield_taken (multiplier), beams_hard (blank = every beam, or weapon ids split by ;), range_mult (every weapon)
+hull_regen,vice_field_repair_nanites,0.01;100,ET Field Repair Nanites: 1% of hull a second up to 100 while CR is above 15%
+hull_regen,vice_adaptive_entropy_arrester,0.01;100,ET Adaptive Entropy Arrester: 1% of hull a second up to 100 while CR is above 15%
+hull_regen,ix_entropy_arrester,0.01;0,IX Entropy Arrester: 1% of hull a second, no cap and no CR cost
+shield_taken,ix_reactive_combat_shields,0.8,IX Reactive Combat Shields: shield damage taken x0.5 above 60% flux; judgment: about 40% of shield time
+beams_hard,vice_adaptive_emitter_diodes,,ET Adaptive Emitter Diodes: beams deal hard flux on shields
+beams_hard,vice_laser_collimator,taclaser;vice_twin_tactical_laser;hil;vice_lrburstpd;vice_siege_burst,ET Laser Collimator: these beams deal hard flux on shields
+range_mult,tw_trinity_retrofit,0.9,TW Trinity Retrofit: every weapon's range x0.9 (WeaponRangeModifier)

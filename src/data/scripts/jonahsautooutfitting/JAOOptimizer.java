@@ -937,7 +937,9 @@ class JAOOptimizer {
         try { op = hull.getOrdnancePoints(null); } catch (Throwable t) { op = 0; }
         int size = Math.max(0, JAORatings.sizeIndex(hull.getHullSize()));
         boolean phase = JAOShip.phaseCloak(hull);
-        return JAORole.detect(hull.getDesignation(), size, phase, hull.getFighterBays(), op > 0 ? slots / op : 1f,
+        // bays with built-in wings aren't a carrier's choice (0.5.45, build audit: Venture, Apex)
+        int bays = hull.getFighterBays() - (hull.getBuiltInWings() == null ? 0 : hull.getBuiltInWings().size());
+        return JAORole.detect(hull.getDesignation(), size, phase, Math.max(0, bays), op > 0 ? slots / op : 1f,
                 slots > 0f ? missile / slots : 0f, hull.isCivilianNonCarrier(), hull.getShipSystemId());
     }
 

@@ -116,6 +116,13 @@ public class JAORatings {
             } else {
                 // never above the real fire rate (some guns regenerate ammo faster than they can shoot)
                 w.dps = finite ? 0f : d.getDps() > 0f ? Math.min(d.getSustainedDps(), d.getDps()) : d.getSustainedDps();
+                // beams with charges (0.5.45, build audit): no more than a charge's damage times charges a second (a burst
+                // beam spends one per burst, a continuous one one per second of fire); the game's figure can leave it out
+                if (!finite && spec instanceof BeamWeaponSpecAPI && spec.usesAmmo() && spec.getAmmoPerSecond() > 0f) {
+                    float perCharge = ((BeamWeaponSpecAPI) spec).isBurstBeam() ? d.getBurstDamage() : d.getDps();
+                    float cap = perCharge * spec.getAmmoPerSecond();
+                    if (cap > 0f && cap < w.dps) w.dps = cap;
+                }
                 // recharging charges: the burst they allow (JAOModel.chargedDps)
                 if (!finite && spec.usesAmmo() && spec.getAmmoPerSecond() > 0f && d.getDps() > 1.05f * w.dps) {
                     w.burstDps = d.getDps(); w.ammoMax = spec.getMaxAmmo(); w.regen = spec.getAmmoPerSecond();
@@ -133,7 +140,13 @@ public class JAORatings {
             w.empPerDmg = d.getDps() > 0f ? d.getEmpPerSecond() / d.getDps() : 0f;
             // beams: half the in-burst damage per second (burst beams' cycle average made Tachyon and Phase Lance look
             // four times weaker against armor); MIRVs: each submunition; DEM missiles: their payload beam
-            if (spec instanceof BeamWeaponSpecAPI) w.hit = 0.5f * ((BeamWeaponSpecAPI) spec).getDamagePerSecond();
+            if (spec instanceof BeamWeaponSpecAPI) {
+                w.hit = 0.5f * ((BeamWeaponSpecAPI) spec).getDamagePerSecond();
+                // several rays share the damage (0.5.45, build audit: Kaleidoscope 5, Strahlhammer and Fauchard 2)
+                int rays = 1;
+                try { rays = Math.max(1, spec.getTurretFireOffsets().size()); } catch (Throwable ignored) { }
+                w.hit /= rays;
+            }
             else w.hit = perShot / barrels;
             if (sub > 0f) w.hit = sub;
             float dem = demHit(spec);
@@ -173,6 +186,14 @@ public class JAORatings {
     static float demHit(WeaponSpecAPI spec) {
         JSONObject b = behavior(spec);
         String payload = b == null ? "" : b.optString("payloadWeaponId", "");
+        // a MIRV whose warheads are DEM missiles (Hydra, 0.5.45): the warhead carries the payload
+        if (payload.isEmpty() && b != null && "MIRV".equalsIgnoreCase(b.optString("behavior"))) {
+            try {
+                Object w = Global.getSettings().getProjectileSpec(b.optString("projectileSpec", ""));
+                JSONObject wb = w instanceof MissileSpecAPI ? ((MissileSpecAPI) w).getBehaviorJSON() : null;
+                if (wb != null) payload = wb.optString("payloadWeaponId", "");
+            } catch (Throwable ignored) { }
+        }
         if (payload.isEmpty()) return 0f;
         try {
             WeaponSpecAPI ps = Global.getSettings().getWeaponSpec(payload);

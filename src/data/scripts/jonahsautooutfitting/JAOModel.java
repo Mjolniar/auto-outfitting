@@ -28,6 +28,8 @@ final class JAOModel {
     static final float[] EMP_N = {4f, 7f, 12f, 18f}, EMP_H = {375f, 449f, 488f, 562f}, EMP_R = {12.8f, 13.6f, 16.1f, 16.1f};
     static final float[] EMP_REACH_HIT = {0.65f, 0.59f, 0.86f, 1.17f}, EMP_REACH_ARC = {0.70f, 0.67f, 0.96f, 1.26f};
     static final float EMP_FACING = 0.5f, EMP_LAMBDA = 2f;
+    /** Share of a fight a ship spends damaged, for hull repair (judgment). */
+    static final float HULL_REGEN_SHARE = 0.5f;
 
     /** Share of the target's weapons down under this much component damage a second. */
     static float empDisabled(float compRate, int ts) {
@@ -490,6 +492,15 @@ final class JAOModel {
         /** Armor counted for damage reduction per point of armor (EffectiveArmorBonus: UAF Supercap x0.5, Imperial Armor
          *  Package x0.5; 1 = none; 0.5.44). The armor pool itself is `armor`. */
         float armorEffMult = 1f;
+        /** Hull repaired in combat (0.5.45): hit points a second, and the most a fight repairs (0 = no cap). */
+        float hullRegen, hullRegenCap;
+        /** Missile launchers fire more volleys a fight (0.5.45: Fast Missile Racks and copies reset their cooldowns). */
+        float misRate = 1f;
+        /** Beams that deal hard flux on shields (0.5.45: emitter diodes, Laser Collimator): every beam, or these ids. */
+        boolean hardBeamsAll;
+        java.util.Set<String> hardBeamIds = java.util.Collections.emptySet();
+
+        boolean hardBeam(W w) { return w.beam && (hardBeamsAll || hardBeamIds.contains(w.id)); }
         /** Hullmods on the ship that deal damage by themselves (jao_hullmod_damage.csv, 0.5.40). */
         List<HullmodWeapon> hullmodWeapons = java.util.Collections.emptyList();
 
@@ -513,6 +524,7 @@ final class JAOModel {
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
+            s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate;
             return s;
         }
     }
@@ -831,6 +843,8 @@ final class JAOModel {
             case "MIS_RELOAD": s.ammoMult *= 1f + mult * share; break;
             case "WING": if (cls.equals("REFIT")) s.deck /= eff; else s.deck *= eff; break;
             case "VENT": s.diss += mult * share; break;
+            // uses a fight x share; each use saves about one 10 s launcher cycle of a 90 s fight
+            case "MIS": if (cls.equals("COOLDOWN")) s.misRate *= 1f + mult * share * 10f / 90f; break;
             default:
                 if (what.equals("DISS")) s.diss *= eff;
                 else if (what.equals("CAP")) s.cap *= eff;
@@ -860,7 +874,7 @@ final class JAOModel {
             // a launcher can't fire faster than its rate: in a fight it delivers at most rate x fight length, however deep
             // the magazine (0.5.6: a CFT Twin Rocket holds 100 s of fire, and Expanded Missile Racks doubled what the 90-s
             // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
-            if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * Math.max(10f, p.fightSeconds));
+            if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * (w.cls == MIS ? s.misRate : 1f) * Math.max(10f, p.fightSeconds));
             x.range = w.hullmod ? w.range : range(w, s);
             x.front = fits.get(i).front;
             e[i] = x;
@@ -1050,6 +1064,12 @@ final class JAOModel {
             shieldHp = tank * (SHIELD_USABLE * s.cap + SHIELD_REGEN_SECONDS * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
         float ehp = armorHullEhp(s) + shieldHp;
+        // hull repaired in combat (0.5.45): counted for HULL_REGEN_SHARE of the fight (the ship is damaged about half of it)
+        if (s.hullRegen > 0f) {
+            float add = s.hullRegen * Math.max(60f, p.fightSeconds) * HULL_REGEN_SHARE;
+            if (s.hullRegenCap > 0f) add = Math.min(add, s.hullRegenCap);
+            ehp += add / Math.max(0.1f, s.hullTaken);
+        }
         // weapons the EMP keeps down fire less at this ship while its hull is hit
         float empSup = wsum > 0f ? clamp(EMP_LAMBDA * empS / wsum, 0f, 0.6f) : 0f;
         ehp /= 1f - empSup;
@@ -1234,7 +1254,7 @@ final class JAOModel {
             } else if (mainId == null && !w.fireWhenInefficient && !w.wing && w.dps > 0f && t.shieldEff * sm < 0.5f * (e[i].flux / Math.max(1f, e[i].dps))) {
                 vsShield *= 0.5f; // callers without the main group (old rule)
             }
-            if (w.soft) soft += vsShield; else hard += vsShield;
+            if (w.soft && !(ship != null && ship.hardBeam(w))) soft += vsShield; else hard += vsShield;
             // scripted extra damage that also lands on shields follows the hits that were fired (hard flux)
             if (w.extraFrac > 0f && w.extraShields && sm > 0f) hard += vsShield / sm * w.extraFrac * SHIELD_MULT[w.extraDmg];
             if (w.shieldDebuff > 1f) debuff = Math.max(debuff, w.shieldDebuff);
