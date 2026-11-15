@@ -1,5 +1,17 @@
 # Patch notes
 
+## 0.5.42 - 2026-11-14
+
+- Emergent Threats: Fixed AO's test fits using up Synthesis cores. Adaptive Tactical Core takes one from cargo when an uncaptained ship is checked; AO no longer adds it.
+- Weapon EMP: Now valued. EMP on hull hits keeps the target's weapons down for their repair time, which cuts its fire at this ship. Only the share beyond what the damage alone does counts.
+- Beams: Soft flux on shields counts after shield efficiency, against 0.6 of the target's dissipation. It was the whole dissipation, which counted one or two beams as nothing against shields.
+- Arcs and armor extras: Counted at the share of fire that lands. They were counted in full.
+- Breach SRM: Its 250 armor damage per hit now counts. Finite missiles skipped it.
+- Effect rows: `softFluxOnShields FALSE` now turns soft flux off.
+- Weapon effects: 14 rows added and 5 fixed for vanilla, Threat Tech, Secrets of the Frontier, AotD, IndEvo, armaa, JAA, CFT and Ridiculous Weapons weapons.
+- AotD: Entropy Lance is never fitted. The AI fires it only at 80% flux and it shuts off shields and other weapons while firing.
+- Emergent Threats: 41 hullmod rows fixed, 27 rules added (hullmods a hull removes, fighter bonuses, Adaptive Drone Bay drones only). Abyssal Entropy Projector scored as 2/2/3/4 arcs of 300 energy every 10 s.
+
 ## 0.5.41 - 2026-11-14
 
 - Weapon effects: 112 rows added and 6 fixed from a code read of Tahlan, Diable, Emergent Threats, RAT, Imperium, Stardust, Knights of Ludd, Ship/Weapon Pack, UAF, Yunru, Roider and TTE weapons (`jao_weapon_effects.csv`, 185 rows).

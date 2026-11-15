@@ -10,7 +10,7 @@ weaponId,shieldDamageMult,armorExtraPerHit,arcChancePerHullHit,arcsPerSecond,arc
 ioncannon,,,0.25,,25,400,FALSE,,,FALSE,,,,,,,,,,,,Ion Cannon: 25% arc on hull/armor hits
 ionpulser,,,0.25,,90,600,FALSE,,,FALSE,,,,,,,,,,,,Ion Pulser: 25% arc on hull/armor hits
 ionbeam,,,,1.0,50,400,TRUE,,,FALSE,,,,,,,,,,,,Ion Beam: arc every 0.25-1.75 s of contact; pierces at target hard flux - 0.1
-tachyonlance,,,,0.62,375,500,TRUE,,,FALSE,,,,,,,,,,,,Tachyon Lance: arc every 0.2-0.3 s at full beam; about 4 per burst and one burst every 6.5 s with its cooldown (0.62 a second)
+tachyonlance,,,,0.62,375,500,TRUE,,,FALSE,,,,,,,,,,,,"Tachyon Lance: arc every 0.2-0.3 s at full beam (4 per 1.0 s burst), 0.25 x 1500 = 375 energy, 500 EMP; cycle 0.5 charge + 1.0 burst + 1.0 chargedown + 4.0 cooldown = 6.5 s: 0.62 a second"
 gravitonbeam,,,,,,,,1.05,,FALSE,,,,,,,,,,,,Graviton Beam: target shield damage taken x1.05 / 1.08 / 1.10 with 1 / 2 / 3+ beams
 breach,,250,,,,,,,,FALSE,,,,,,,,,,,,Breach SRM: +250 armor damage per non-shield hit ignoring armor reduction
 breachpod,,250,,,,,,,,FALSE,,,,,,,,,,,,Breach SRM Pod: as Breach SRM
@@ -30,10 +30,10 @@ dragonpod,,,,,,,,,TRUE,FALSE,,,,,,,,,,,,Dragonfire Pod: as Dragonfire
 hydra,,,,,,,,,TRUE,FALSE,,,,,,,,,,,,Hydra MDEM: MIRV of payload beams
 guardian,,,,,,,,,,FALSE,,,,,,,,,,,,Paladin PD: 100 frag explosion (r 75) when beams converge; PD only
 disintegrator,,1000,,,,,,,,TRUE,,,,,,,,,,,,Disintegrator (Omega): 1000 armor damage over ~10 s per hull hit ignoring reduction
-riftbeam,,,,2.0,200,,FALSE,,,TRUE,,,,,,,,,,,,Rift Beam (Omega): rift (200 energy) every 0.4-0.6 s near the target
-riftcascade,,,,,1000,,FALSE,,,TRUE,,,,,,,,,,,,Rift Cascade (Omega): up to 5 rifts of 1000 energy along unused beam length
+riftbeam,,,,,,,,,,TRUE,200,ENERGY,,TRUE,0.35,,,,,,,"Rift Beam (Omega): a rift (200 energy, radius 50) every 0.4-0.6 s at a random point 25-100% along the beam; against ships only rifts within about 70 of the hull land (about 1 in 6 at 500 range): 0.35 a second; rifts also hit shields"
+riftcascade,,,,,,,,,,TRUE,1000,ENERGY,,TRUE,0.26,,,,,,,"Rift Cascade Emitter (Omega): each burst places (1000 - beam length) / 200 + 1 rifts (at most 5) on the target's hull or shield edge, 1000 energy each (x0.75 to x1.25 by order), radius 100; about 2 per burst at 600-800 range, 85% land; cycle 0.5 + 1.0 + 1.0 + 4.0 cooldown = 6.5 s: 0.26 a second"
 shockrepeater,,,,,,,,,,TRUE,,,,,,,,,,,,Shock Repeater (Omega): each shot becomes an EMP arc carrying its damage
-vpdriver,,,,,,,,,,TRUE,,,,,,,,,,,,Volatile Particle Driver (Omega): 4-shot salvos while fewer than 4 shots in flight
+vpdriver,,,,,,,,,,TRUE,,,,,,,,,,,,Volatile Particle Driver (Omega): no script in effect; VPDriverEffect (4-shot salvos) is commented out in vpdriver.wpn and marked UNUSED; the proximity-fuse explosion has collision NONE
 abyssal_glare,,,,,,,,,,TRUE,100,ENERGY,,TRUE,1.9,,,,,,,Abyssal Glare (Dweller): on a ship without the Dweller system a rift explosion of 100 energy (50 at the edge) lands at the beam end about every 0.5 s while it hits
 rift_lightning,,,,,500,1000,FALSE,,,TRUE,,,,,,,,,,,,Rift Lightning (Dweller): spawns 500 energy / 1000 EMP minelayer
 # 0.5.19 (modscan_1111, read from the scripts' bytecode): Tahlan Shipworks and Diable Avionics. Scripts that only change visuals have no row
@@ -78,7 +78,7 @@ diableavionics_nocturneDEM_small,,,,,,,,,TRUE,,250,FRAGMENTATION,,FALSE,,,,,,,3,
 seeker_fragment,,,,,,,,,,,,,,,,,,,10,,,Seeker Fragment: 10 swarm fragments per missile (1 + 9 carried along)
 kinetic_fragments,,,,,,,,,,,100,KINETIC,,TRUE,,,,,5,,3,Kinetic Fragments: 5 fragments per missile; the 4 carried along deal 100 kinetic each where they touch the target (about 3 of 4)
 unstable_fragment,,,,,,,,,,,,,,,,,,,1,,,Unstable Fragment: 1 fragment per shot
-devouring_swarm,,,,,,,,,,,,,,,,,,,6,,,Defabrication Swarm: 6 fragments per missile (1 + 5 carried along)
+devouring_swarm,0.001,100,,,,,,,,TRUE,,,,,,,,,6,,,Defabrication Swarm: 6 fragments per missile (1 + 5 carried along); the missile's own damage is x0.001; a hull or armor hit starts 200 damage over 10 s (11 ticks) on the armor grid ignoring armor reduction and spilling into hull; shield hits deal nothing; armorExtraPerHit 100 brings the counted 200 HE hit to about 200 on 500-1500 armor
 assaying_rift,,,,,,,,,,TRUE,,,,,,,,,,3,,"Hungering Rift (Dweller): at most 10 rifts fly at once in a battle (AssayingRiftEffect.MAX_RIFTS, both sides); a launcher keeps about 3 in flight"
 roider_arcZapper,,,0.25,,20,100,FALSE,,,,,,,,,,,,,,,Roider Arc Zapper: 25% chance per hull hit (nextFloat() >= 0.75) of an arc dealing the shot again: 20 energy and 100 EMP (ArcZapperOnHitEffect)
 roider_zap,,,,,,,,,,,60,ENERGY,,TRUE,,0.01,,,,,,Roider Zap SRM: after 0.5 s arming each missile arcs at the first enemy ship within 500 and 5 degrees of its facing and is removed; the arc deals its 60 as ENERGY with 70 EMP (350 on fighters) (ZapArcKeeper); the 60 FRAGMENTATION impact almost never happens; damageMult 0.01 plus 60 ENERGY extra stands in for the type change
@@ -192,3 +192,17 @@ stardust_streak_mrm_crimson_double,1.75,,,,,,,,,,,,,,,,,,,,,As stardust_streak_m
 stardust_streak_mrm_crimson_pod,1.75,,,,,,,,,,,,,,,,,,,,,As stardust_streak_mrm_crimson (same stardust_missile_streak_crimson missile)
 stardust_streak_mrm_crimson_barrage,1.75,,,,,,,,,,,,,,,,,,,,,As stardust_streak_mrm_crimson (same stardust_missile_streak_crimson missile)
 dwl_maw_scythe,,,,,,,,,,TRUE,600,ENERGY,,TRUE,0.67,0.01,,,,,,"Abyssal Scythe (Dweller; Emergent Threats): the beam has beam speed 0 and no color and deals no damage (judgment; same setup as ET IX EWAR suite; 0.01 because AO ignores 0); 0.7 s into each burst ScytheOnFire sends EMP arcs of 600 energy and 300 EMP to 3 to 5 enemies within 750 of a point near the nearest enemy missile or ship, one per target; one burst per 1.5 s (0.67 a second); no_drop, no_sell"
+realitydisruptor,,,,,,,,,,TRUE,25,ENERGY,,TRUE,,,,,,,34,"Reality Disruptor (Omega): the shot has no collision and flies 1000 at 200 a second (5 s); from 0.5 s it arcs about 10 times a second at the nearest enemy ship or missile within 650: 25 energy and 1500 EMP each, non-piercing; about 35 arcs reach the target per shot (34 extra); hit ships get repair rate x0.5 for 5 s"
+voidblaster,,,,,,,,,TRUE,TRUE,,,,,,,,,,,,"Voidblaster (Threat): its shield hits are soft flux (VoidblasterEffect.modifyDamageDealt); one listener per ship keeps the id of the first Voidblaster-type weapon fired, so with both Voidblaster and Voidpulser only the first type's shield hits are soft"
+tt_voidpulser,,,,,,,,,TRUE,TRUE,,,,,,,,,,,,Threat Tech Voidpulser: vanilla VoidblasterEffect; its shield hits are soft flux (see voidblaster)
+gungnir_railgun,1.57,,,,,,,,,TRUE,2800,KINETIC,,FALSE,,0.21,0.21,,,,1.3,Gungnir Relic Railgun (AotD): each shot starts a 25 s forced reload (AoTDRelicEffect.initReload; findPhaseTarget always returns a list): one shot per 28 s against the listed 6 s (x0.21 damage and flux); shield hits add 2 x 4000 EMP as hard flux (+8000 on 14000: x1.57); hull hits add 0.3 x 7000 x 8 = 16800 kinetic in about 6 hits of 2800 (extraHits 1.3 = 6 x 6/28 per listed shot); phase-cloak ships within 20 degrees of aim take 8 x 6300 kinetic at the expected hit time
+IndEvo_degrader,,100,,,,,,,,TRUE,,,,,,,,,,,,Matter Degrader (IndEvo): each hull or armor hit adds 100 armor damage over 10 s (11 ticks) ignoring armor reduction (IndEvo_degradeEffect.TOTAL_DAMAGE); none on shields; cannot hurt hull
+IndEvo_causalitygun,,,,2.35,300,300,TRUE,,,TRUE,,,,,,,,,,,,Causality Disturber (IndEvo): while the beam is at full brightness on a ship it arcs every 0.08-0.12 s (10 a second): 0.25 x 1200 = 300 energy and 0.5 x 600 = 300 EMP on hull or a pierced shield (target hard flux - 0.1); 1.6 s of full beam per 0.5 + 1.6 + 0.7 + 4.0 cooldown = 6.8 s cycle: 2.35 a second
+IndEvo_riftgun,,,,,,,,,,TRUE,200,ENERGY,0.2,TRUE,,,,,,,,"Riftpulse Cycler (IndEvo): 20% of hits on a ship (shield or hull) spawn a rift within 100 of the impact: 200 energy, radius 200, core 100 (IndEvo_riftgunOnHitEffect)"
+jaa_pike,3,,,,,,,,,,,,,,,,,,,,,"Pike SBM (JAA): its missiles deal x3 on shields (JAA_PikeSBMDMG, HULL_DAMAGE_MULT 3); MIRV second stage 900 kinetic and 800 EMP"
+JYD_ionburst,,,,0.5,650,6000,TRUE,,,,,,,,,,,,,,,"Ion Burst Emitter (JYD): vanilla IonBeamEffect; one arc per 0.25-1.75 s of full-brightness contact (1 a second): damage = beam dps 650, EMP 6000, on hull or a pierced shield (target hard flux - 0.1); 0.5 s full beam per 0.125 + 0.5 + 0.125 + 0.25 cooldown = 1.0 s cycle: 0.5 a second"
+sotf_edict,,,1,,160,300,FALSE,,,,,,,,,,,,,,,Edict Stormblaster (SotF): every hull hit sends an arc of 0.4 x 400 = 160 energy and 300 EMP (SotfEdictOnHitEffect); none on shields except against phantasmal or Dweller ships
+sotf_mercy,2.5,,,,,,,,,,100,ENERGY,,TRUE,4.3,,,,,,,"Mercy Multilance (SotF): at full charge it fires 25 bolts of 100 energy (spread 2.5 degrees, speed 2000), 90% land; cycle 1.0 + 0.5 + 0.75 + 3.0 cooldown = 5.25 s: 4.3 a second; shield hits x2.5 / target shield flux per damage (0.625 flux per point at any efficiency); hull hits lower effective armor by 50 for 0.75 s"
+sotf_chalice,,,,,,,,,,,50,KINETIC,,TRUE,,,,,,,16,"Chalice Resonance Cage (SotF): during its 5 s charge it launches a guided bolt every 0.25 s at the ship target (20 per shot), 50 kinetic and 40 EMP each, 80% land (16); the main shot turns into 750-energy proximity mines (radius 350) near enemies"
+armaa_ionBuster,,,1,,275,1250,TRUE,,,,,,,,,,,,,,,"Ion Buster (armaa): each hit on hull or a pierced shield (target hard flux - 0.1, rolled per arc) sends 4 arcs of 0.25 x 275 energy and 0.25 x 1250 EMP: 275 and 1250 a hit"
+hpst_gravharpoon,,,,,,,,1.05,,,,,,,,,,,,,,Gravharpoon (hpst): vanilla GravitonBeamEffect: target shield damage taken x1.05 / 1.08 / 1.10 with 1 / 2 / 3+ graviton-type beams; beam EMP 150 a second

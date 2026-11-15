@@ -14,6 +14,27 @@ import java.util.Map;
  * reference targets: break the shield, strip the armor, kill the hull) and survival = effective HP.
  */
 final class JAOModel {
+    /**
+     * Soft flux on shields (0.5.42, build audit): the target pays shield upkeep (0.4 x its dissipation) while its shield
+     * is up, so at most 0.6 x its dissipation is spare against soft flux; counted after shield efficiency.
+     */
+    static final float SOFT_SPARE = 0.6f;
+    /**
+     * Weapon EMP (0.5.42, build audit; Ship.applyDamageInner): a hull or armor hit gives the weapons around it
+     * 0.25-0.5 x (EMP + damage); a weapon at 0 HP is down for its repair time. Medians from 93 vanilla hulls by target
+     * size: weapons, weapon HP, repair seconds, and how much of a hit's EMP reaches weapons (hit, arc). FACING: share of
+     * the target's weapons on the side being hit. LAMBDA: weight of the target fire this takes away (a judgment).
+     */
+    static final float[] EMP_N = {4f, 7f, 12f, 18f}, EMP_H = {375f, 449f, 488f, 562f}, EMP_R = {12.8f, 13.6f, 16.1f, 16.1f};
+    static final float[] EMP_REACH_HIT = {0.65f, 0.59f, 0.86f, 1.17f}, EMP_REACH_ARC = {0.70f, 0.67f, 0.96f, 1.26f};
+    static final float EMP_FACING = 0.5f, EMP_LAMBDA = 2f;
+
+    /** Share of the target's weapons down under this much component damage a second. */
+    static float empDisabled(float compRate, int ts) {
+        if (compRate <= 0f) return 0f;
+        float e = compRate / (EMP_FACING * EMP_N[ts]);
+        return EMP_FACING * EMP_R[ts] / (EMP_R[ts] + EMP_H[ts] / e);
+    }
     static final int KIN = 0, HE = 1, FRAG = 2, EN = 3;
     static final float[] SHIELD_MULT = {2f, 0.5f, 0.25f, 1f}, ARMOR_MULT = {0.5f, 2f, 0.25f, 1f};
     /** Weapon bonus classes (ballistic, energy, missile), as the ship stats split them. */
@@ -364,6 +385,8 @@ final class JAOModel {
         /** A battle-wide cap on the weapon's projectiles (Hungering Rift: 10 rifts at once): launchers the fleet fires at full
          *  rate (jao_weapon_effects fleetMax; 0 = no cap; 0.5.38). */
         float fleetMax;
+        /** EMP per point of the weapon's damage on hull hits (its own), and its arcs' EMP per point of damage (0.5.42). */
+        float empPerDmg, arcEmpPerDmg;
     }
 
     static final class Target {
@@ -737,6 +760,7 @@ final class JAOModel {
             w.burst = h.dmg;
             w.flux = w.dps * h.fluxPerDmg;
             w.emp = rate * h.emp;
+            w.empPerDmg = h.dmg > 0f ? h.emp / h.dmg : 0f;
             w.range = h.range;
             w.pd = h.pd;
             w.pdAlso = h.pd;
@@ -998,13 +1022,14 @@ final class JAOModel {
         }
 
         // time to kill each reference target
-        float ttkSum = 0f, wsum = 0f, t1s = 0f, t2s = 0f, t3s = 0f;
+        float ttkSum = 0f, wsum = 0f, t1s = 0f, t2s = 0f, t3s = 0f, empS = 0f;
         for (Target t : p.targets) {
             float[] ph = phases(fits, e, eff, effB, t, p, missilePool, missilePoolStrike, s, mainId);
             float ttk = p.wS * ph[0] + p.wA * ph[1] + p.wH * ph[2];
             ttkSum += t.weight * ttk;
             wsum += t.weight;
             t1s += t.weight * ph[0]; t2s += t.weight * ph[1]; t3s += t.weight * ph[2];
+            empS += t.weight * ph[3] * (ph[1] + ph[2]) / Math.max(0.1f, ph[0] + ph[1] + ph[2]);
         }
         float ttk = Math.max(0.5f, ttkSum / Math.max(0.001f, wsum));
         float offense = 1f / ttk;
@@ -1018,6 +1043,9 @@ final class JAOModel {
             shieldHp = tank * (SHIELD_USABLE * s.cap + SHIELD_REGEN_SECONDS * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
         float ehp = armorHullEhp(s) + shieldHp;
+        // weapons the EMP keeps down fire less at this ship while its hull is hit
+        float empSup = wsum > 0f ? clamp(EMP_LAMBDA * empS / wsum, 0f, 0.6f) : 0f;
+        ehp /= 1f - empSup;
         // phase ships avoid much of the damage, longer the more flux they have to phase on (0.5.15: experts max their
         // capacitors; a flat x1.3 made Heavy Armor the best use of their OP)
         if (s.phase) ehp *= 1f + PHASE_EHP * (float) Math.sqrt(Math.max(0.5f, s.baseCap > 0f ? s.cap / s.baseCap : 1f));
@@ -1147,6 +1175,7 @@ final class JAOModel {
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
             out.put("burstUp", burstUp); out.put("groups", (float) groupIds.size()); out.put("guns", (float) gunIds.size());
             out.put("cover", cover);
+            if (empSup > 0f) out.put("empSup", empSup);
         }
         return score;
     }
@@ -1202,8 +1231,10 @@ final class JAOModel {
             // scripted extra damage that also lands on shields follows the hits that were fired (hard flux)
             if (w.extraFrac > 0f && w.extraShields && sm > 0f) hard += vsShield / sm * w.extraFrac * SHIELD_MULT[w.extraDmg];
             if (w.shieldDebuff > 1f) debuff = Math.max(debuff, w.shieldDebuff);
-            armorExtra += w.armorExtraPerHit * w.hitsPerSec;
-            arc += w.arcDps;
+            // the share of the paper rate that is fired and lands (0.5.42: arcs and armor extras were counted in full)
+            float firedShare = clamp(effB[i] / Math.max(1e-3f, w.dps), 0f, 1.5f);
+            armorExtra += w.armorExtraPerHit * w.hitsPerSec * firedShare;
+            arc += w.arcDps * firedShare;
         }
         // finite missiles one by one (0.5.11, research ai_behaviour_1106 MI-1/MI-2): the share of the pool that reaches
         // this target (torpedoes by its size), then the same armor math as guns; the old summed pool at a flat 0.5
@@ -1229,7 +1260,7 @@ final class JAOModel {
         }
         float t1 = 0f;
         if (t.shield) {
-            float rate = (hard + Math.max(0f, soft - t.diss)) * t.shieldEff * debuff;
+            float rate = (hard * t.shieldEff + Math.max(0f, soft * t.shieldEff - SOFT_SPARE * t.diss)) * debuff;
             for (int i = 0; i < n; i++) {
                 W w = fits.get(i).w;
                 if (mRate[i] > 0f && (w.dmg == KIN || w.shieldMultExtra > 1f)) rate += mRate[i] * SHIELD_MULT[w.dmg] * w.shieldMultExtra;
@@ -1239,6 +1270,11 @@ final class JAOModel {
             t1 = rate <= 0.01f ? 600f : Math.min(600f, 0.6f * t.cap / rate);
         }
         // armor: pooled armor from A down to 0.2A in steps
+        // finite missiles' armor extras (Breach SRM, 0.5.42): hits per second that land
+        for (int i = 0; i < n; i++) {
+            W w = fits.get(i).w;
+            if (mRate[i] > 0f && w.armorExtraPerHit > 0f && w.hit > 0f) armorExtra += w.armorExtraPerHit * mRate[i] / w.hit;
+        }
         float t2 = 0f, a = t.armor, floor = t.armor * MIN_ARMOR;
         int steps = 8;
         float chunk = t.armor * 0.8f / steps;
@@ -1273,7 +1309,17 @@ final class JAOModel {
         // Target Analysis: more damage to this target's size, so each phase goes faster
         float sd = ship == null ? 1f : Math.max(0.1f, ship.sizeDmg[ts]);
         if (sd != 1f) { t1 /= sd; t2 /= sd; t3 /= sd; }
-        return new float[]{t1, t2, t3};
+        // EMP: the share of the target's weapons it keeps down beyond what the damage alone does (0.5.42)
+        float emp = 0f, dmgC = 0f;
+        for (int i = 0; i < n; i++) {
+            W w = fits.get(i).w;
+            float fired = Math.max(0f, effB[i]) + mRate[i];
+            if (fired <= 0f) continue;
+            emp += fired * (w.empPerDmg * EMP_REACH_HIT[ts] + w.arcEmpPerDmg * EMP_REACH_ARC[ts]);
+            dmgC += fired * EMP_REACH_HIT[ts];
+        }
+        float empD = emp > 0f ? Math.max(0f, empDisabled(emp + dmgC, ts) - empDisabled(dmgC, ts)) : 0f;
+        return new float[]{t1, t2, t3, empD};
     }
 
     /**

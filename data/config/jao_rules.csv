@@ -126,3 +126,31 @@ wing_mult,converted_bay,0.88,vanilla Colossus Mk.III: its fighters get Defective
 never_add,sms_engineering_override,,SMS: +2 s-mod slots; turns off every mastery effect on the ship
 never_remove,sms_engineering_override,,SMS: made a perma mod once an s-mod is built in
 never_add,oce_omega_core_upgrades,,OCE: holds an Omega core while installed; hidden without Special Hullmod Upgrades
+# 0.5.42: build audit rules (vanilla and misc weapons, Emergent Threats hullmods)
+never_add,vice_adaptive_tactical_core,,Emergent Threats: its stat script takes a Synthesis core from cargo when an uncaptained ship is checked with Command Subroutine active; AO's test ships would use them up (0.5.42)
+never_use,aotd_shadowlance,,AotD Entropy Lance: the AI fires it only at 80%+ own flux
+removed_by,asm_amorphous_alloy,armoredweapons;heavyarmor;tahlan_daemonplating;frontshield,ET: Amorphous Alloy Armor (8 Threat Infected hulls)
+removed_by,asm_munitions_regulator,magazines,ET: Subordinator (Threat)
+removed_by,orr_damper_field,frontshield,ET: Onslaught (CGR) hulls
+removed_by,vice_intrepid_hull,ecm,ET: Intrepid (EX) hulls
+removed_by,tw_intrepid_hull,ecm,TW: Intrepid (TW)
+removed_by,tw_ewar_suite,ecm,TW: Omen (TW) and Iris (IX)
+removed_by,vice_missile_microforge,missleracks;missile_autoloader,ET: Glycon and Jubilant
+removed_by,vice_aquilon_microforge,missleracks;missile_autoloader,ET: Aquilon
+removed_by,ix_aquilon_microforge,missleracks;missile_autoloader,IX: Aquilon (IX)
+removed_by,ix_missile_nanoforge,missleracks;missile_autoloader,IX: Hyperion (HG) and Scarab
+removed_by,ix_missile_autoforge,advancedcore;missleracks;missile_autoloader,IX: Paragon (HG)
+removed_by,ix_cramped_missile_bays,missleracks,IX: Casimir
+removed_by,ix_entropy_arrester,autorepair,IX: Equalizer (IX) Mokosh (IX) Scarab (IX)
+removed_by,ix_odyssey_retrofit,pointdefenseai;converted_hangar,IX: Odyssey (IX)
+removed_by,tw_point_defense_small,pointdefenseai,TW: Omen (TW)
+removed_by,tw_superior_pd,pointdefenseai,TW: Iapetus (TW)
+removed_by,tw_trinity_retrofit,unstable_injector;converted_hangar,TW: every Trinity Worlds hull
+removed_by,tw_optimized_targeting_core,dedicated_targeting_core;vice_unified_targeting_core;targetingunit;tw_modernized_rangefinder;vice_adaptive_trajectory_analyzer,TW: Astral (TW)
+removed_by,vice_unified_targeting_core,dedicated_targeting_core;targetingunit,ET: Thunderbox and Heron (auto) have UTC built in
+never_add,vice_convert_shuttle,,ET: puts Kite (LG) in bay 4 and removes itself
+never_add,vice_convert_shuttle_dem,,ET: puts Kite (DEM) in bay 4 and removes itself
+wing_mult,vice_modular_fleet_override,1.1,ET: fighter weapon damage +10%
+wing_mult,vice_fleet_override,1.15,ET: fighter weapon damage +15% (built in on 4 LG/Diktat carriers)
+wing_mult,tw_drone_tactics,1.03,TW: fighter weapon damage +3% (+5% with Drone Control Node and +7% with Enhanced Control Node)
+drones_only,vice_adaptive_drone_bay,SKR_remote;rat_autonomous_bays,ET: crewed wing in a non-built-in bay adds Drone Bay Malfunction (max CR -100%); needs the code change below

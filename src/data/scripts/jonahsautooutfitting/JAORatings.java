@@ -129,6 +129,8 @@ public class JAORatings {
             }
             w.burst = d.getBurstDamage();
             w.emp = d.getEmpPerSecond();
+            // EMP per point of damage (0.5.42): cycle averages from the game's derived stats
+            w.empPerDmg = d.getDps() > 0f ? d.getEmpPerSecond() / d.getDps() : 0f;
             // beams: half the in-burst damage per second (burst beams' cycle average made Tachyon and Phase Lance look
             // four times weaker against armor); MIRVs: each submunition; DEM missiles: their payload beam
             if (spec instanceof BeamWeaponSpecAPI) w.hit = 0.5f * ((BeamWeaponSpecAPI) spec).getDamagePerSecond();
@@ -226,6 +228,11 @@ public class JAORatings {
         float arcDmg = num(row, "arcDamage"), chance = num(row, "arcChancePerHullHit"), perSec = num(row, "arcsPerSecond");
         float arcs = perSec > 0f ? perSec : chance * shotsPerSec;
         if (arcDmg > 0f && arcs > 0f) w.arcDps = arcDmg * arcs;
+        // arcs' EMP per point of the weapon's damage (0.5.42; EMP-only arcs count too)
+        float arcEmp = num(row, "arcEmp");
+        if (arcEmp > 0f && arcs > 0f && w.dps > 0f) w.arcEmpPerDmg = arcEmp * arcs / w.dps;
+        // softFluxOnShields FALSE turns soft flux off (Dawnstar beams deal hard flux on shields)
+        if ("FALSE".equalsIgnoreCase(row.optString("softFluxOnShields", "").trim())) w.soft = false;
         float debuff = num(row, "targetShieldTakenMult");
         if (debuff > 0f) w.shieldDebuff = debuff;
         if ("TRUE".equalsIgnoreCase(row.optString("softFluxOnShields"))) w.soft = true;
