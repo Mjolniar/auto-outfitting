@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.53 - 2026-11-15
+
+- Optimize fleet: Added "Strip stored ships". With it ticked, the weapons and LPCs on ships in your storage at this market join the stock, and Apply takes them off. What the fleet doesn't use goes to storage as items. Locked ships keep theirs. Off by default, set per save.
+- Optimize fleet: The panel's options (Place officers, Place augments, Strip stored ships) are on their own row above the buttons.
+
 ## 0.5.52 - 2026-11-15
 
 - Extra System Reloaded (Oddisz Edition): Optimize fleet places augments. Each augment in cargo, in this market's storage or on a warship goes to the ship where it adds the most. Slots, one of each per ship and ESR's install requirements are followed.

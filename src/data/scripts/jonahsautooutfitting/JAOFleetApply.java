@@ -75,6 +75,24 @@ final class JAOFleetApply {
         try { Global.getSector().getPersistentData().put(PLACE_OFFICERS, on); } catch (Throwable ignored) { }
     }
 
+    /** Sector persistent data key of the "Strip stored ships" box (0.5.53; per save; off by default). */
+    static final String STRIP_STORED = "jao_stripStoredShips";
+
+    static boolean stripStored() {
+        try { return Boolean.TRUE.equals(Global.getSector().getPersistentData().get(STRIP_STORED)); } catch (Throwable t) { return false; }
+    }
+
+    static void setStripStored(boolean on) {
+        try { Global.getSector().getPersistentData().put(STRIP_STORED, on); } catch (Throwable ignored) { }
+    }
+
+    /** Ships in this market's storage whose weapons and LPCs join the stock and come off on Apply ("Strip stored ships"). */
+    final List<FleetMemberAPI> stored = new ArrayList<>();
+    /** Weapons and LPCs on those ships. */
+    int storedItems;
+    /** "Strip stored ships" is ticked, but there is no storage of yours here. */
+    boolean storedAway;
+
     /** What applying the plan changes on one ship. */
     static final class Change {
         final JAOFleetPlan.ShipPlan ship;
@@ -109,6 +127,32 @@ final class JAOFleetApply {
         Map<String, Integer> w = new TreeMap<>(), f = new TreeMap<>();
         JAOFleetPlan.addCargo(cargo, w, f);
         if (storage != null) JAOFleetPlan.addCargo(storage, w, f);
+        // ships in this market's storage (0.5.53, user 11/15: the weapons on ships parked at the home base get used): with
+        // "Strip stored ships" ticked their weapons and LPCs join the stock and come off on Apply; what the fleet doesn't
+        // use goes to storage as items. Locked ships keep theirs.
+        if (stripStored()) {
+            if (storage == null) storedAway = true;
+            else {
+                try {
+                    com.fs.starfarer.api.campaign.FleetDataAPI sd = storage.getMothballedShips();
+                    if (sd != null) for (FleetMemberAPI m : sd.getMembersListCopy()) {
+                        if (m.isFighterWing() || JAOLocks.locked(m)) continue;
+                        Map<String, Integer> sw = new TreeMap<>(), sf = new TreeMap<>();
+                        JAOFleetPlan.addMountedWithModules(m.getVariant(), sw, sf);
+                        int n = 0;
+                        for (int x : sw.values()) n += x;
+                        for (int x : sf.values()) n += x;
+                        if (n == 0) continue;
+                        stored.add(m);
+                        storedItems += n;
+                        for (Map.Entry<String, Integer> e : sw.entrySet()) w.merge(e.getKey(), e.getValue(), Integer::sum);
+                        for (Map.Entry<String, Integer> e : sf.entrySet()) f.merge(e.getKey(), e.getValue(), Integer::sum);
+                    }
+                } catch (Throwable t) {
+                    Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: couldn't read the ships in storage", t);
+                }
+            }
+        }
         for (FleetMemberAPI m : planned) JAOFleetPlan.addMountedWithModules(live(m, false), w, f);
         List<AvailableWeapon> weapons = new ArrayList<>();
         List<AvailableFighter> fighters = new ArrayList<>();
@@ -362,6 +406,22 @@ final class JAOFleetApply {
                 Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't strip " + s.name, t);
             }
         }
+        // 1b. the stored ships' weapons and LPCs into cargo too ("Strip stored ships")
+        int strippedStored = 0;
+        for (FleetMemberAPI m : stored) {
+            try {
+                ShipVariantAPI v = live(m, true);
+                strip(v, off);
+                for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
+                    ShipVariantAPI mv = module(v, slot);
+                    if (mv != null) strip(mv, off);
+                }
+                m.updateStats();
+                strippedStored++;
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't strip the stored ship " + m.getShipName(), t);
+            }
+        }
         // 2. each ship takes its plan
         MutableCharacterStatsAPI ps = Global.getSector().getPlayerStats();
         List<FleetMemberAPI> done = new ArrayList<>();
@@ -453,6 +513,7 @@ final class JAOFleetApply {
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
                 + (moved > 0 ? ", moved " + moved + " officer" + (moved > 1 ? "s" : "") : "")
                 + (augmentsPlaced > 0 ? ", installed " + augmentsPlaced + " augment" + (augmentsPlaced > 1 ? "s" : "") : "")
+                + (strippedStored > 0 ? ", stripped " + strippedStored + " stored ship" + (strippedStored > 1 ? "s" : "") : "")
                 + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");
