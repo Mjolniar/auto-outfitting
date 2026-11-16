@@ -973,8 +973,13 @@ final class JAOShip implements JAOSearch.World {
         // incompatibilities the table knows (most mods also refuse in isApplicableToShip)
         JSONObject row = JAORatings.hullmods().get(mod);
         if (row != null) for (String other : row.optString("incompatible", "").split(" ")) if (!other.isEmpty() && (mods.contains(other) || work.hasHullMod(other))) return false;
-        // and the other way round (0.5.41): a fitted hullmod whose own row lists this one (Yunru's targeting core and ITU)
-        for (String other : mods) {
+        // and the other way round (0.5.41): a fitted hullmod whose own row lists this one (Yunru's targeting core and ITU).
+        // 0.5.54: s-mods and built-in hullmods count too (an s-modded Prismatic Shield deletes Hardened Shields when the
+        // ship is built, which left 25 OP unspent on a Guardian)
+        java.util.Set<String> fitted = new java.util.LinkedHashSet<>(mods);
+        fitted.addAll(work.getHullMods());
+        fitted.addAll(smods);
+        for (String other : fitted) {
             JSONObject o = other.equals(mod) ? null : JAORatings.hullmods().get(other);
             if (o != null && (" " + o.optString("incompatible", "") + " ").contains(" " + mod + " ")) return false;
         }

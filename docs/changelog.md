@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.54 - 2026-11-15
+
+- Hullmods: Fixed hullmods being added next to an s-mod or built-in hullmod that conflicts with them. Example: Hardened Shields next to an s-modded Prismatic Shield, whose script deletes it and leaves 25 OP unspent.
+
 ## 0.5.53 - 2026-11-15
 
 - Optimize fleet: Added "Strip stored ships". With it ticked, the weapons and LPCs on ships in your storage at this market join the stock, and Apply takes them off. What the fleet doesn't use goes to storage as items. Locked ships keep theirs. Off by default, set per save.
