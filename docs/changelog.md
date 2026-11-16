@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.58 - 2026-11-16
+
+- Optimize fleet: Fixed the settings page staying on screen under the plan after Plan fleet.
+- Optimize fleet: Fixed the old page staying on screen after Less, More or Settings.
+
 ## 0.5.57 - 2026-11-16
 
 - Optimize fleet: The button opens a settings panel first. Plan fleet plans with those settings. Settings on the plan goes back. Settings are kept per save.

@@ -96,8 +96,18 @@ abstract class JAOOverlayPanel implements CustomUIPanelPlugin {
         parts.add(t);
     }
 
+    /**
+     * Removes every element of the current view. A scrolling element sits inside a scroller that addUIElement put on the
+     * panel; that scroller is what has to come off (removing only the element left the settings view under the plan, 0.5.58).
+     */
     void clear() {
-        for (UIComponentAPI c : parts) { try { inner.removeComponent(c); } catch (Throwable ignored) { } }
+        for (UIComponentAPI c : parts) {
+            try {
+                if (c instanceof TooltipMakerAPI && ((TooltipMakerAPI) c).getExternalScroller() != null)
+                    inner.removeComponent(((TooltipMakerAPI) c).getExternalScroller());
+            } catch (Throwable ignored) { }
+            try { inner.removeComponent(c); } catch (Throwable ignored) { }
+        }
         parts.clear();
     }
 
