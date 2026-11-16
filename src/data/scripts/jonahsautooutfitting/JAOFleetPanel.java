@@ -23,7 +23,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     /** Opens Fleet analysis (null: no button). */
     final Runnable analysis;
     boolean failed;
-    ButtonAPI apply, officersBox;
+    ButtonAPI apply, officersBox, augmentsBox;
     TooltipMakerAPI status;
 
     JAOFleetPanel(java.util.function.Supplier<JAOFleetApply> starter, Runnable close, Runnable analysis, boolean overlay) {
@@ -103,14 +103,29 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             if (moves > 0) head.addPara("Officers: %s move to the ship where they add the most. The player and AI cores stay where they are.", 4f, h, "" + moves);
             else head.addPara("Officers: every officer is already on the ship where they add the most.", 4f, g);
         }
+        if (job.augments != null) {
+            int moves = job.augmentMoves();
+            if (moves > 0) head.addPara("Augments: %s ships change augments. Each augment goes to the ship where it adds the most.", 4f, h, "" + moves);
+            else head.addPara("Augments: every augment is already on the ship where it adds the most.", 4f, g);
+            if (!job.augments.unused.isEmpty()) head.addPara(esc("Augments: no ship gains from " + String.join(", ", job.augments.unused) + ". They stay in cargo."), 2f, g);
+        } else if (job.augmentsAway) {
+            head.addPara("Augments: move only at a friendly market with a spaceport (Extra Systems bay).", 4f, g);
+        }
 
         TooltipMakerAPI list = element(W - 20f, H - 275f, true, 10f, 215f);
         Color text = Global.getSettings().getColor("standardTextColor");
+        boolean sections = false;
         if (job.officers != null && !job.officers.moves.isEmpty()) {
             list.addPara("Officers", 0f, h);
             for (String m : job.officers.moves) list.addPara("    " + esc(m), 0f, text);
-            list.addPara("Ships", 6f, h);
+            sections = true;
         }
+        if (job.augments != null && !job.augments.moves.isEmpty()) {
+            list.addPara("Augments", sections ? 6f : 0f, h);
+            for (String m : job.augments.moves) list.addPara("    " + esc(m), 0f, text);
+            sections = true;
+        }
+        if (sections) list.addPara("Ships", 6f, h);
         int same = 0;
         for (JAOFleetApply.Change c : job.changes) {
             if (!c.any()) { if (!c.ship.locked) same++; continue; }
@@ -136,7 +151,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
         apply = buttons.addButton("Apply to all ships", "apply", 220f, 30f, 0f);
-        apply.setEnabled(job.changedShips > 0 || job.officerMoves() > 0);
+        apply.setEnabled(job.changedShips > 0 || job.officerMoves() > 0 || job.augmentMoves() > 0);
         ButtonAPI c = buttons.addButton("Close", "close", 140f, 30f, 0f);
         c.getPosition().rightOfTop(apply, 10f);
         ButtonAPI last = c;
@@ -149,6 +164,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         officersBox = buttons.addCheckbox(200f, 24f, "Place officers", "officers", ButtonAPI.UICheckboxSize.SMALL, 0f);
         officersBox.setChecked(JAOFleetApply.placeOfficers());
         officersBox.getPosition().rightOfTop(last, 20f).setYAlignOffset(-3f);
+        // augment placement (0.5.52): only with ESR installed; per save, on by default; changing it plans the fleet again
+        if (JAOEsr.present()) {
+            augmentsBox = buttons.addCheckbox(200f, 24f, "Place augments", "augments", ButtonAPI.UICheckboxSize.SMALL, 0f);
+            augmentsBox.setChecked(JAOAugments.place());
+            augmentsBox.getPosition().rightOfTop(officersBox, 10f);
+        }
     }
 
     /** D-mods on the ship (hullmods tagged dmod). */
@@ -168,6 +189,17 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if ("close".equals(id)) {
             if (job != null) job.fleet.cancel();
             close.run();
+        } else if ("augments".equals(id) && augmentsBox != null) {
+            if (job != null && job.applied) { augmentsBox.setChecked(JAOAugments.place()); return; }
+            JAOAugments.setPlace(augmentsBox.isChecked());
+            if (job != null) job.fleet.cancel();
+            job = starter.get();
+            failed = false;
+            status = null;
+            apply = null;
+            officersBox = null;
+            augmentsBox = null;
+            restart();
         } else if ("officers".equals(id) && officersBox != null) {
             if (job != null && job.applied) { officersBox.setChecked(JAOFleetApply.placeOfficers()); return; }
             JAOFleetApply.setPlaceOfficers(officersBox.isChecked());
@@ -177,6 +209,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             status = null;
             apply = null;
             officersBox = null;
+            augmentsBox = null;
             restart();
         } else if ("analysis".equals(id) && analysis != null) {
             analysis.run();

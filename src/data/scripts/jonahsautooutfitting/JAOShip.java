@@ -47,6 +47,9 @@ final class JAOShip implements JAOSearch.World {
     private final Map<String, Float> opCache = new HashMap<>();
     private final Map<String, Boolean> addCache = new HashMap<>();
     private String modsKey = "";
+    /** ESR augments (0.5.52): what the ship holds now and what the model fits it with (null: no ESR). */
+    private Set<String> esrNow, esrWant;
+    private boolean esrRead;
     /** Hullmods treated as s-mods (0 OP, s-mod effects); set by the s-mod planner. Original perma mods stay as they are. */
     Set<String> smods = new java.util.LinkedHashSet<>();
     private final Set<String> originalPerma;
@@ -284,6 +287,7 @@ final class JAOShip implements JAOSearch.World {
         setMods(mods);
         scratch.setVariant(work, false, true);
         MutableShipStatsAPI st = scratch.getStats();
+        esrStats(st);
         JAOModel.Ship s = new JAOModel.Ship();
         s.size = size;
         // the captain's skills (0.5.29): the stats read below carry them
@@ -459,6 +463,9 @@ final class JAOShip implements JAOSearch.World {
         s.maxVents = maxVents;
         s.maxCaps = maxCaps;
         s.personality = personality;
+        // phase cloak upkeep (0.5.52: ESR Phase Coil Tuner and anything else that changes it)
+        try { if (s.phase) s.phaseCost = Math.max(0.05f, st.getPhaseCloakUpkeepCostBonus().computeEffective(1f)); } catch (Throwable ignored) { }
+        if (esrWant != null) JAOEsr.scriptEffects(s, esrWant, JAOSettings.fightSeconds);
         applySystems(s, sysUp);
         applyHullmodRules(s);
         return s;
@@ -599,6 +606,27 @@ final class JAOShip implements JAOSearch.World {
             try { return hull.getShieldSpec().getFluxPerDamageAbsorbed() > Float.parseFloat(v[0].trim()); } catch (RuntimeException e) { return true; }
         }
         return true;
+    }
+
+    /**
+     * ESR augments on the test ship (0.5.52): the plan's set for this ship (Optimize fleet's augment placement), else
+     * what it holds now; the stat part goes onto the scratch stats (JAOEsr.applyStats), the script part onto the model.
+     */
+    private void esrStats(MutableShipStatsAPI st) {
+        if (!esrRead) {
+            esrRead = true;
+            if (JAOEsr.present()) {
+                FleetMemberAPI real = null;
+                try { real = delegate.getFleetMember(); } catch (Throwable ignored) { }
+                esrNow = JAOEsr.installed(real);
+                Set<String> plan = delegate instanceof JAOFleetPlan.PlanDelegate ? ((JAOFleetPlan.PlanDelegate) delegate).augments : null;
+                esrWant = plan != null ? plan : esrNow;
+            }
+        }
+        // the scratch member is this ship's own: with the same set ESR's hullmod already applies everything
+        if (esrWant != null && !esrWant.equals(esrNow)) {
+            try { JAOEsr.applyStats(st, esrNow, esrWant); } catch (Throwable ignored) { }
+        }
     }
 
     private void applyHullmodRules(JAOModel.Ship s) {

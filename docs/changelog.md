@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.52 - 2026-11-15
+
+- Extra System Reloaded (Oddisz Edition): Optimize fleet places augments. Each augment in cargo, in this market's storage or on a warship goes to the ship where it adds the most. Slots, one of each per ship and ESR's install requirements are followed.
+- Extra System Reloaded: Augments move only at a friendly market with a spaceport (ESR's Extra Systems bay). With ESR's "Removing destroys the augment" on, installed augments stay and only free slots are filled.
+- Extra System Reloaded: "Place augments" in the Optimize fleet panel turns placement on or off for the save. On by default. The panel lists every ship's augment changes before Apply.
+- Extra System Reloaded: Fits count each ship's augments: Nanolattice armor repair, Missile Autoforge reloads, the Fire Control Equalizer's range, Overload Damper on shielded ships, and the stat effects of the rest.
+- Phase ships: Phase cloak upkeep changes (Phase Coil Tuner and others) are counted.
+
 ## 0.5.51 - 2026-11-15
 
 - Shields: Shield damage taken by damage type is counted against a reference mix of incoming fire. Prismatic Shield (kinetic x0.5, HE and fragmentation x2) scores x0.88 on top of its x0.8. Submatter Shield, Solar Shielding, Stardust Core and SotF Daydream hulls also count by type.

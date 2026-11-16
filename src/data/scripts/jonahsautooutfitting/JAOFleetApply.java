@@ -60,6 +60,10 @@ final class JAOFleetApply {
     final boolean fieldRefit;
     /** Officer placement (0.5.39), when "Place officers" is ticked in the Optimize fleet panel; else null. */
     final JAOOfficers officers;
+    /** ESR augment placement (0.5.52), when ESR is installed, "Place augments" is ticked and ESR's bay is here; else null. */
+    final JAOAugments augments;
+    /** ESR is installed and "Place augments" is ticked, but there is no Extra Systems bay here. */
+    final boolean augmentsAway;
     /** Sector persistent data key of the "Place officers" box (per save; off by default). */
     static final String PLACE_OFFICERS = "jao_placeOfficers";
 
@@ -122,15 +126,28 @@ final class JAOFleetApply {
             try { o = new JAOOfficers(fleet); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: officer placement couldn't start", t); }
         }
         officers = o;
+        JAOAugments a = null;
+        boolean away = false;
+        if (JAOEsr.present() && JAOAugments.place()) {
+            if (JAOAugments.bayHere(market)) {
+                try { a = new JAOAugments(fleet, cargo, storage); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: augment placement couldn't start", t); }
+            } else away = true;
+        }
+        augments = a;
+        augmentsAway = away;
     }
 
     /** The progress line: officer placement first, then the plan. */
     String progress() {
-        return officers != null && !officers.done ? officers.progress() : fleet.progress();
+        if (officers != null && !officers.done) return officers.progress();
+        return augments != null && !augments.done ? augments.progress() : fleet.progress();
     }
 
     /** Officers the placement moves (0 without it). */
     int officerMoves() { return officers == null ? 0 : officers.moves.size(); }
+
+    /** Ships whose augments the placement changes (0 without it). */
+    int augmentMoves() { return augments == null ? 0 : augments.moves.size(); }
 
     /** Plans for about budgetMs; true once the plan and its summary are ready. */
     boolean step(long budgetMs) {
@@ -144,6 +161,19 @@ final class JAOFleetApply {
                 officers.captains.clear();
                 officers.moves.clear();
                 fleet.captains.clear();
+            }
+            return false;
+        }
+        // then augments: the plan fits every ship for the augments it ends up with
+        if (augments != null && !augments.done) {
+            try {
+                if (!augments.step(budgetMs)) return false;
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: augment placement failed; ships keep their augments", t);
+                augments.done = true;
+                augments.target.clear();
+                augments.moves.clear();
+                fleet.augmentPlan.clear();
             }
             return false;
         }
@@ -384,6 +414,11 @@ final class JAOFleetApply {
                 Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't finish " + s.name, t);
             }
         }
+        // 2b. ESR augments move to their ships (after the refit, so nothing the refit does touches ESR's hullmod)
+        int augmentsPlaced = 0;
+        if (augments != null) {
+            try { augmentsPlaced = augments.apply(); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't move the augments", t); }
+        }
         // 3. what came off and wasn't used again goes to storage
         int stored = 0;
         if (storage != null) {
@@ -417,6 +452,7 @@ final class JAOFleetApply {
         }
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
                 + (moved > 0 ? ", moved " + moved + " officer" + (moved > 1 ? "s" : "") : "")
+                + (augmentsPlaced > 0 ? ", installed " + augmentsPlaced + " augment" + (augmentsPlaced > 1 ? "s" : "") : "")
                 + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");

@@ -80,6 +80,8 @@ final class JAOFleetPlan {
     java.util.function.Function<FleetMemberAPI, ShipVariantAPI> variantOf = FleetMemberAPI::getVariant;
     /** Officer placement (0.5.39): member id -> the captain each ship is planned under, for ships whose captain changes (null: none). */
     final Map<String, com.fs.starfarer.api.characters.PersonAPI> captains = new HashMap<>();
+    /** ESR augment placement (0.5.52): member id -> the augments the plan fits it with (only ships whose set changes). */
+    final Map<String, java.util.Set<String>> augmentPlan = new HashMap<>();
     int pass, index, changedThisPass, storyPoints, failed;
     boolean done;
     long nanos;
@@ -391,7 +393,15 @@ final class JAOFleetPlan {
         d.market = market;
         d.tradeMode = tradeMode;
         if (captains.containsKey(member.getId())) { d.captainSet = true; d.captain = captains.get(member.getId()); }
+        if (augmentPlan.containsKey(member.getId())) d.augments = augmentPlan.get(member.getId());
         return d;
+    }
+
+    /** The ship's build score as it is now holding these ESR augments, for augment placement (0.5.52). */
+    float scoreWithAugments(FleetMemberAPI m, java.util.Set<String> augments) {
+        PlanDelegate d = delegate(m, new ArrayList<>());
+        d.augments = augments;
+        return new JAOOptimizer(plugin, variantOf.apply(m).clone(), d, JAOSettings.style, false, true).scoreAsIs();
     }
 
     /** The ship's build score as it is now under this captain (null: none), for officer placement (0.5.39). */
@@ -466,6 +476,8 @@ final class JAOFleetPlan {
         CampaignUIAPI.CoreUITradeMode tradeMode = CampaignUIAPI.CoreUITradeMode.NONE;
         /** Officer placement (0.5.39): plan the ship under this captain (null: none) instead of its own. */
         boolean captainSet;
+        /** ESR augment placement (0.5.52): plan the ship holding these augments (null: what it holds). */
+        java.util.Set<String> augments;
         com.fs.starfarer.api.characters.PersonAPI captain;
 
         PlanDelegate(List<AvailableWeapon> weapons, List<AvailableFighter> fighters, FleetMemberAPI member, List<String> hullmods) {

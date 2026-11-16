@@ -522,6 +522,10 @@ final class JAOModel {
         float hullRegen, hullRegenCap;
         /** Armor repaired in combat (0.5.49, jao_rules combat ARMOR_REGEN): fraction of the armor a second. */
         float armorRegen;
+        /** Phase cloak upkeep multiplier (0.5.52: ESR Phase Coil Tuner x0.5): phase time per flux goes as 1 / this. */
+        float phaseCost = 1f;
+        /** ESR Fire Control Equalizer (0.5.52): ballistic and energy base range under eqCap gains eqAdd, never past eqCap. */
+        float eqAdd, eqCap;
         /** Missile launchers fire more volleys a fight (0.5.45: Fast Missile Racks and copies reset their cooldowns). */
         float misRate = 1f;
         /** Lidar Array while active (0.5.46): net throughput of hardpoint ballistic and energy guns, and of the rest. */
@@ -562,6 +566,7 @@ final class JAOModel {
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
             s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
             s.armorRegen = armorRegen;
+            s.phaseCost = phaseCost; s.eqAdd = eqAdd; s.eqCap = eqCap;
             return s;
         }
     }
@@ -698,6 +703,7 @@ final class JAOModel {
             float add = w.size == 0 ? s.bfSmall : w.size == 1 ? s.bfMedium : 0f;
             if (add > 0f) base = Math.max(base, Math.min(base + add, s.bfCap));
         }
+        if (s.eqAdd > 0f && (w.cls == BAL || w.cls == ENE) && base < s.eqCap) base = Math.min(base + s.eqAdd, s.eqCap);
         if (w.beam && s.hsa && base > 200f) base = 200f + 0.5f * (base - 200f);
         float pct = s.rangePct[w.cls] + (w.beam ? s.beamPct : 0f);
         float flat = s.rangeFlat[w.cls] + (w.beam ? s.beamFlat : 0f);
@@ -1147,7 +1153,7 @@ final class JAOModel {
         ehp /= 1f - empSup;
         // phase ships avoid much of the damage, longer the more flux they have to phase on (0.5.15: experts max their
         // capacitors; a flat x1.3 made Heavy Armor the best use of their OP)
-        if (s.phase) ehp *= 1f + PHASE_EHP * (float) Math.sqrt(Math.max(0.5f, s.baseCap > 0f ? s.cap / s.baseCap : 1f));
+        if (s.phase) ehp *= 1f + PHASE_EHP * (float) Math.sqrt(Math.max(0.5f, (s.baseCap > 0f ? s.cap / s.baseCap : 1f) / clamp(s.phaseCost, 0.25f, 4f)));
         // peak time against a whole battle (several engagements), not one fight: a cut peak time (Safety
         // Overrides x0.33) costs combat readiness unless Hardened Subsystems offsets it
         float battle = Math.max(180f, 2f * p.fightSeconds);
