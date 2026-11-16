@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.56 - 2026-11-16
+
+- Compatibility: Starsector 0.98.5a-RC7.
+
 ## 0.5.55 - 2026-11-16
 
 - Extra System Reloaded: Augment moves are confirmed with ESR before items change hands. An augment ESR still lists stays installed, and no copy goes back to cargo.
