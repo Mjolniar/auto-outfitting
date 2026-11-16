@@ -393,6 +393,12 @@ final class JAOModel {
         float fleetMax;
         /** EMP per point of the weapon's damage on hull hits (its own), and its arcs' EMP per point of damage (0.5.42). */
         float empPerDmg, arcEmpPerDmg;
+        /** Shots home on the ship's target (jao_weapon_effects homing, 0.5.50): every shot lands, turret speed doesn't matter. */
+        boolean homing;
+        /** Ammo regen multiplier while the ship is phased (jao_weapon_effects phaseRegenMult, 0.5.50); 1 = none. */
+        float phaseRegen = 1f;
+        /** Its script fixes the charge count (jao_weapon_effects fixedAmmo, 0.5.50): charge bonuses do nothing. */
+        boolean fixedAmmo;
     }
 
     static final class Target {
@@ -1416,6 +1422,8 @@ final class JAOModel {
     static final float[] EMP_W = {0f, 0.01f, 0.025f, 0.05f};
     /** Times a gun's charges refill and empty again in a fight (lulls between engagements, overload windows). */
     static final float MAG_REFILLS = 3f;
+    /** Share of a fight a phase-cloak ship spends phased (estimate, 0.5.50). */
+    static final float PHASE_TIME = 0.35f;
 
     /**
      * A recharging-ammo gun's average dps over a fight (0.5.12): the recharge-limited rate plus the stored charges, emptied
@@ -1425,8 +1433,10 @@ final class JAOModel {
      */
     static float chargedDps(W w, Ship s, float fight) {
         if (w.regen <= 0f || w.burstDps <= w.dps * 1.05f || w.ammoMax <= 0f) return w.dps;
-        float ammo = w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
+        float ammo = w.fixedAmmo ? 1f : w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
         float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : 1f;
+        // faster reload while phased (0.5.50: RAT's Hyperspatial Javelin and Dart x2), on phase-cloak ships for the share of the fight they spend phased
+        if (s.phase && w.phaseRegen > 1f) regen += (w.phaseRegen - 1f) * PHASE_TIME;
         float sust = Math.min(w.burstDps, w.dps * regen);
         float ratio = w.burstDps / Math.max(1f, sust);
         float mag = ratio > 1.01f ? w.ammoMax * ammo / (w.regen * regen * (ratio - 1f)) : 0f;
@@ -1478,7 +1488,7 @@ final class JAOModel {
      */
     static float track(Fit f, Ship s, int ts) {
         W w = f.w;
-        if (w.wing || w.cls == MIS || f.hardpoint || w.turnRate <= 0f) return 1f;
+        if (w.wing || w.cls == MIS || w.homing || f.hardpoint || w.turnRate <= 0f) return 1f;
         float turn = w.turnRate * (w.beam ? s.beamTurnMult : s.turnMult) + (f.front ? 0.5f * s.turnRate : 0f);
         float k = clamp(turn / CROSSING[Math.max(0, Math.min(3, ts))], TRACK_MIN, 1f);
         return w.beam ? 0.5f + 0.5f * k : k;
@@ -1574,7 +1584,7 @@ final class JAOModel {
 
     /** spreadMult: the ship's recoil (Damaged Weapon Mounts x1.3, Ill-Advised Modifications x2 widen every gun's spread). */
     static float accuracy(W w, int targetSize, float spreadMult) {
-        if (w.wing || w.beam) return 1f;
+        if (w.wing || w.beam || w.homing) return 1f;
         int ts = Math.max(0, Math.min(3, targetSize));
         float sz = SIZE_HIT[ts];
         // semi-guided missiles (GUIDED_POOR: Sabot, Atropos) home on the target: about 0.85 against frigates

@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.50 - 2026-11-15
+
+- Random Assortment of Things: Hyperspatial Javelin and Hyperspatial Dart shots count as homing. They land on every target size, and turret turn rate does not lower their score.
+- Random Assortment of Things: Their reload counts x2 while phased on phase-cloak ships, for an estimated 35% of a fight. Other ships get the normal reload.
+- Random Assortment of Things: Charge bonuses no longer raise their score. Their scripts fix the charges at 5 (Javelin) and 6 (Dart).
+- Weapon effects: Added the columns homing, phaseRegenMult and fixedAmmo to jao_weapon_effects.csv.
+
 ## 0.5.49 - 2026-11-15
 
 - Advanced Modifications: Added support for its 23 hullmods. Effects that only show in combat are counted: Infinity Targeting Core range and double damage, hull and armor repair, shield immunity windows, flux bursts, timeflow and damage taken.

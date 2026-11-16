@@ -229,7 +229,13 @@ public class JAORatings {
         float frag = num(row, "fragmentsPerShot");
         if (frag > 0f && w.hit > 0f && w.dps > 0f && !w.beam) w.fragUse = frag * w.dps / w.hit;
         w.fleetMax = Math.max(0f, num(row, "fleetMax"));
+        // 0.5.50: the weapon's script fixes its charge count (RAT's Hyperspatial Javelin 5, Dart 6)
+        w.fixedAmmo = "TRUE".equalsIgnoreCase(row.optString("fixedAmmo", "").trim());
         if (!JAOSettings.specialWeapons) return;
+        // 0.5.50: shots home on the ship's target; ammo reloads faster while the ship is phased
+        w.homing = "TRUE".equalsIgnoreCase(row.optString("homing", "").trim());
+        float pr = num(row, "phaseRegenMult");
+        if (pr > 1f) w.phaseRegen = pr;
         // 0.5.19: share of its listed damage the weapon really deals (Tahlan's Project Silk: the shot is a gas cloud and
         // its chained arcs deal 0.75 of it; Diable's Hexafire: more damage at higher own flux), and its flux cost
         float dm = num(row, "damageMult");
