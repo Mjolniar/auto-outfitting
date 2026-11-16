@@ -136,9 +136,14 @@ final class JAOFleetApply {
                 try {
                     com.fs.starfarer.api.campaign.FleetDataAPI sd = storage.getMothballedShips();
                     if (sd != null) for (FleetMemberAPI m : sd.getMembersListCopy()) {
-                        if (m.isFighterWing() || JAOLocks.locked(m)) continue;
+                        if (m == null || m.isFighterWing() || m.getVariant() == null || JAOLocks.locked(m)) continue;
                         Map<String, Integer> sw = new TreeMap<>(), sf = new TreeMap<>();
-                        JAOFleetPlan.addMountedWithModules(m.getVariant(), sw, sf);
+                        try {
+                            JAOFleetPlan.addMountedWithModules(m.getVariant(), sw, sf);
+                        } catch (Throwable t) {
+                            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: couldn't read the stored ship " + m.getShipName() + "; left as it is", t);
+                            continue;
+                        }
                         int n = 0;
                         for (int x : sw.values()) n += x;
                         for (int x : sf.values()) n += x;
@@ -408,7 +413,13 @@ final class JAOFleetApply {
         }
         // 1b. the stored ships' weapons and LPCs into cargo too ("Strip stored ships")
         int strippedStored = 0;
+        Set<String> stillStored = new java.util.HashSet<>();
+        try {
+            if (storage != null && storage.getMothballedShips() != null)
+                for (FleetMemberAPI m : storage.getMothballedShips().getMembersListCopy()) stillStored.add(m.getId());
+        } catch (Throwable ignored) { }
         for (FleetMemberAPI m : stored) {
+            if (!stillStored.contains(m.getId())) continue;
             try {
                 ShipVariantAPI v = live(m, true);
                 strip(v, off);
@@ -498,6 +509,10 @@ final class JAOFleetApply {
         if (refit != null) {
             JAORefl.call(refit, "syncWithCurrentVariant");
             JAORefl.call(refit, "saveCurrentVariant");
+        }
+        // the screen's save can write over ESR's hullmod on the shown ship: ESR syncs the changed ships again
+        if (augments != null) {
+            try { augments.resync(); } catch (Throwable ignored) { }
         }
         purgeBlankLpcs();
         JAOCompat.purgeLpcs();

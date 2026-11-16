@@ -113,7 +113,7 @@ final class JAOEsr {
         }
     }
 
-    /** Installs an augment the way ESR's bay does (the item is taken by the caller). */
+    /** Installs an augment the way ESR's bay does (the item is taken by the caller). True only when ESR lists it after. */
     static boolean install(FleetMemberAPI m, String id) {
         try {
             Object a = (Object) byId.invoke(id);
@@ -121,22 +121,34 @@ final class JAOEsr {
             Object d = (Object) shipGetOrCreate.invoke(m);
             fixQuality.invoke(d);
             addAugment.invoke(d, a);
-            sync.invoke(m);
-            m.updateStats();
-            return true;
+            try { sync.invoke(m); m.updateStats(); } catch (Throwable t) {
+                Global.getLogger(JAOEsr.class).warn("Auto Outfitting: " + m.getShipName() + " took " + id + " but its refresh failed; ESR syncs it again", t);
+            }
+            return installed(m).contains(id);
         } catch (Throwable t) {
             Global.getLogger(JAOEsr.class).error("Auto Outfitting: couldn't install " + id + " on " + m.getShipName(), t);
-            return false;
+            // ESR may hold it even though a call failed: then it counts as installed and the item isn't given back
+            return installed(m).contains(id);
         }
     }
 
-    /** Removes an augment the way ESR's bay does; the item goes to this cargo. */
+    /** ESR's own hullmod and owner tag on the ship's current variant (HullmodSync.sync). */
+    static void sync(FleetMemberAPI m) {
+        try { sync.invoke(m); } catch (Throwable ignored) { }
+    }
+
+    /**
+     * Removes an augment the way ESR's bay does; the item goes to this cargo, only once ESR no longer lists it (no copy
+     * when the removal didn't happen). Never with ESR's "Removing destroys the augment" on.
+     */
     static boolean uninstall(FleetMemberAPI m, String id, CargoAPI cargo) {
         try {
+            if (removalDestroys() || !installed(m).contains(id)) return false;
             Object a = (Object) byId.invoke(id);
             Object d = (Object) shipGet.invoke(m);
             if (a == null || d == null) return false;
             removeAugment.invoke(d, a);
+            if (installed(m).contains(id)) return false;
             cargo.addSpecial(new SpecialItemData(id, null), 1f);
             sync.invoke(m);
             m.updateStats();
@@ -215,8 +227,11 @@ final class JAOEsr {
             case TEMPORAL:
                 st.getSystemCooldownBonus().modifyMult(k, add ? 0.5f : 2f);
                 st.getSystemFluxCostBonus().modifyMult(k, add ? 0.5f : 2f);
-                st.getSystemUsesBonus().modifyFlat(k, sign);
-                st.getSystemRegenBonus().modifyPercent(k, 100f * sign);
+                // +1 charge and +100% charge regen only for systems with charges (ESR's hasSystemCharges)
+                if (systemCharges(st)) {
+                    st.getSystemUsesBonus().modifyFlat(k, sign);
+                    st.getSystemRegenBonus().modifyPercent(k, 100f * sign);
+                }
                 break;
             case PHASE:
                 st.getPhaseCloakActivationCostBonus().modifyMult(k, add ? 0.5f : 2f);
@@ -237,6 +252,20 @@ final class JAOEsr {
             case MISSILE: st.getMissileAmmoBonus().modifyPercent(k, 25f * sign); break;
             case VENT: st.getVentRateMult().modifyPercent(k, 30f * sign); break;
             default: break;
+        }
+    }
+
+    /** The ship's system has charges: max uses above 0 and below the game's unlimited value (ESR Augment.hasSystemCharges). */
+    private static boolean systemCharges(MutableShipStatsAPI st) {
+        try {
+            String sys = st.getVariant().getHullSpec().getShipSystemId();
+            if (sys == null || sys.isEmpty()) return false;
+            com.fs.starfarer.api.combat.ShipSystemSpecAPI spec = Global.getSettings().getShipSystemSpec(sys);
+            if (spec == null) return false;
+            int uses = spec.getMaxUses(st);
+            return uses > 0 && uses < Integer.MAX_VALUE;
+        } catch (Throwable t) {
+            return false;
         }
     }
 

@@ -600,7 +600,7 @@ final class JAOShip implements JAOSearch.World {
             String[] v = r[2].split(";");
             for (int i = 1; i < v.length; i++) {
                 String x = v[i].trim();
-                if (!x.isEmpty() && (mods.contains(x) || work.hasHullMod(x))) return true;
+                if (!x.isEmpty() && mods.contains(x)) return true;
             }
             if (hull.getShieldSpec() == null) return false;
             try { return hull.getShieldSpec().getFluxPerDamageAbsorbed() > Float.parseFloat(v[0].trim()); } catch (RuntimeException e) { return true; }
@@ -965,20 +965,24 @@ final class JAOShip implements JAOSearch.World {
         // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
         if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
         if (!paidOrFree(mod)) return false;
-        // a hullmod that can't work on this hull's shield (0.5.51: Reactive Combat Shields on a 0.6 shield)
-        if (!shieldEffPossible(mod, mods)) return false;
         if (phaseCloak(hull) && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
         if (!phaseCloak(hull) && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;
+        // what the ship would hold: this candidate set, the planned s-mods, its own s-mods and permanent hullmods, and the
+        // hull's built-ins (0.5.55: a stable set; the work variant holds whatever set was built last, and this result is
+        // cached per set)
+        java.util.Set<String> fitted = new java.util.LinkedHashSet<>(mods);
+        fitted.addAll(smods);
+        fitted.addAll(originalPerma);
+        if (hull.getBuiltInMods() != null) fitted.addAll(hull.getBuiltInMods());
+        // a hullmod that can't work on this hull's shield (0.5.51: Reactive Combat Shields on a 0.6 shield)
+        if (!shieldEffPossible(mod, fitted)) return false;
         // incompatibilities the table knows (most mods also refuse in isApplicableToShip)
         JSONObject row = JAORatings.hullmods().get(mod);
-        if (row != null) for (String other : row.optString("incompatible", "").split(" ")) if (!other.isEmpty() && (mods.contains(other) || work.hasHullMod(other))) return false;
+        if (row != null) for (String other : row.optString("incompatible", "").split(" ")) if (!other.isEmpty() && fitted.contains(other)) return false;
         // and the other way round (0.5.41): a fitted hullmod whose own row lists this one (Yunru's targeting core and ITU).
         // 0.5.54: s-mods and built-in hullmods count too (an s-modded Prismatic Shield deletes Hardened Shields when the
         // ship is built, which left 25 OP unspent on a Guardian)
-        java.util.Set<String> fitted = new java.util.LinkedHashSet<>(mods);
-        fitted.addAll(work.getHullMods());
-        fitted.addAll(smods);
         for (String other : fitted) {
             JSONObject o = other.equals(mod) ? null : JAORatings.hullmods().get(other);
             if (o != null && (" " + o.optString("incompatible", "") + " ").contains(" " + mod + " ")) return false;

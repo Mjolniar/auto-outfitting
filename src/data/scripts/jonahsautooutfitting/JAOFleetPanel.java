@@ -103,11 +103,11 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             if (moves > 0) head.addPara("Officers: %s move to the ship where they add the most. The player and AI cores stay where they are.", 4f, h, "" + moves);
             else head.addPara("Officers: every officer is already on the ship where they add the most.", 4f, g);
         }
-        if (job.augments != null) {
+        if (job.augments != null && job.augments.any()) {
             int moves = job.augmentMoves();
             if (moves > 0) head.addPara("Augments: %s ships change augments. Each augment goes to the ship where it adds the most.", 4f, h, "" + moves);
             else head.addPara("Augments: every augment is already on the ship where it adds the most.", 4f, g);
-            if (!job.augments.unused.isEmpty()) head.addPara(esc("Augments: no ship gains from " + String.join(", ", job.augments.unused) + ". They stay in cargo."), 2f, g);
+            if (!job.augments.unused.isEmpty()) head.addPara(esc("Augments not placed: " + String.join(", ", job.augments.unused) + ". They stay in cargo or storage."), 2f, g);
         } else if (job.augmentsAway) {
             head.addPara("Augments: move only at a friendly market with a spaceport (Extra Systems bay).", 4f, g);
         }

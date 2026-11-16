@@ -1,5 +1,15 @@
 # Patch notes
 
+## 0.5.55 - 2026-11-16
+
+- Extra System Reloaded: Augment moves are confirmed with ESR before items change hands. An augment ESR still lists stays installed, and no copy goes back to cargo.
+- Extra System Reloaded: At Apply, nothing moves to a ship that left the fleet, has no free slot or fails ESR's requirement. Nothing is removed while ESR's "Removing destroys the augment" is on.
+- Extra System Reloaded: ESR's hullmod is synced again on every ship whose augments changed, after the refit screen saves.
+- Extra System Reloaded: Temporal Capacitor's extra charge and charge regen count only for systems with charges. Fire Control Equalizer adds to Ballistic Rangefinder, from the weapon's own range.
+- Hullmods: Conflict checks and the Reactive Combat Shields limit read the planned hullmod set, its s-mods and the hull's built-ins.
+- Optimize fleet: Stored ships are stripped only if they are still in storage at Apply. A stored ship that can't be read is left as it is.
+- Optimize fleet: Augment lines show only when there are augments. "Augments not placed" lists those left in cargo or storage.
+
 ## 0.5.54 - 2026-11-15
 
 - Hullmods: Fixed hullmods being added next to an s-mod or built-in hullmod that conflicts with them. Example: Hardened Shields next to an s-modded Prismatic Shield, whose script deletes it and leaves 25 OP unspent.

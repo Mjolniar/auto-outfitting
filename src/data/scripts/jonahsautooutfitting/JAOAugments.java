@@ -49,7 +49,15 @@ final class JAOAugments {
     final Map<String, Set<String>> target = new LinkedHashMap<>();
     /** "Ship: +Augment, -Augment" lines for the panel and log. */
     final List<String> moves = new ArrayList<>();
-    /** Augments the placement couldn't use anywhere (the model sees no gain on any ship). */
+    /** ESR's hullmod and owner tag again on every ship whose augments changed (after the refit screen saved its copy). */
+    void resync() {
+        for (FleetMemberAPI m : ships) if (target.containsKey(m.getId())) JAOEsr.sync(m);
+    }
+
+    /** True when there are augments to place (in cargo, storage or on the warships). */
+    boolean any() { return !types.isEmpty(); }
+
+    /** Augments not placed: no ship gains from them, or no free slot on a ship without one. */
     final List<String> unused = new ArrayList<>();
 
     static boolean place() {
@@ -248,8 +256,15 @@ final class JAOAugments {
      */
     int apply() {
         if (target.isEmpty()) return 0;
+        // only ships still in the fleet (the plan was made a moment ago; nothing moves for one that left)
+        Set<String> inFleet = new java.util.HashSet<>();
+        try {
+            for (FleetMemberAPI m : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) inFleet.add(m.getId());
+        } catch (Throwable t) {
+            return 0;
+        }
         Map<String, FleetMemberAPI> byId = new LinkedHashMap<>();
-        for (FleetMemberAPI m : ships) byId.put(m.getId(), m);
+        for (FleetMemberAPI m : ships) if (inFleet.contains(m.getId())) byId.put(m.getId(), m);
         for (Map.Entry<String, Set<String>> e : target.entrySet()) {
             FleetMemberAPI m = byId.get(e.getKey());
             if (m == null) continue;
@@ -259,14 +274,19 @@ final class JAOAugments {
         for (Map.Entry<String, Set<String>> e : target.entrySet()) {
             FleetMemberAPI m = byId.get(e.getKey());
             if (m == null) continue;
-            Set<String> has = JAOEsr.installed(m);
+            Set<String> has = new LinkedHashSet<>(JAOEsr.installed(m));
+            int free = JAOEsr.slots(m.getHullSpec().getHullSize()) - has.size();
             for (String id : e.getValue()) {
                 if (has.contains(id)) continue;
+                if (free <= 0 || !JAOEsr.canInstall(m, id)) {
+                    Global.getLogger(JAOAugments.class).warn("Auto Outfitting: augment " + id + " doesn't fit " + m.getShipName() + " any more; left in cargo");
+                    continue;
+                }
                 if (!JAOEsr.take(cargo, storage, id)) {
                     Global.getLogger(JAOAugments.class).warn("Auto Outfitting: augment " + id + " for " + m.getShipName() + " wasn't in cargo or storage any more");
                     continue;
                 }
-                if (JAOEsr.install(m, id)) installed++;
+                if (JAOEsr.install(m, id)) { installed++; free--; has.add(id); }
                 else cargo.addSpecial(new com.fs.starfarer.api.campaign.SpecialItemData(id, null), 1f);
             }
         }

@@ -703,7 +703,8 @@ final class JAOModel {
             float add = w.size == 0 ? s.bfSmall : w.size == 1 ? s.bfMedium : 0f;
             if (add > 0f) base = Math.max(base, Math.min(base + add, s.bfCap));
         }
-        if (s.eqAdd > 0f && (w.cls == BAL || w.cls == ENE) && base < s.eqCap) base = Math.min(base + s.eqAdd, s.eqCap);
+        // ESR Fire Control Equalizer: min(200, 800 - the weapon's own range), added to the other base-range bonuses
+        if (s.eqAdd > 0f && (w.cls == BAL || w.cls == ENE) && w.range > 0f && w.range < s.eqCap) base += Math.min(s.eqAdd, s.eqCap - w.range);
         if (w.beam && s.hsa && base > 200f) base = 200f + 0.5f * (base - 200f);
         float pct = s.rangePct[w.cls] + (w.beam ? s.beamPct : 0f);
         float flat = s.rangeFlat[w.cls] + (w.beam ? s.beamFlat : 0f);
@@ -1457,7 +1458,9 @@ final class JAOModel {
         if (w.regen <= 0f || w.burstDps <= w.dps * 1.05f || w.ammoMax <= 0f) return w.dps;
         float ammo = w.fixedAmmo ? 1f : w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
         float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : 1f;
-        // faster reload while phased (0.5.50: RAT's Hyperspatial Javelin and Dart x2), on phase-cloak ships for the share of the fight they spend phased
+        // faster reload while phased (0.5.50: RAT's Hyperspatial Javelin and Dart): the script adds the weapon's own base
+        // reload once more while phased, not scaled by the ship's regen bonus, on phase-cloak ships for the share of the fight
+        // they spend phased
         if (s.phase && w.phaseRegen > 1f) regen += (w.phaseRegen - 1f) * PHASE_TIME;
         float sust = Math.min(w.burstDps, w.dps * regen);
         float ratio = w.burstDps / Math.max(1f, sust);
