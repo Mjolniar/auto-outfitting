@@ -62,6 +62,19 @@ class JAOOptimizer {
     JAOFleetMix fleetMix;
     /** After run(): the s-mod plan (null without one). */
     JAOSMods.Plan smodPlan;
+    /** Optimize fleet buys from shops (0.5.57): prices count (jao_buyGain) and owned-only weapons aren't bought. */
+    boolean buying;
+    /**
+     * Optimize fleet's "Change s-mods with credits" (0.5.57): the plan may replace or remove s-mods through the game's
+     * Change s-mods. changeCredits: credits left for it, changePrice: the game's price of one change for this hull.
+     */
+    boolean changeSmods;
+    double changeCredits;
+    float changePrice;
+    /** After run(): s-mods the changes took off and built in with credits, what they cost, and what was done. */
+    final List<String> smodsRemoved = new ArrayList<>(), smodsBought = new ArrayList<>();
+    double changeCost;
+    final List<String> changeNotes = new ArrayList<>();
 
     JAOOptimizer(JAOAutofitPlugin plugin, ShipVariantAPI current, int maxSMods, AutofitPluginDelegate delegate, JAOStyle style) {
         this(plugin, current, delegate, style, false);
@@ -132,6 +145,16 @@ class JAOOptimizer {
         for (int i = 0; i < fighters.size(); i++) stock.put("f" + i, fighters.get(i).getQuantity());
         Supplier<List<JAOSearch.Slot>> slotsOf = () -> buildSlots(hull, skip, bays, builtInWings, weapons, fighters);
         List<JAOSearch.Slot> slots = slotsOf.get();
+        // Optimize fleet's s-mod changes for credits (0.5.57) come first: everything else is chosen around the s-mods
+        if (!module && planning && fullPlan && changeSmods) {
+            try {
+                planSmodChanges(hull, slotsOf, stock);
+            } catch (Throwable t) {
+                if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
+                // changes already made to the plan stay with their records; no more are tried
+                Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: s-mod change planning failed for " + shipName(), t);
+            }
+        }
         Set<String> keepMods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
         List<String> modCands = module || (planning && !fullPlan) ? new ArrayList<>() : hullmodCandidates(keepMods);
 
@@ -142,26 +165,21 @@ class JAOOptimizer {
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = paramsFor(hull, role, st);
         // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
-        p.creditCost = planning ? 0f : JAOSettings.buyGain / 10000f;
+        p.creditCost = planning && !buying ? 0f : JAOSettings.buyGain / 10000f;
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
         if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
-            List<String> available = new ArrayList<>();
-            for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
-            for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
-            // hullmods worth something only as s-mods (Escort Package) aren't ordinary candidates
-            for (String id : JAOShip.SMOD_VALUE) {
-                if (available.contains(id) || !delegate.getAvailableHullmods().contains(id) || hull.getBuiltInMods().contains(id)
-                        || JAOCompat.removedByHull(id, hull) || !JAOSMods.buildable(id)) continue;
-                available.add(id);
-            }
+            List<String> available = smodCandidates(modCands, keepMods, hull);
+            // s-mods the credit changes took off this run aren't built back in with story points
+            available.removeAll(smodsRemoved);
             int[] why = new int[4];
             int limit = smodLimit(why);
             FleetMemberAPI member = delegate.getFleetMember();
             String memberId = member == null ? null : member.getId();
             if (limit <= 0) {
-                smodNote = why[0] <= 0 ? "already has " + why[3] + " of " + (why[3] + Math.max(0, why[0])) + " s-mods"
+                smodNote = why[0] <= 0 && sizeCapped ? hull.getHullSize().name().toLowerCase(java.util.Locale.ROOT) + "s take at most " + sizeCap(hull.getHullSize()) + " s-mods (setting)"
+                        : why[0] <= 0 ? "already has " + why[3] + " of " + (why[3] + Math.max(0, why[0])) + " s-mods"
                         : why[1] <= 0 && fleetCapUsed() ? "Story points per Optimize fleet (" + JAOSettings.smodFleetMax + ") used up by bigger ships"
                         : why[1] <= 0 ? "no story points" + (JAOSettings.smodReserve > 0 ? " above the " + JAOSettings.smodReserve + " kept in reserve" : "")
                         : "the s-mods per ship setting allows none";
@@ -176,8 +194,16 @@ class JAOOptimizer {
                 // stupid"); the ordinary fit below still counts them
                 List<String> dmods = removableDmods(current);
                 JAOShip smodWorld = dmods.isEmpty() ? world : restored(dmods, budget, hull);
-                JAOSMods.Plan plan = new JAOSMods(smodWorld, p, slotsOf, stock, modCands, keepMods, limit)
-                        .plan(available, mayWait ? JAOSMods.everything() : available);
+                JAOSMods sm = new JAOSMods(smodWorld, p, slotsOf, stock, modCands, keepMods, limit);
+                // 0.5.57 (user 11/16: no three s-mods on little frigates while capitals could use the story points): the
+                // gain an s-mod must add grows as the ship gets smaller
+                sm.minGain = JAOSettings.smodMinGain * sizeWeight(member, hull);
+                List<String> every = available;
+                if (mayWait) {
+                    every = new ArrayList<>(JAOSMods.everything());
+                    every.removeAll(smodsRemoved);
+                }
+                JAOSMods.Plan plan = sm.plan(available, every);
                 smodPlan = plan;
                 smods.addAll(plan.mods);
                 smodNote = plan.note + (dmods.isEmpty() ? "" : " (judged without the removable d-mods " + dmods + ")");
@@ -376,11 +402,116 @@ class JAOOptimizer {
 
     /** S-mods this fit may build in: the ship's limit left, story points above the reserve, the per-ship setting. */
     private int smodLimit(int[] why) {
-        int room = Misc.getMaxPermanentMods(delegate.getFleetMember(), plugin.stats()) - current.getSMods().size();
+        int max = Misc.getMaxPermanentMods(delegate.getFleetMember(), plugin.stats()), cap = sizeCap(current.getHullSpec().getHullSize());
+        sizeCapped = cap < max;
+        int room = Math.min(max, cap) - current.getSMods().size();
         int sp = (storyPoints >= 0 ? storyPoints : Global.getSector().getPlayerStats().getStoryPoints()) - JAOSettings.smodReserve;
         // why: room left, story points above the reserve, the per-ship setting, s-mods already on the ship
         why[0] = room; why[1] = sp; why[2] = JAOSettings.smodCount; why[3] = current.getSMods().size();
         return smodLimit(room, sp + JAOSettings.smodReserve, JAOSettings.smodReserve, JAOSettings.smodCount);
+    }
+
+    /** The size cap (frigates, destroyers) is below the game's s-mod limit for this ship. */
+    private boolean sizeCapped;
+
+    /** Most s-mods Auto Outfitting builds into this hull size (jao_smodMaxFrigate / jao_smodMaxDestroyer; others: no cap). */
+    static int sizeCap(HullSize size) {
+        if (size == HullSize.FRIGATE) return JAOSettings.smodMaxFrigate;
+        if (size == HullSize.DESTROYER) return JAOSettings.smodMaxDestroyer;
+        return 99;
+    }
+
+    /**
+     * How much more gain an s-mod must add on this ship (0.5.57): 20 / its deployment points, from 0.5 to 4, so a story
+     * point goes where it adds the most to the fleet. 1 with "S-mods favor bigger ships" off.
+     */
+    static float sizeWeight(FleetMemberAPI m, ShipHullSpecAPI hull) {
+        if (!JAOSettings.smodBySize) return 1f;
+        float dp = 0f;
+        try { dp = m != null ? m.getDeploymentPointsCost() : hull.getSuppliesToRecover(); } catch (Throwable ignored) { }
+        if (dp <= 0f) { try { dp = hull.getSuppliesToRecover(); } catch (Throwable ignored) { } }
+        return sizeWeight(dp);
+    }
+
+    static float sizeWeight(float dp) { return dp <= 0f ? 1f : Math.max(0.5f, Math.min(4f, 20f / dp)); }
+
+    /** Hullmods the s-mod search may build in: buildable candidates and kept hullmods, and those worth something only as s-mods. */
+    private List<String> smodCandidates(List<String> modCands, Set<String> keepMods, ShipHullSpecAPI hull) {
+        List<String> available = new ArrayList<>();
+        for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
+        for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
+        // hullmods worth something only as s-mods (Escort Package) aren't ordinary candidates
+        for (String id : JAOShip.SMOD_VALUE) {
+            if (available.contains(id) || !delegate.getAvailableHullmods().contains(id) || hull.getBuiltInMods().contains(id)
+                    || JAOCompat.removedByHull(id, hull) || !JAOSMods.buildable(id)) continue;
+            available.add(id);
+        }
+        return available;
+    }
+
+    /**
+     * Optimize fleet's "Change s-mods with credits" (0.5.57, user 11/16: changes cost a lot, so "very, very judiciously").
+     * At the player's colony with heavy industry the game's Change s-mods takes s-mods off and builds others in for
+     * credits (changeSmodsCost per hull size, per s-mod removed and per s-mod added), no story points. One change at a
+     * time, best first, at most 3: an s-mod comes off, and the best other hullmod goes in if it adds the minimum gain
+     * per s-mod, only when the ship ends up jao_smodChangeMinGain (x the size weight) stronger than with the s-mods it
+     * has, and the price fits the credits left. S-mods built in with credits this run aren't removed again, and removed
+     * ones don't come back. Built-in s-mods never change.
+     */
+    private void planSmodChanges(ShipHullSpecAPI hull, Supplier<List<JAOSearch.Slot>> slotsOf, Map<String, Integer> stock) {
+        if (changePrice <= 0f) return;
+        FleetMemberAPI member = delegate.getFleetMember();
+        // only ships with no free s-mod slot (game limit and size cap): a free slot takes a new s-mod with a story point,
+        // which keeps the s-mod already there
+        int full = Math.min(Misc.getMaxPermanentMods(member, plugin.stats()), sizeCap(hull.getHullSize()));
+        float weight = sizeWeight(member, hull);
+        float need = JAOSettings.smodChangeMinGain * weight;
+        JAORole role = JAOSettings.roles ? roleOf(hull) : null;
+        JAOStyle st = role != null ? style : resolve(style, hull);
+        JAOModel.Params p = paramsFor(hull, role, st);
+        p.creditCost = buying ? JAOSettings.buyGain / 10000f : 0f;
+        int maxV = plugin.getMaxVents(hull.getHullSize()), maxC = plugin.getMaxCaps(hull.getHullSize()), hullOp = hull.getOrdnancePoints(plugin.stats());
+        for (int round = 0; round < 3; round++) {
+            List<String> removable = new ArrayList<>();
+            for (String id : current.getSMods()) if (!smodsBought.contains(id)) removable.add(id);
+            if (removable.isEmpty() || current.getSMods().size() < full || changeCost + changePrice > changeCredits) return;
+            Set<String> keep = new LinkedHashSet<>(current.getNonBuiltInHullmods());
+            JAOShip asIsWorld = new JAOShip(current, delegate, plugin.stats(), hullOp - current.computeOPCost(plugin.stats()), maxV, maxC);
+            float asIs = new JAOSMods(asIsWorld, p, slotsOf, stock, hullmodCandidates(keep), keep, 1).asIs();
+            if (asIs <= 0f) return;
+            String bestOff = null, bestOn = null;
+            float bestScore = asIs * (1f + need);
+            for (String off : removable) {
+                ShipVariantAPI v = current.clone();
+                v.removePermaMod(off);
+                v.removeMod(off);
+                Set<String> keepOff = new LinkedHashSet<>(v.getNonBuiltInHullmods());
+                List<String> candsOff = hullmodCandidates(keepOff);
+                JAOShip w = new JAOShip(v, delegate, plugin.stats(), hullOp - v.computeOPCost(plugin.stats()), maxV, maxC);
+                JAOSMods sm = new JAOSMods(w, p, slotsOf, stock, candsOff, keepOff, 1);
+                sm.minGain = JAOSettings.smodMinGain * weight;
+                List<String> ons = new ArrayList<>();
+                for (String id : smodCandidates(candsOff, keepOff, hull)) {
+                    if (!id.equals(off) && !v.getSMods().contains(id) && !smodsRemoved.contains(id)) ons.add(id);
+                }
+                // with a new s-mod the change costs two (one off, one on); without, one
+                boolean canBuy = changeCost + 2f * changePrice <= changeCredits;
+                JAOSMods.Pick pick = canBuy ? sm.best(ons) : null;
+                String on = pick != null && !pick.mods.isEmpty() ? pick.mods.get(0) : null;
+                float score = pick != null ? pick.score : sm.asIs();
+                if (score > bestScore) { bestScore = score; bestOff = off; bestOn = on; }
+            }
+            if (bestOff == null) return;
+            current.removePermaMod(bestOff);
+            current.removeMod(bestOff);
+            if (bestOn != null) current.addPermaMod(bestOn, true);
+            smodsRemoved.add(bestOff);
+            if (bestOn != null) smodsBought.add(bestOn);
+            double cost = (bestOn != null ? 2.0 : 1.0) * changePrice;
+            changeCost += cost;
+            changeNotes.add("s-mod change: " + JAOSMods.name(bestOff) + (bestOn != null ? " to " + JAOSMods.name(bestOn) : " removed")
+                    + " (+" + JAOSMods.pct(bestScore / asIs - 1f) + ", " + Misc.getDGSCredits((float) cost) + ")");
+        }
     }
 
     /** In an Optimize fleet plan, whether the per-run cap (not the player's story points) is what's left at 0. */
@@ -531,7 +662,7 @@ class JAOOptimizer {
                     if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec)) continue;
                     JAOModel.W m = JAORatings.weapon(spec);
                     // restricted weapons aren't bought from markets; a known blueprint can still build them
-                    if (m.ownedOnly && w.getPrice() > 0f && !planning) continue;
+                    if (m.ownedOnly && w.getPrice() > 0f && (!planning || w.getSubmarket() != null)) continue;
                     if (spec.hasTag("fragment") && !fragments) continue;
                     if (skipped(spec.getWeaponId())) continue;
                     // unguided missiles and strike weapons need to face the bow (CoreAutofitPlugin.getPossibleWeapons)
@@ -628,7 +759,9 @@ class JAOOptimizer {
                 m.setHullVariantId(m.getHullVariantId() + "_" + index);
             }
             index++;
-            new JAOOptimizer(plugin, m, delegate, style, true, planning).run();
+            JAOOptimizer mo = new JAOOptimizer(plugin, m, delegate, style, true, planning);
+            mo.buying = buying;
+            mo.run();
             // planning fits a copy of the ship, so its module copies go into that copy (the plan carries them)
             current.setModuleVariant(slotId, m);
         }

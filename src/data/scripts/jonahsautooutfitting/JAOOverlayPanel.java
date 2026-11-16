@@ -87,6 +87,15 @@ abstract class JAOOverlayPanel implements CustomUIPanelPlugin {
         return t;
     }
 
+    /** A scrolling text element, not on the panel yet: fill it, then place() it (the scroller is sized when it's added). */
+    TooltipMakerAPI scroller(float w, float h) { return inner.createUIElement(w, h, true); }
+
+    /** Adds a filled element at (x, y) from the panel's top left; removed by clear(). */
+    void place(TooltipMakerAPI t, float x, float y) {
+        inner.addUIElement(t).inTL(x, y);
+        parts.add(t);
+    }
+
     void clear() {
         for (UIComponentAPI c : parts) { try { inner.removeComponent(c); } catch (Throwable ignored) { } }
         parts.clear();

@@ -321,11 +321,10 @@ public class JAOScreenButton implements EveryFrameScript {
                     tt.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
                             Math.round(JAOSettings.productionBudget * 100f) + "%");
                 } else if (OPTIMIZE.equals(id)) {
-                    tt.addPara("Plans every combat ship's Optimal fit together, from what the ships carry, your cargo and the storage "
-                            + "where you're docked, balancing the whole fleet (anti-shield, armor-cracking, fighter roles). Shows what "
-                            + "changes on each ship; nothing changes until you press Apply to all ships.", 0f);
-                    tt.addPara("S-mods: %s (the Autofit panel's \"Build in s-mods\" box).", 6f, Misc.getHighlightColor(),
-                            JAOGoals.optionChecked(JAOAutofitPlugin.SMODS) ? "built in, one story point each" : "none");
+                    tt.addPara("Opens the Optimize fleet settings: storage, stored ships, shops and a credit limit, s-mods, officers "
+                            + "and augments. Plan fleet then plans every combat ship's Optimal fit together, balancing the whole fleet "
+                            + "(anti-shield, armor-cracking, fighter roles), and shows what changes on each ship. Nothing changes until "
+                            + "you press Apply to all ships.", 0f);
                 } else if (LOCK.equals(id)) {
                     tt.addPara("Locks or unlocks the ship shown here. Optimize fleet and Order fleet weapons leave a locked ship "
                             + "as it is: its weapons, wings, hullmods, vents and capacitors don't change, nothing is ordered for it, "
@@ -357,7 +356,7 @@ public class JAOScreenButton implements EveryFrameScript {
     /** Optimize fleet: plans the whole fleet, then shows what would change, over the screen; it links to Fleet analysis. */
     void openOptimize() {
         if (overlay != null) return;
-        JAOFleetPanel content = new JAOFleetPanel(() -> JAOFleetPanel.start(refit), this::closeOrder, () -> { closeOrder(); openAnalysis(); }, true);
+        JAOFleetPanel content = new JAOFleetPanel(() -> JAOFleetPanel.start(refit), refit, this::closeOrder, () -> { closeOrder(); openAnalysis(); }, true);
         if (show(content, JAOFleetPanel.W, JAOFleetPanel.H)) content.build(overlay);
     }
 

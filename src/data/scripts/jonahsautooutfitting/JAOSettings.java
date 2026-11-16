@@ -20,6 +20,11 @@ public class JAOSettings {
     /** Score gain a bought weapon or LPC must add per 10,000 credits it costs (0.01 = 1%; 0 = prices ignored). */
     public static float buyGain = 0.01f;
     public static int smodCount = 1, smodReserve = 5, smodFleetMax, smodWaitDays = 30;
+    /** S-mod weighting by ship size (0.5.57): the minimum gain x 20 / deployment points (0.5x to 4x), and caps for small hulls. */
+    public static boolean smodBySize = true;
+    public static int smodMaxFrigate = 1, smodMaxDestroyer = 2;
+    /** Optimize fleet's "Change s-mods with credits" (0.5.57): gain one s-mod change must add (scaled by ship size). */
+    public static float smodChangeMinGain = 0.1f;
     /** Debug option: remove all s-mods from the fleet and refund them (JAODebug; acts on off -> on in the menu only). */
     public static boolean refundSmods;
     /** Share of the player's credits a fleet production order may cost. */
@@ -83,6 +88,10 @@ public class JAOSettings {
         smodWaitMargin = clamp(dbl("jao_smodWaitMargin", 0.1f), 0f, 1f);
         smodWaitDays = clamp(integer("jao_smodWaitDays", 30), 1, 720);
         smodReserve = clamp(integer("jao_smodReserve", 5), 0, 100);
+        smodBySize = bool("jao_smodBySize", true);
+        smodMaxFrigate = clamp(integer("jao_smodMaxFrigate", 1), 0, 3);
+        smodMaxDestroyer = clamp(integer("jao_smodMaxDestroyer", 2), 0, 3);
+        smodChangeMinGain = clamp(dbl("jao_smodChangeMinGain", 0.1f), 0.02f, 0.5f);
         debug = bool("jao_debug", false);
         refundSmods = bool("jao_debugRefundSmods", false);
         return true;
@@ -117,6 +126,7 @@ public class JAOSettings {
                 + ", range " + (range == 1 ? "long" : range == 2 ? "close" : "auto") + ", fight " + (int) fightSeconds + "s"
                 + ", special weapons " + specialWeapons + (preferRare ? ", rare bonus " + rareBonus : "") + (cheatItems ? ", cheat-only items allowed" : "") + (communityTiers ? "" : ", no community tiers") + ", PD floor " + pdFloor + ", buy gain " + buyGain + " per 10k" + ", logistics " + logistics + ", drawbacks " + (allowDrawbacks ? "allowed" : "never") + (shroudedHullmods ? ", Shrouded hullmods" : "") + ", SO " + (safetyOverrides == 0 ? "never" : safetyOverrides == 1 ? "frigates/destroyers" : "when best")
                 + ", s-mods up to " + smodCount + " per fit, " + (smodFleetMax > 0 ? smodFleetMax + " SP per Optimize fleet" : "no SP limit per Optimize fleet") + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"
+                + (smodBySize ? ", gain by ship size" : "") + ", at most " + smodMaxFrigate + " on frigates, " + smodMaxDestroyer + " on destroyers, change gain " + smodChangeMinGain
                 + ")"
                 + (debug ? ", debug log" : "");
     }

@@ -49,6 +49,8 @@ final class JAOSMods {
     final List<String> modCands;
     final Set<String> keep;
     final int limit;
+    /** Gain each s-mod must add: jao_smodMinGain, x the ship-size weight when "S-mods favor bigger ships" is on (0.5.57). */
+    float minGain = JAOSettings.smodMinGain;
 
     JAOSMods(JAOSearch.World world, JAOModel.Params params, Supplier<List<JAOSearch.Slot>> slots, Map<String, Integer> stock,
              List<String> modCands, Set<String> keep, int limit) {
@@ -84,14 +86,14 @@ final class JAOSMods {
                 return plan;
             }
         }
-        if (known.mods.isEmpty()) { plan.note = "no hullmod worth a story point (minimum gain " + pct(JAOSettings.smodMinGain) + ")"; return plan; }
+        if (known.mods.isEmpty()) { plan.note = "no hullmod worth a story point (minimum gain " + pct(minGain) + ")"; return plan; }
         plan.mods.addAll(known.mods);
         plan.gain = known.gain;
         plan.note = "build in " + names(known.mods) + " (+" + pct(known.gain) + ")";
         return plan;
     }
 
-    private static final class Pick {
+    static final class Pick {
         final List<String> mods = new ArrayList<>();
         float score, gain;
     }
@@ -134,7 +136,7 @@ final class JAOSMods {
                     Set<String> s = new LinkedHashSet<>(chosen);
                     s.add(m);
                     float v = full(s);
-                    if (v <= base * (1f + JAOSettings.smodMinGain)) continue;
+                    if (v <= base * (1f + minGain)) continue;
                     next.put(key(s), s);
                     nextScore.put(key(s), v);
                 }
@@ -154,6 +156,15 @@ final class JAOSMods {
         p.gain = start > 0f ? bestScore / start - 1f : 0f;
         return p;
     }
+
+    /**
+     * The best single new s-mod from these candidates, or none (mods empty: nothing adds minGain). score is the ship's
+     * score with it, or as it is without one (Optimize fleet's s-mod changes, 0.5.57).
+     */
+    Pick best(List<String> candidates) { return greedy(candidates, 1); }
+
+    /** The ship's score with no new s-mods. */
+    float asIs() { float v = full(new LinkedHashSet<>()); world.setSMods(new LinkedHashSet<>()); return v; }
 
     private static String key(Set<String> s) { return String.join(",", new TreeSet<>(s)); }
 

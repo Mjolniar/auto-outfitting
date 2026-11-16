@@ -25,7 +25,7 @@
 	"jao_logistics":false,
 	"jao_skipWeapons":"",          # weapon ids or patterns the Optimal fit never picks, e.g. "stardust_lightproton, SKR_*"
 
-	# s-mods, used when the autofit box "Build in s-mods" is ticked (story points are permanent)
+	# s-mods: the Autofit box "Build in s-mods" (Optimal fit) or the Optimize fleet tick (story points are permanent)
 	"jao_smodCount":1,               # new s-mods per ship in one fit or one Optimize fleet
 	"jao_smodFleetMax":0,            # most story points one Optimize fleet spends (0 = no limit, down to jao_smodReserve)
 	"jao_smodMinGain":0.02,
@@ -33,6 +33,10 @@
 	"jao_smodWaitMargin":0.1,
 	"jao_smodWaitDays":30,
 	"jao_smodReserve":5,             # story points never spent
+	"jao_smodBySize":true,           # minimum gain per s-mod x 20 / deployment points (0.5x to 4x)
+	"jao_smodMaxFrigate":1,          # most s-mods Auto Outfitting builds into a frigate
+	"jao_smodMaxDestroyer":2,        # most s-mods Auto Outfitting builds into a destroyer
+	"jao_smodChangeMinGain":0.1,     # Optimize fleet "Change s-mods with credits": gain one change must add
 
 	# fleet production order (Order weapons for fleet button on the refit screen)
 	"jao_productionButton":true,

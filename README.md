@@ -4,7 +4,7 @@
 > AI-generated. The mod, docs and build checks were written by AI coding agents. Versions are checked offline (compile, bytecode checks, test fits on vanilla hulls). Newer changes are untested in a real game. Report bugs in the [issues](https://github.com/Mjolniar/auto-outfitting/issues) with `starsector-core/starsector.log` and the modlist.
 
 - Optimal: Adds an Optimal option to the refit screen's autofit list. It picks weapons, fighters, hullmods, vents and capacitors from cargo, storage and optionally the market, scored on combat numbers and how the game's AI flies the ship.
-- Optimize fleet: Fits the whole fleet together from what you have. Optional: builds in s-mods (Build in s-mods box in the Autofit panel) and places officers (Place officers box in the Optimize fleet panel).
+- Optimize fleet: Fits the whole fleet together. The button opens its settings: storage, stored ships, legal shops, black markets, credit limit, s-mods with story points, s-mod changes with credits, officers and augments.
 - Order fleet weapons: Orders the missing weapons and LPCs through custom production.
 - Fleet analysis: Shows the fleet's weak points.
 - Lock this ship: Keeps a ship out of Optimize fleet and fleet orders.

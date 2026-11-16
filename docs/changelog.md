@@ -1,5 +1,17 @@
 # Patch notes
 
+## 0.5.57 - 2026-11-16
+
+- Optimize fleet: The button opens a settings panel first. Plan fleet plans with those settings. Settings on the plan goes back. Settings are kept per save.
+- Optimize fleet: Added "Use storage here". On by default.
+- Optimize fleet: Added "Buy from legal shops" and "Buy from black markets". Shops at the docked market are read as the refit screen reads them: open shops only, the shop's own item rules, the refit screen's price with tariff. Black markets include Underworld's Cabal Exchange and Scrapyard. Off by default.
+- Optimize fleet: Added a credit limit for shop items and s-mod changes: 10%, 25%, 50%, 75% or 100% of your credits. 25% by default. Bigger ships buy first. A ship that would go over the limit uses what you own.
+- Optimize fleet: Added "Build in s-mods with story points". Until it is set on the panel it follows the Autofit panel's box. The Autofit panel's boxes now change only the single-ship Optimal fit.
+- Optimize fleet: Added "Change s-mods with credits". It uses the game's Change s-mods at your own colony with heavy industry: 75,000 to 250,000 credits per s-mod removed or added, no story points. A change is made only on a ship with no free s-mod slot, when the ship gets at least 10% stronger (more on small ships) and the price fits the credit limit. Removed s-mods are not built back in with story points. Off by default.
+- Optimize fleet: Place officers, Place augments and Strip stored ships moved to the settings panel.
+- S-mods: The minimum gain per s-mod is scaled by ship size: x 20 / deployment points, from 0.5x to 4x. A 5 DP frigate needs 4x, a 40 DP capital 0.5x. Setting "S-mods favor bigger ships", on by default.
+- S-mods: Frigates get at most 1 s-mod and destroyers at most 2. S-mods already on the ship count. Settings "Most s-mods on a frigate" and "Most s-mods on a destroyer".
+
 ## 0.5.56 - 2026-11-16
 
 - Compatibility: Starsector 0.98.5a-RC7.

@@ -32,14 +32,17 @@ import java.util.TreeMap;
  * "Optimize fleet" (user 11/05: "click the button and it just does every single ship with every single s-mod and item
  * and weapon it can possibly equip, one by one down the list"): the fleet plan (JAOFleetPlan) from what can be fitted
  * here, then every planned ship refitted to it in one go.
- *  - Stock: fleet cargo, this market's storage when you're docked where you can use it, and everything on the planned
- *    ships. Nothing is bought.
+ *  - Stock: fleet cargo, this market's storage when you're docked where you can use it ("Use storage here"), and
+ *    everything on the planned ships; with "Buy from legal shops" / "Buy from black markets" (0.5.57) also what the
+ *    market's shops sell (JAOShops), inside the credit limit, bought on Apply.
  *  - Weapons and LPCs come off every planned ship into fleet cargo first; each ship then takes its plan from cargo, then
  *    storage. What came off and isn't used again goes to that storage (user: "let it all sit in storage"), otherwise it
  *    stays in cargo.
  *  - Hullmods change only where the refit rules allow here (spaceport hullmods only at a spaceport).
- *  - New s-mods (only while the Autofit panel's "Build in s-mods" box is ticked) cost a story point each through the game's own build-in (bonus
- *    XP, playthrough log); the plan never counts on more story points than you have above the reserve.
+ *  - New s-mods (only with the panel's "Build in s-mods" ticked) cost a story point each through the game's own
+ *    build-in (bonus XP, playthrough log); the plan never counts on more story points than you have above the reserve.
+ *  - S-mod changes ("Change s-mods with credits", 0.5.57): at your colony with heavy industry, the game's Change s-mods
+ *    price per s-mod removed or added, inside the credit limit.
  *  - The ship on the refit screen is changed through the screen's own copy, then the screen is synced and saved.
  * Civilian ships (with the logistics fit setting on) get that fit: campaign hullmods, no weapons, no vents or capacitors;
  * with s-mods asked for and the civilian s-mods setting on, cruisers, capitals and salvage rigs build in fleet-wide ones.
@@ -54,8 +57,23 @@ final class JAOFleetApply {
     final Object refit;
     final JAOFleetMix before;
     int civilian;
-    /** "Build in s-mods" was ticked in the Autofit panel when this plan started. */
+    /** "Build in s-mods" was ticked in the Optimize fleet panel when this plan started. */
     final boolean smods;
+    /** The screen's core UI (the shops' trade rules) and its trade mode. */
+    final com.fs.starfarer.api.campaign.CoreUIAPI ui;
+    final CampaignUIAPI.CoreUITradeMode tradeMode;
+    /** Shops at this market you can buy from (0.5.57), and which kinds are ticked. */
+    final List<JAOShops.Shop> shops;
+    final boolean buyLegal, buyBlack;
+    /** "Use storage here" is unticked. */
+    final boolean storageOff;
+    /** "Change s-mods with credits" is ticked (changeOn) and the game's Change s-mods is open here (changeHere). */
+    final boolean changeOn, changeHere;
+    /** Credits the plan may spend on shop items and s-mod changes (0 when neither is on). */
+    final float creditLimit;
+    /** Planned purchases: items, their cost, s-mod changes and their cost. */
+    int buyItems, smodChanges;
+    double buyTotal, changeTotal;
     /** Refitting here costs CR (no market to refit at: in space, or at a planet with no colony). */
     final boolean fieldRefit;
     /** Officer placement (0.5.39), when "Place officers" is ticked in the Optimize fleet panel; else null. */
@@ -100,9 +118,13 @@ final class JAOFleetApply {
         /** CR the refit takes away from a market (0-1). */
         float cr;
         final List<String> added = new ArrayList<>(), removed = new ArrayList<>(), smods = new ArrayList<>();
+        /** 0.5.57: shop items this ship's plan buys; s-mods it builds in with credits and takes off. */
+        int bought;
+        final List<String> smodsBought = new ArrayList<>(), smodsRemoved = new ArrayList<>();
 
         Change(JAOFleetPlan.ShipPlan ship) { this.ship = ship; }
-        boolean any() { return weapons + wings + flux > 0 || !added.isEmpty() || !removed.isEmpty() || !smods.isEmpty(); }
+        boolean any() { return weapons + wings + flux + bought > 0 || !added.isEmpty() || !removed.isEmpty() || !smods.isEmpty()
+                || !smodsBought.isEmpty() || !smodsRemoved.isEmpty(); }
     }
 
     final List<Change> changes = new ArrayList<>();
@@ -116,7 +138,8 @@ final class JAOFleetApply {
         CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
         cargo = pf.getCargo();
         market = dockedMarket();
-        storage = market != null && Misc.playerHasStorageAccess(market) ? Misc.getStorageCargo(market) : null;
+        storageOff = !JAOFleetOptions.useStorage();
+        storage = market != null && !storageOff && Misc.playerHasStorageAccess(market) ? Misc.getStorageCargo(market) : null;
         int[] civ = new int[1];
         List<FleetMemberAPI> members = pf.getFleetData().getMembersListCopy();
         List<FleetMemberAPI> ships = JAOFleetPlan.combatShips(members, civ);
@@ -130,7 +153,7 @@ final class JAOFleetApply {
         // ships in this market's storage (0.5.53, user 11/15: the weapons on ships parked at the home base get used): with
         // "Strip stored ships" ticked their weapons and LPCs join the stock and come off on Apply; what the fleet doesn't
         // use goes to storage as items. Locked ships keep theirs.
-        if (stripStored()) {
+        if (stripStored() && !storageOff) {
             if (storage == null) storedAway = true;
             else {
                 try {
@@ -163,12 +186,29 @@ final class JAOFleetApply {
         List<AvailableFighter> fighters = new ArrayList<>();
         JAOFleetPlan.owned(w, f, weapons, fighters);
         before = JAOFleetPlanner.currentMix(ships);
-        CampaignUIAPI.CoreUITradeMode mode = market == null ? CampaignUIAPI.CoreUITradeMode.NONE
+        CampaignUIAPI.CoreUITradeMode guess = market == null ? CampaignUIAPI.CoreUITradeMode.NONE
                 : market.getFaction().isHostileTo(Factions.PLAYER) ? CampaignUIAPI.CoreUITradeMode.SNEAK : CampaignUIAPI.CoreUITradeMode.OPEN;
-        // s-mods only while the Autofit panel's "Build in s-mods" box is ticked, as for a single Optimal fit (off by default)
-        smods = JAOGoals.optionChecked(JAOAutofitPlugin.SMODS);
+        ui = JAOShops.ui(refit, guess);
+        CampaignUIAPI.CoreUITradeMode mode = market == null ? guess : JAOShops.mode(ui);
+        tradeMode = mode;
+        // the panel's own ticks (0.5.57); "Build in s-mods" follows the Autofit box until it's set on the panel
+        smods = JAOFleetOptions.smods();
+        shops = market == null ? new ArrayList<>() : JAOShops.at(market, ui);
+        buyLegal = JAOFleetOptions.buyLegal();
+        buyBlack = JAOFleetOptions.buyBlack();
+        int owned = weapons.size() + fighters.size();
+        if (buyLegal || buyBlack) JAOShops.stock(shops, buyLegal, buyBlack, weapons, fighters);
+        boolean buying = weapons.size() + fighters.size() > owned;
+        changeOn = JAOFleetOptions.changeSmods();
+        changeHere = JAOFleetOptions.changeSmodsHere(market, mode);
+        float credits = 0f;
+        try { credits = cargo.getCredits().get(); } catch (Throwable ignored) { }
+        creditLimit = buying || (changeOn && changeHere) ? (float) Math.floor(credits * JAOFleetOptions.budget()) : 0f;
         fieldRefit = fieldRefit(refit, market);
         fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
+        fleet.buying = buying;
+        fleet.changeSmods = changeOn && changeHere;
+        if (buying || fleet.changeSmods) fleet.creditsLeft = creditLimit;
         fleet.variantOf = m -> live(m, false);
         JAOOfficers o = null;
         if (placeOfficers()) {
@@ -299,6 +339,7 @@ final class JAOFleetApply {
     /** What applying changes, ship by ship. */
     private void summarize() {
         summarized = true;
+        Map<String, Integer> shopUnits = new TreeMap<>();
         Map<String, Integer> need = new TreeMap<>(), have = new TreeMap<>();
         for (JAOFleetPlan.ShipPlan s : fleet.ships) {
             if (s.plan == null) continue;
@@ -312,9 +353,17 @@ final class JAOFleetApply {
             int bays = Math.max(Global.getSettings().computeNumFighterBays(now), Global.getSettings().computeNumFighterBays(s.plan));
             for (int i = 0; i < bays; i++) if (!same(wingAt(now, i), wingAt(s.plan, i))) c.wings++;
             Set<String> a = new LinkedHashSet<>(now.getNonBuiltInHullmods()), b = new LinkedHashSet<>(s.plan.getNonBuiltInHullmods());
-            for (String id : b) if (!a.contains(id)) (s.plan.getSMods().contains(id) ? c.smods : c.added).add(JAOSMods.name(id));
-            for (String id : s.plan.getSMods()) if (!now.getSMods().contains(id) && a.contains(id)) c.smods.add(JAOSMods.name(id));
-            for (String id : a) if (!b.contains(id)) c.removed.add(JAOSMods.name(id));
+            // getNonBuiltInHullmods leaves s-mods out: ordinary hullmods on and off, then s-mods from the s-mod lists
+            for (String id : b) if (!a.contains(id)) c.added.add(JAOSMods.name(id));
+            for (String id : a) if (!b.contains(id) && !s.plan.getSMods().contains(id)) c.removed.add(JAOSMods.name(id));
+            for (String id : s.plan.getSMods()) if (!now.getSMods().contains(id) && !s.smodsBought.contains(id)) c.smods.add(JAOSMods.name(id));
+            for (String id : s.smodsBought) c.smodsBought.add(JAOSMods.name(id));
+            for (String id : s.smodsRemoved) c.smodsRemoved.add(JAOSMods.name(id));
+            c.bought = JAOShops.count(s.used);
+            buyItems += c.bought;
+            buyTotal += s.buyCost;
+            smodChanges += s.smodsBought.size() + s.smodsRemoved.size();
+            changeTotal += s.changeCost;
             if (now.getNumFluxVents() != s.plan.getNumFluxVents() || now.getNumFluxCapacitors() != s.plan.getNumFluxCapacitors()) c.flux = 1;
             storyPoints += c.smods.size();
             if (c.any()) changedShips++;
@@ -327,12 +376,17 @@ final class JAOFleetApply {
             changes.add(c);
             countFitted(s.plan, need);
             countFitted(now, have);
+            for (Object o : s.used) {
+                if (JAOShops.shopOf(o) == null) continue;
+                String key = (o instanceof AvailableFighter ? "f:" : "w:") + (o instanceof AvailableFighter ? ((AvailableFighter) o).getId() : ((AvailableWeapon) o).getId());
+                shopUnits.merge(key, 1, Integer::sum);
+            }
         }
         // what has to come out of storage: the plan's items beyond what the ships and cargo already hold
         for (Map.Entry<String, Integer> e : need.entrySet()) {
             String id = e.getKey();
             int inCargo = id.startsWith("f:") ? cargo.getNumFighters(id.substring(2)) : cargo.getNumWeapons(id.substring(2));
-            fromStorage += Math.max(0, e.getValue() - have.getOrDefault(id, 0) - inCargo);
+            fromStorage += Math.max(0, e.getValue() - have.getOrDefault(id, 0) - inCargo - shopUnits.getOrDefault(id, 0));
         }
     }
 
@@ -433,6 +487,25 @@ final class JAOFleetApply {
                 Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't strip the stored ship " + m.getShipName(), t);
             }
         }
+        // 1c. what the plans buy (0.5.57): biggest ships first, at the planned shop's price, into fleet cargo
+        int boughtNow = 0;
+        float spentNow = 0f;
+        for (JAOFleetPlan.ShipPlan s : todo) {
+            Map<Object, Integer> wants = new java.util.LinkedHashMap<>();
+            for (Object o : s.used) if (JAOShops.shopOf(o) != null) wants.merge(o, 1, Integer::sum);
+            for (Map.Entry<Object, Integer> e : wants.entrySet()) {
+                try {
+                    float c0 = cargo.getCredits().get();
+                    int k = JAOShops.buy(e.getKey(), e.getValue(), cargo, ui);
+                    boughtNow += k;
+                    spentNow += c0 - cargo.getCredits().get();
+                    if (k < e.getValue()) Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: Optimize fleet bought " + k + " of "
+                            + e.getValue() + " planned for " + s.name + " (the shop has fewer now, or the credits ran out)");
+                } catch (Throwable t) {
+                    Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't buy for " + s.name, t);
+                }
+            }
+        }
         // 2. each ship takes its plan
         MutableCharacterStatsAPI ps = Global.getSector().getPlayerStats();
         List<FleetMemberAPI> done = new ArrayList<>();
@@ -526,6 +599,8 @@ final class JAOFleetApply {
             }
         }
         String msg = "Refitted " + ships + " ships" + (built > 0 ? ", built in " + built + " s-mod" + (built > 1 ? "s" : "") : "")
+                + (boughtNow > 0 ? ", bought " + boughtNow + " weapons and LPCs for " + Misc.getDGSCredits(spentNow) : "")
+                + (changedSmods > 0 ? ", changed " + changedSmods + " s-mod" + (changedSmods > 1 ? "s" : "") + " for " + Misc.getDGSCredits(changeSpent) : "")
                 + (moved > 0 ? ", moved " + moved + " officer" + (moved > 1 ? "s" : "") : "")
                 + (augmentsPlaced > 0 ? ", installed " + augmentsPlaced + " augment" + (augmentsPlaced > 1 ? "s" : "") : "")
                 + (strippedStored > 0 ? ", stripped " + strippedStored + " stored ship" + (strippedStored > 1 ? "s" : "") : "")
@@ -675,6 +750,10 @@ final class JAOFleetApply {
      */
     private int hullmods(ShipVariantAPI v, JAOFleetPlan.ShipPlan s, MutableCharacterStatsAPI ps) {
         ShipVariantAPI plan = s.plan;
+        // 0.5.57: the game's Change s-mods first; if it can't be paid nothing changes, and the planned credit s-mods
+        // (never in getNonBuiltInHullmods) aren't added
+        boolean changeFailed = false;
+        if (!s.smodsRemoved.isEmpty() || !s.smodsBought.isEmpty()) changeFailed = !changeSmods(v, s, ps);
         for (String id : new ArrayList<>(v.getNonBuiltInHullmods())) {
             if (v.getPermaMods().contains(id) || plan.getNonBuiltInHullmods().contains(id)) continue;
             // hidden hullmods and never_remove rules stay, as in the single fit's strip (AI Tweaks' AI hullmods)
@@ -684,8 +763,13 @@ final class JAOFleetApply {
             v.removeMod(id);
         }
         List<String> newS = new ArrayList<>();
-        for (String id : plan.getSMods()) if (!v.getSMods().contains(id)) newS.add(id);
+        for (String id : plan.getSMods()) if (!v.getSMods().contains(id) && !s.smodsBought.contains(id)) newS.add(id);
         for (String id : plan.getNonBuiltInHullmods()) if (!newS.contains(id) && !v.hasHullMod(id)) v.addMod(id);
+        if (changeFailed) {
+            // the s-mods meant to come off are still there: new story point s-mods only up to the free room
+            int room = Math.min(Misc.getMaxPermanentMods(s.member, ps), JAOOptimizer.sizeCap(v.getHullSize())) - v.getSMods().size();
+            while (newS.size() > Math.max(0, room)) newS.remove(newS.size() - 1);
+        }
         if (newS.isEmpty()) return 0;
         int had = ps.getStoryPoints();
         if (had - JAOSettings.smodReserve < newS.size()) {
@@ -716,6 +800,62 @@ final class JAOFleetApply {
             PlaythroughLog.getInstance().getSModsInstalled().add(rec);
         }
         return newS.size();
+    }
+
+    /** S-mods changed with credits by this Apply, and what they cost. */
+    private int changedSmods;
+    private float changeSpent;
+
+    /**
+     * The game's Change s-mods for one ship (0.5.57, ModPickerDialogV3 in 0.98.5a): the planned s-mods come off (the
+     * hullmod stays only if the plan keeps it as an ordinary one) and the planned ones go in as s-mods, no story points;
+     * changeSmodsCost per s-mod removed or added is paid in credits. As in the game, s-mods removed beyond those added
+     * give back the bonus XP their story points didn't earn when they were built in. False (nothing changed) when the
+     * change isn't open here any more or the credits are short.
+     */
+    private boolean changeSmods(ShipVariantAPI v, JAOFleetPlan.ShipPlan s, MutableCharacterStatsAPI ps) {
+        int n = s.smodsRemoved.size() + s.smodsBought.size();
+        float cost = n * JAOFleetOptions.changePrice(v.getHullSpec().getHullSize());
+        CargoAPI pc = Global.getSector().getPlayerFleet().getCargo();
+        if (!changeHere || !JAOFleetOptions.canChangeSmods(s.member) || cost <= 0f || pc.getCredits().get() < cost) {
+            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: Optimize fleet didn't change " + s.name + "'s s-mods ("
+                    + (cost > 0f && pc.getCredits().get() < cost ? "not enough credits" : "Change s-mods isn't open here") + ")");
+            return false;
+        }
+        // bonus XP for removed s-mods, as the game works it out before the change
+        int added = s.smodsBought.size();
+        float sp = 0f, gained = 0f;
+        try {
+            for (SModRecord rec : PlaythroughLog.getInstance().getSModsInstalled()) {
+                if (rec.getMember() == null || rec.getMember() != s.member) continue;
+                for (String x : s.smodsRemoved) {
+                    if (!rec.getSMods().contains(x)) continue;
+                    if (added > 0) added--;
+                    else { sp += rec.getSPSpent(); gained += rec.getBonusXPFractionGained() * rec.getSPSpent(); }
+                    break;
+                }
+            }
+        } catch (Throwable t) {
+            sp = 0f;
+        }
+        for (String x : s.smodsRemoved) v.removePermaMod(x);
+        for (String y : s.smodsBought) v.addPermaMod(y, true);
+        pc.getCredits().subtract(cost);
+        changedSmods += n;
+        changeSpent += cost;
+        if (sp > 0f && gained < sp) {
+            try {
+                ps.setOnlyAddBonusXPDoNotSpendStoryPoints(true);
+                ps.spendStoryPoints(Math.round(sp), true, null, true, 1f - gained / sp, null);
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: couldn't give the bonus XP for " + s.name + "'s removed s-mods", t);
+            } finally {
+                ps.setOnlyAddBonusXPDoNotSpendStoryPoints(false);
+            }
+        }
+        Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " s-mods off " + s.smodsRemoved + ", on "
+                + s.smodsBought + " for " + Math.round(cost) + " credits");
+        return true;
     }
 
     /**

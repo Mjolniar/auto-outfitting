@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The whole fleet planned together (user 11/05: "scan the entire fleet, determine optimally what everything should be").
@@ -60,6 +61,10 @@ final class JAOFleetPlan {
         boolean civilian;
         /** Locked on the refit screen (JAOLocks, 0.5.21): its plan is the ship as it is, what it carries stays on it, and it still counts toward the balance. */
         boolean locked;
+        /** 0.5.57: credits the plan spends at shops for this ship, and on s-mod changes. */
+        double buyCost, changeCost;
+        /** 0.5.57: s-mods the plan takes off and builds in with credits (the game's Change s-mods), and the lines saying so. */
+        final List<String> smodsRemoved = new ArrayList<>(), smodsBought = new ArrayList<>(), changeNotes = new ArrayList<>();
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
@@ -83,6 +88,13 @@ final class JAOFleetPlan {
     /** ESR augment placement (0.5.52): member id -> the augments the plan fits it with (only ships whose set changes). */
     final Map<String, java.util.Set<String>> augmentPlan = new HashMap<>();
     int pass, index, changedThisPass, storyPoints, failed;
+    /**
+     * Optimize fleet (0.5.57): the stock has shop entries (buying), s-mod changes for credits are open here and ticked
+     * (changeSmods), and the credits the plan may still spend on both (biggest ships first). A ship whose fit would go
+     * over is fitted again from what the fleet owns.
+     */
+    boolean buying, changeSmods;
+    double creditsLeft = Double.MAX_VALUE;
     boolean done;
     long nanos;
 
@@ -227,20 +239,37 @@ final class JAOFleetPlan {
         if (s.civilian) { planCivilian(s); return; }
         ShipVariantAPI old = s.plan;
         List<Object> oldUsed = new ArrayList<>(s.used);
-        if (old != null) give(oldUsed);
+        if (old != null) { give(oldUsed); creditsLeft += JAOShops.cost(oldUsed); }
         JAOFleetMix others = mixWithout(s);
         PlanDelegate d = null;
         try {
             // the first pass fits from the ship as it is (hullmods and s-mods chosen), later ones re-pick weapons and
             // wings around the first pass's hullmods
-            ShipVariantAPI v = (old == null ? variantOf.apply(s.member) : old).clone();
-            d = delegate(s.member, old == null ? hullmods : new ArrayList<>(v.getNonBuiltInHullmods()));
-            JAOOptimizer o = new JAOOptimizer(plugin, v, d, JAOSettings.style, false, true);
-            o.fullPlan = old == null;
-            o.planSmods = old == null && smods;
-            o.storyPoints = storyPoints;
-            o.fleetMix = others;
-            o.run();
+            ShipVariantAPI v = null;
+            JAOOptimizer o = null;
+            // 0.5.57: shop items and s-mod changes stay inside the credit limit; a fit that would go over it is made
+            // again from what the fleet owns
+            for (int attempt = 0; attempt < 2; attempt++) {
+                if (d != null) { give(d.used); d = null; }
+                v = (old == null ? variantOf.apply(s.member) : old).clone();
+                d = delegate(s.member, old == null ? hullmods : new ArrayList<>(v.getNonBuiltInHullmods()));
+                d.noBuy = attempt > 0;
+                // 8: shop items the credits left can't pay for aren't offered at all
+                d.maxPrice = creditsLeft;
+                o = new JAOOptimizer(plugin, v, d, JAOSettings.style, false, true);
+                o.fullPlan = old == null;
+                o.planSmods = old == null && smods;
+                o.storyPoints = storyPoints;
+                o.fleetMix = others;
+                o.buying = buying && !d.noBuy;
+                if (old == null && changeSmods && JAOFleetOptions.canChangeSmods(s.member)) {
+                    o.changeSmods = true;
+                    o.changePrice = JAOFleetOptions.changePrice(s.member.getHullSpec().getHullSize());
+                    o.changeCredits = creditsLeft;
+                }
+                o.run();
+                if (!o.buying || JAOShops.cost(d.used) + o.changeCost <= creditsLeft + 0.5) break;
+            }
             // what the ship's hullmod scripts do to it when the game refreshes it: wings they place in empty bays join the
             // plan and their OP comes out of flux (JAOCompat); judged that way against the old plan too
             JAOCompat.Probe probe = JAOCompat.settle(v, capsFirst(v));
@@ -249,30 +278,52 @@ final class JAOFleetPlan {
                 if (vNew <= vOld * (1f + KEEP)) {
                     give(d.used);
                     take(oldUsed);
+                    creditsLeft -= JAOShops.cost(oldUsed);
                     return;
                 }
             }
             // everything that can fail first, then the plan is committed in one go
             List<JAOModel.W> ws = JAOFleetContext.weaponsOf(v);
-            int newSmods = old == null ? Math.max(0, v.getSMods().size() - variantOf.apply(s.member).getSMods().size()) : s.newSmods;
+            // new s-mods paid with story points: not on the ship now and not built in with credits (0.5.57)
+            int newSmods = s.newSmods;
+            if (old == null) {
+                newSmods = 0;
+                Set<String> had = variantOf.apply(s.member).getSMods();
+                for (String id : v.getSMods()) if (!had.contains(id) && !o.smodsBought.contains(id)) newSmods++;
+            }
             s.plan = v;
             s.used.clear();
             s.used.addAll(d.used);
             s.ws = ws;
             s.scripted.clear();
             s.scripted.addAll(probe.wings.keySet());
-            notes(s, probe);
+            try {
+                notes(s, probe);
+            } catch (Throwable t) {
+                if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
+                Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't write the notes for " + s.name + "'s plan", t);
+            }
+            s.buyCost = JAOShops.cost(d.used);
+            creditsLeft -= s.buyCost;
             if (old == null) {
                 s.smods = o.smodPlan;
                 s.newSmods = newSmods;
                 storyPoints -= newSmods;
+                s.smodsRemoved.clear();
+                s.smodsRemoved.addAll(o.smodsRemoved);
+                s.smodsBought.clear();
+                s.smodsBought.addAll(o.smodsBought);
+                s.changeNotes.clear();
+                s.changeNotes.addAll(o.changeNotes);
+                s.changeCost = o.changeCost;
+                creditsLeft -= o.changeCost;
             }
             changedThisPass++;
         } catch (Throwable t) {
             if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
             // whatever the failed fit had taken goes back; the ship keeps its old plan, or (never planned) what it carries
             if (d != null) give(d.used);
-            if (old != null) take(oldUsed);
+            if (old != null) { take(oldUsed); creditsLeft -= JAOShops.cost(oldUsed); }
             else keepOwn(s.member);
             if (!s.failed) failed++;
             s.failed = true;
@@ -354,7 +405,7 @@ final class JAOFleetPlan {
             int n = e.getValue();
             for (AvailableWeapon a : weapons) {
                 if (n <= 0) break;
-                if (!(a instanceof PlanWeapon) || ((PlanWeapon) a).blueprint || !a.getId().equals(e.getKey())) continue;
+                if (!(a instanceof PlanWeapon) || ((PlanWeapon) a).blueprint || ((PlanWeapon) a).sub != null || !a.getId().equals(e.getKey())) continue;
                 int k = Math.min(n, a.getQuantity());
                 a.setQuantity(a.getQuantity() - k);
                 n -= k;
@@ -364,7 +415,7 @@ final class JAOFleetPlan {
             int n = e.getValue();
             for (AvailableFighter a : fighters) {
                 if (n <= 0) break;
-                if (!(a instanceof PlanFighter) || ((PlanFighter) a).blueprint || !a.getId().equals(e.getKey())) continue;
+                if (!(a instanceof PlanFighter) || ((PlanFighter) a).blueprint || ((PlanFighter) a).sub != null || !a.getId().equals(e.getKey())) continue;
                 int k = Math.min(n, a.getQuantity());
                 a.setQuantity(a.getQuantity() - k);
                 n -= k;
@@ -433,13 +484,15 @@ final class JAOFleetPlan {
         final float price;
         final boolean blueprint;
         int qty;
+        /** The shop it's bought from (Optimize fleet, 0.5.57); null for owned stock and blueprints. */
+        SubmarketAPI sub;
 
         PlanWeapon(WeaponSpecAPI spec, float price, int qty, boolean blueprint) { this.spec = spec; this.price = price; this.qty = qty; this.blueprint = blueprint; }
         public String getId() { return spec.getWeaponId(); }
         public WeaponSpecAPI getSpec() { return spec; }
         public float getPrice() { return price; }
         public CargoAPI getSource() { return null; }
-        public SubmarketAPI getSubmarket() { return null; }
+        public SubmarketAPI getSubmarket() { return sub; }
         public int getQuantity() { return qty; }
         public void setQuantity(int quantity) { qty = quantity; }
         public float getOPCost(MutableCharacterStatsAPI stats, MutableShipStatsAPI shipStats) { return spec.getOrdnancePointCost(stats, shipStats); }
@@ -450,13 +503,15 @@ final class JAOFleetPlan {
         final float price;
         final boolean blueprint;
         int qty;
+        /** The shop it's bought from (Optimize fleet, 0.5.57); null for owned stock and blueprints. */
+        SubmarketAPI sub;
 
         PlanFighter(FighterWingSpecAPI spec, float price, int qty, boolean blueprint) { this.spec = spec; this.price = price; this.qty = qty; this.blueprint = blueprint; }
         public String getId() { return spec.getId(); }
         public FighterWingSpecAPI getWingSpec() { return spec; }
         public float getPrice() { return price; }
         public CargoAPI getSource() { return null; }
-        public SubmarketAPI getSubmarket() { return null; }
+        public SubmarketAPI getSubmarket() { return sub; }
         public int getQuantity() { return qty; }
         public void setQuantity(int quantity) { qty = quantity; }
     }
@@ -472,6 +527,9 @@ final class JAOFleetPlan {
         final List<String> hullmods;
         final List<Object> used = new ArrayList<>();
         boolean campaign;
+        /** Leave shop entries out (0.5.57: the fit went over the credit limit), and those priced over maxPrice. */
+        boolean noBuy;
+        double maxPrice = Double.MAX_VALUE;
         MarketAPI market;
         CampaignUIAPI.CoreUITradeMode tradeMode = CampaignUIAPI.CoreUITradeMode.NONE;
         /** Officer placement (0.5.39): plan the ship under this captain (null: none) instead of its own. */
@@ -496,8 +554,16 @@ final class JAOFleetPlan {
             used.add(weapon);
         }
         public void clearWeaponSlot(WeaponSlotAPI slot, ShipVariantAPI variant) { variant.clearSlot(slot.getId()); }
-        public List<AvailableWeapon> getAvailableWeapons() { return new ArrayList<>(weapons); }
-        public List<AvailableFighter> getAvailableFighters() { return new ArrayList<>(fighters); }
+        public List<AvailableWeapon> getAvailableWeapons() {
+            List<AvailableWeapon> out = new ArrayList<>();
+            for (AvailableWeapon w : weapons) if (w.getSubmarket() == null || (!noBuy && w.getPrice() <= maxPrice)) out.add(w);
+            return out;
+        }
+        public List<AvailableFighter> getAvailableFighters() {
+            List<AvailableFighter> out = new ArrayList<>();
+            for (AvailableFighter f : fighters) if (f.getSubmarket() == null || (!noBuy && f.getPrice() <= maxPrice)) out.add(f);
+            return out;
+        }
         public boolean isPriority(WeaponSpecAPI weapon) { return false; }
         public boolean isPriority(FighterWingSpecAPI wing) { return false; }
         public List<String> getAvailableHullmods() { return new ArrayList<>(hullmods); }
