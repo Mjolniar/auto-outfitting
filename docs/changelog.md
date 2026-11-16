@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.51 - 2026-11-15
+
+- Shields: Shield damage taken by damage type is counted against a reference mix of incoming fire. Prismatic Shield (kinetic x0.5, HE and fragmentation x2) scores x0.88 on top of its x0.8. Submatter Shield, Solar Shielding, Stardust Core and SotF Daydream hulls also count by type.
+- Emergent Threats: Reactive Combat Shields is added only where it works: shield efficiency worse than 0.6 after other shield changes, or an Interdictor Array installed. It showed a warning and did nothing on 0.6 shields (Thorn, Paragon) and with Prismatic Shield.
+- Secrets of the Frontier: The Thorn's Hypnagogic Incursion is counted: ballistic and energy ammo regen and rate of fire x10 during the dash, no damage taken. Missiles get no ammo back from it.
+- Rules: Added the rule kind shield_eff_min to jao_rules.csv.
+
 ## 0.5.50 - 2026-11-15
 
 - Random Assortment of Things: Hyperspatial Javelin and Hyperspatial Dart shots count as homing. They land on every target size, and turret turn rate does not lower their score.

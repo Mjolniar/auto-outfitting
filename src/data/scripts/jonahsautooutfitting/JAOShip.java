@@ -314,9 +314,20 @@ final class JAOShip implements JAOSearch.World {
         ShieldType type = hull.getShieldType();
         s.phase = phaseCloak(hull);
         s.shield = (type == ShieldType.FRONT || type == ShieldType.OMNI) && hull.getShieldSpec() != null && !work.hasHullMod(HullMods.SHIELD_SHUNT) && !ruleOn("no_shield");
+        shieldEffNow = 0f;
         if (s.shield) {
             s.shieldEff = hull.getShieldSpec().getFluxPerDamageAbsorbed() * st.getShieldAbsorptionMult().getModifiedValue();
             s.shieldTaken = st.getShieldDamageTakenMult().getModifiedValue();
+            // shield efficiency the way hullmod scripts read it (0.5.51: IX Reactive Combat Shields works only above 0.6)
+            shieldEffNow = s.shieldEff * s.shieldTaken;
+            // shield damage taken by damage type (0.5.51, Advanced Modifications Prismatic Shield: kinetic x0.5, HE and
+            // fragmentation x2; SotF Daydream hulls: energy x0.88): the change in shield flux against the reference fire
+            float[] byType = new float[4];
+            byType[JAOModel.KIN] = st.getKineticShieldDamageTakenMult().getModifiedValue();
+            byType[JAOModel.HE] = st.getHighExplosiveShieldDamageTakenMult().getModifiedValue();
+            byType[JAOModel.FRAG] = st.getFragmentationShieldDamageTakenMult().getModifiedValue();
+            byType[JAOModel.EN] = st.getEnergyShieldDamageTakenMult().getModifiedValue();
+            s.shieldTaken *= JAOModel.shieldTypeFactor(byType);
             s.upkeep = hull.getShieldSpec().getUpkeepCost() * st.getShieldUpkeepMult().getModifiedValue();
             s.arc = st.getShieldArcBonus().computeEffective(hull.getShieldSpec().getArc());
         }
@@ -557,6 +568,39 @@ final class JAOShip implements JAOSearch.World {
      * shields: blank = every beam, or weapon ids split by ;), range_mult (every weapon's range). And Combat Endurance's
      * elite repair: 0.5% of hull a second, at most max(2000, half the hull) a fight.
      */
+    /** Shield flux per damage after shield damage taken changes, for the ship being built (0 = no shield; 0.5.51). */
+    private float shieldEffNow;
+
+    /**
+     * jao_rules shield_eff_min (0.5.51): the hullmod's effect works only while the shield takes more flux per damage than
+     * the value, unless one of the listed hullmods is on (value: threshold;hullmod;...). IX Reactive Combat Shields: 0.6,
+     * or always with an Interdictor Array.
+     */
+    private boolean shieldEffGate(String mod) {
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("shield_eff_min") || !r[1].equals(mod)) continue;
+            String[] v = r[2].split(";");
+            for (int i = 1; i < v.length; i++) if (!v[i].trim().isEmpty() && work.hasHullMod(v[i].trim())) return true;
+            try { return shieldEffNow > Float.parseFloat(v[0].trim()); } catch (RuntimeException e) { return true; }
+        }
+        return true;
+    }
+
+    /** shield_eff_min against the hull's own shield (0.5.51): false when the base shield is already at or below the limit. */
+    private boolean shieldEffPossible(String mod, Set<String> mods) {
+        for (String[] r : JAORatings.rules()) {
+            if (!r[0].equals("shield_eff_min") || !r[1].equals(mod)) continue;
+            String[] v = r[2].split(";");
+            for (int i = 1; i < v.length; i++) {
+                String x = v[i].trim();
+                if (!x.isEmpty() && (mods.contains(x) || work.hasHullMod(x))) return true;
+            }
+            if (hull.getShieldSpec() == null) return false;
+            try { return hull.getShieldSpec().getFluxPerDamageAbsorbed() > Float.parseFloat(v[0].trim()); } catch (RuntimeException e) { return true; }
+        }
+        return true;
+    }
+
     private void applyHullmodRules(JAOModel.Ship s) {
         for (String[] r : JAORatings.rules()) {
             boolean has = false;
@@ -566,6 +610,7 @@ final class JAOShip implements JAOSearch.World {
                 default: continue;
             }
             if (!has) continue;
+            if ((r[0].equals("shield_taken") || r[0].equals("combat")) && !shieldEffGate(r[1])) continue;
             try {
                 switch (r[0]) {
                     case "hull_regen": {
@@ -892,6 +937,8 @@ final class JAOShip implements JAOSearch.World {
         // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
         if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
         if (!paidOrFree(mod)) return false;
+        // a hullmod that can't work on this hull's shield (0.5.51: Reactive Combat Shields on a 0.6 shield)
+        if (!shieldEffPossible(mod, mods)) return false;
         if (phaseCloak(hull) && spec.hasTag(HullMods.TAG_NON_PHASE)) return false;
         if (!phaseCloak(hull) && spec.hasTag(HullMods.TAG_PHASE)) return false;
         if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(mod)) return false;

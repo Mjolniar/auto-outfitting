@@ -50,6 +50,22 @@ final class JAOModel {
      * heavy HE (torpedoes, Hellbores), energy, fragmentation small arms.
      */
     static final float[][] INCOMING_MIX = {{KIN, 120f, 0.30f}, {HE, 350f, 0.20f}, {HE, 1000f, 0.10f}, {EN, 200f, 0.30f}, {FRAG, 60f, 0.10f}};
+
+    /**
+     * Shield damage taken by damage type against INCOMING_MIX (0.5.51): the sum of share x the type's shield multiplier x
+     * the ship's own multiplier for that type, over the same sum without the ship's. 1 = no type-specific change.
+     * Advanced Modifications Prismatic Shield (kinetic x0.5, HE and fragmentation x2): 0.88.
+     */
+    static float shieldTypeFactor(float[] byType) {
+        float base = 0f, mod = 0f;
+        for (float[] m : INCOMING_MIX) {
+            int t = (int) m[0];
+            float w = m[2] * SHIELD_MULT[t];
+            base += w;
+            mod += w * Math.max(0f, byType[t]);
+        }
+        return base > 0f ? mod / base : 1f;
+    }
     /** Keeps the average vanilla hull's armor-and-hull survival where the old linear term had it (234 hulls). */
     static final float ARMOR_EHP_SCALE = 0.614f;
 

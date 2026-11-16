@@ -244,3 +244,6 @@ combat,ah_weapon_control_supercomputer,ROF_BE:1.1:1:-ah_alpha_subsystem,rate of 
 combat,ah_weapon_control_supercomputer,DMG_BE:1.1:1:-ah_alpha_subsystem,damage +20% x flux
 combat,ah_weapon_control_supercomputer,ROF_BE:1.125:1:+ah_alpha_subsystem,Alpha: 25%
 combat,ah_weapon_control_supercomputer,DMG_BE:1.25:1:+ah_alpha_subsystem,Alpha: 25% x2
+# 0.5.51: shield_eff_min (hullmod -> its effect works only while shield flux per damage, after shield damage taken changes, is above the value;
+#         value: threshold;hullmods that lift the limit, split by ;). Not added to hulls whose own shield is at or below the value.
+shield_eff_min,ix_reactive_combat_shields,0.6;ix_interdiction_array;vice_interdiction_array,IX Reactive Combat Shields: inactive at shield efficiency 0.6 or better (ReactiveCombatShields.SHIELD_EFFICIENCY_THRESHOLD) unless an Interdictor Array is installed
