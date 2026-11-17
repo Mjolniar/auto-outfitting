@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.63 - 2026-11-17
+
+- Optimize fleet: Fixed the settings page shifting right below the credit limit's Less and More buttons and cutting off text at the right edge.
+
 ## 0.5.62 - 2026-11-17
 
 - Text: Second voice pass on the LunaLib setting descriptions, tooltips, the Optimize fleet, Order fleet weapons and Fleet analysis panels and the README. Same settings, numbers and ids.

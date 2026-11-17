@@ -107,9 +107,18 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         float share = JAOFleetOptions.budget();
         t.addPara("Credit limit: %s of your credits (%s). This covers both shop items and s-mod changes.", 6f, h,
                 Math.round(share * 100f) + "%", Misc.getDGSCredits((float) Math.floor(credits * share)));
-        ButtonAPI less = t.addButton("Less", "budgetDown", 80f, 22f, 4f);
-        ButtonAPI more = t.addButton("More", "budgetUp", 80f, 22f, 0f);
+        // 0.5.63: Less and More sit in their own small panel. Placed side by side in the text element, everything after
+        // them followed More's x and was cut off at the right edge.
+        com.fs.starfarer.api.ui.CustomPanelAPI row = Global.getSettings().createCustom(166f, 22f, new com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object id) { JAOFleetPanel.this.buttonPressed(id); }
+        });
+        TooltipMakerAPI rb = row.createUIElement(166f, 22f, false);
+        ButtonAPI less = rb.addButton("Less", "budgetDown", 80f, 22f, 0f);
+        ButtonAPI more = rb.addButton("More", "budgetUp", 80f, 22f, 0f);
+        less.getPosition().inTL(0f, 0f);
         more.getPosition().rightOfTop(less, 6f);
+        row.addUIElement(rb).inTL(0f, 0f);
+        t.addCustom(row, 4f);
         less.setEnabled(share > JAOFleetOptions.BUDGETS[0] + 0.001f);
         more.setEnabled(share < JAOFleetOptions.BUDGETS[JAOFleetOptions.BUDGETS.length - 1] - 0.001f);
         t.addPara("Anything it buys has to add %s score per 10,000 credits it costs (that's Minimum gain to buy in the settings). Owned-only weapons never get bought.", 4f, g, h,
