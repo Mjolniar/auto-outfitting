@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.62 - 2026-11-17
+
+- Text: Second voice pass on the LunaLib setting descriptions, tooltips, the Optimize fleet, Order fleet weapons and Fleet analysis panels and the README. Same settings, numbers and ids.
+
 ## 0.5.61 - 2026-11-17
 
 - Text: Settings descriptions (LunaLib and the settings file), tooltips, the Optimize fleet, Order fleet weapons and Fleet analysis panels and the README reworded in the author's voice. Same settings, numbers and ids.

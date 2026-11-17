@@ -151,7 +151,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
                 + join(noEscort, 6) + ".");
         if (!pd.isEmpty()) out.add("Point defense below need: " + join(pd, 6) + ".");
         if (!mixed.isEmpty()) out.add("Guns spread over two range bands (the AI fights at the shortest one, so long guns sit idle or the ship gets dragged in): " + join(mixed, 6) + ".");
-        if (!empty.isEmpty()) out.add("Empty mounts: " + join(empty, 6) + ". Re-fit with Optimal, or you might be out of weapons that fit.");
+        if (!empty.isEmpty()) out.add("Empty mounts: " + join(empty, 6) + ". Re-fit them with Optimal, or you might just be out of weapons that fit.");
         return out;
     }
 

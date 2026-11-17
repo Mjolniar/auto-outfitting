@@ -90,51 +90,51 @@ final class JAOFleetPanel extends JAOOverlayPanel {
 
         TooltipMakerAPI t = scroller(W - 20f, H - 70f);
         t.addSectionHeading(title(), Alignment.MID, 0f);
-        t.addPara("These settings only apply to this save. Plan fleet shows you every change first, and nothing changes until you hit Apply to all ships.", 6f, g);
+        t.addPara("These settings are just for this save. Plan fleet shows you every change before anything happens, and nothing actually changes until you hit Apply to all ships.", 6f, g);
 
         t.addSectionHeading("Weapons and LPCs", Alignment.MID, 10f);
-        t.addPara("It always uses what's on the ships and in fleet cargo.", 4f, g);
+        t.addPara("It always uses whatever's on the ships and in your fleet cargo.", 4f, g);
         storageBox = box(t, "Use storage here", "storage", JAOFleetOptions.useStorage());
-        t.addPara(esc(hasStorage ? "Your storage at " + market.getName() + ". Anything that comes off and doesn't get used goes there."
+        t.addPara(esc(hasStorage ? "This is your storage at " + market.getName() + ", and anything that comes off and doesn't get used goes there."
                 : "You don't have storage here."), 0f, g);
         storedBox = box(t, "Strip stored ships", "stored", JAOFleetApply.stripStored());
-        t.addPara("Weapons and LPCs on your ships stored here get added to the stock (locked ships keep theirs). Needs Use storage here.", 0f, g);
+        t.addPara("Weapons and LPCs on the ships you've got stored here get added to the stock (locked ships keep theirs). This needs Use storage here on.", 0f, g);
         String legal = JAOShops.names(shops, false), black = JAOShops.names(shops, true);
         legalBox = box(t, "Buy from legal shops", "legal", JAOFleetOptions.buyLegal());
         t.addPara(esc(legal.isEmpty() ? "None of the legal shops here will sell to you." : "Here: " + legal + "."), 0f, g);
         blackBox = box(t, "Buy from black markets", "black", JAOFleetOptions.buyBlack());
-        t.addPara(esc(black.isEmpty() ? "No black market here." : "Here: " + black + "."), 0f, g);
+        t.addPara(esc(black.isEmpty() ? "There's no black market here." : "Here: " + black + "."), 0f, g);
         float share = JAOFleetOptions.budget();
-        t.addPara("Credit limit: %s of your credits (%s). This covers shop items and s-mod changes.", 6f, h,
+        t.addPara("Credit limit: %s of your credits (%s). This covers both shop items and s-mod changes.", 6f, h,
                 Math.round(share * 100f) + "%", Misc.getDGSCredits((float) Math.floor(credits * share)));
         ButtonAPI less = t.addButton("Less", "budgetDown", 80f, 22f, 4f);
         ButtonAPI more = t.addButton("More", "budgetUp", 80f, 22f, 0f);
         more.getPosition().rightOfTop(less, 6f);
         less.setEnabled(share > JAOFleetOptions.BUDGETS[0] + 0.001f);
         more.setEnabled(share < JAOFleetOptions.BUDGETS[JAOFleetOptions.BUDGETS.length - 1] - 0.001f);
-        t.addPara("A bought item has to add %s score per 10,000 credits it costs (Minimum gain to buy in the settings). Owned-only weapons never get bought.", 4f, g, h,
+        t.addPara("Anything it buys has to add %s score per 10,000 credits it costs (that's Minimum gain to buy in the settings). Owned-only weapons never get bought.", 4f, g, h,
                 JAOSMods.pct(JAOSettings.buyGain));
 
         t.addSectionHeading("S-mods", Alignment.MID, 10f);
         int sp = 0;
         try { sp = Global.getSector().getPlayerStats().getStoryPoints(); } catch (Throwable ignored) { }
         smodsBox = box(t, "Build in s-mods with story points", "smods", JAOFleetOptions.smods());
-        t.addPara(esc("You have " + sp + " story points and it keeps " + JAOSettings.smodReserve + " (Story points to keep in the settings). Frigates get at most "
-                + JAOSettings.smodMaxFrigate + " s-mods and destroyers " + JAOSettings.smodMaxDestroyer + (JAOSettings.smodBySize ? ", and smaller ships need a bigger gain" : "") + "."), 0f, g);
+        t.addPara(esc("You've got " + sp + " story points and it always keeps " + JAOSettings.smodReserve + " of them (Story points to keep in the settings). Frigates get at most "
+                + JAOSettings.smodMaxFrigate + " s-mods and destroyers " + JAOSettings.smodMaxDestroyer + (JAOSettings.smodBySize ? ", and smaller ships need a bigger gain before they get one" : "") + "."), 0f, g);
         boolean here = JAOFleetOptions.changeSmodsHere(market, mode);
         changeBox = box(t, "Change s-mods with credits", "change", JAOFleetOptions.changeSmods());
-        t.addPara(esc(here ? "Uses the game's Change s-mods at your colony, " + Misc.getDGSCredits(JAOFleetOptions.changePrice(com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE))
+        t.addPara(esc(here ? "This uses the game's own Change s-mods at your colony, which runs " + Misc.getDGSCredits(JAOFleetOptions.changePrice(com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE))
                 + " to " + Misc.getDGSCredits(JAOFleetOptions.changePrice(com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP))
-                + " per s-mod removed or added depending on hull size. A change has to make the ship " + JAOSMods.pct(JAOSettings.smodChangeMinGain) + " stronger (more on small ships)."
-                : "Only works at your own colony with heavy industry."), 0f, g);
+                + " per s-mod removed or added depending on hull size. A change has to make the ship at least " + JAOSMods.pct(JAOSettings.smodChangeMinGain) + " stronger (more on small ships), so it gets used pretty sparingly."
+                : "This only works at your own colony with heavy industry."), 0f, g);
 
         t.addSectionHeading("Officers and augments", Alignment.MID, 10f);
         officersBox = box(t, "Place officers", "officers", JAOFleetApply.placeOfficers());
-        t.addPara("Officers move to whichever ship they add the most to. You and any AI cores stay put.", 0f, g);
+        t.addPara("Officers move to whichever ship they help the most. You and any AI cores stay put.", 0f, g);
         augmentsBox = null;
         if (JAOEsr.present()) {
             augmentsBox = box(t, "Place augments", "augments", JAOAugments.place());
-            t.addPara("Extra Systems augments go to whichever ship they add the most to. Only works at a friendly market with a spaceport.", 0f, g);
+            t.addPara("Extra Systems augments go to whichever ship they help the most. This only works at a friendly market with a spaceport.", 0f, g);
         }
         place(t, 10f, 10f);
 
@@ -217,14 +217,14 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if (notes.length() > 0) list.addPara(esc(notes.toString().trim()), 2f, g);
         if (job.officers != null) {
             int moves = job.officerMoves();
-            if (moves > 0) list.addPara("Officers: %s move to whichever ship they add the most to. You and any AI cores stay put.", 2f, h, "" + moves);
-            else list.addPara("Officers: every officer's already on the ship where they add the most.", 2f, g);
+            if (moves > 0) list.addPara("Officers: %s move to whichever ship they help the most. You and any AI cores stay put.", 2f, h, "" + moves);
+            else list.addPara("Officers: every officer's already on the ship they help the most.", 2f, g);
         }
         if (job.augments != null && job.augments.any()) {
             int moves = job.augmentMoves();
-            if (moves > 0) list.addPara("Augments: %s ships change augments, and each one goes to whichever ship it adds the most to.", 2f, h, "" + moves);
-            else list.addPara("Augments: every augment's already on the ship where it adds the most.", 2f, g);
-            if (!job.augments.unused.isEmpty()) list.addPara(esc("Augments not placed: " + String.join(", ", job.augments.unused) + ". They stay in cargo or storage."), 2f, g);
+            if (moves > 0) list.addPara("Augments: %s ships change augments, and each one goes to whichever ship it helps the most.", 2f, h, "" + moves);
+            else list.addPara("Augments: every augment's already on the ship it helps the most.", 2f, g);
+            if (!job.augments.unused.isEmpty()) list.addPara(esc("Augments not placed: " + String.join(", ", job.augments.unused) + ". They'll stay in cargo or storage."), 2f, g);
         } else if (job.augmentsAway) {
             list.addPara("Augments: they only move at a friendly market with a spaceport (Extra Systems bay).", 2f, g);
         }

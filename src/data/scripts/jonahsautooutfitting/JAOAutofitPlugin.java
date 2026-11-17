@@ -20,12 +20,12 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
     public JAOAutofitPlugin(PersonAPI fleetCommander) {
         super(fleetCommander);
         options.add(new AutofitOption(JAOGoals.OPTION, "Optimal fit for every goal", false,
-                "With this ticked, Auto Outfitting builds the strongest loadout it can from what you have, whichever goal you click. "
-                        + "It's mainly for ships whose four goal slots are all taken, otherwise just pick the Optimal goal."));
+                "With this ticked, Auto Outfitting builds the strongest loadout it can from what you have, no matter which goal you click. "
+                        + "It's mainly for ships whose four goal slots are all taken up, otherwise just pick the Optimal goal."));
         options.add(new AutofitOption(SMODS, "Build in s-mods (story points, permanent)", false,
-                "With an Optimal fit, it also builds in the hullmods that make the ship strongest, and it judges each one by re-fitting "
+                "With an Optimal fit, it'll also build in the hullmods that make the ship strongest, and it checks each one by re-fitting "
                         + "the whole ship around it. It spends one story point per s-mod, and only when you hit Confirm (the preview never spends any). "
-                        + "Limits, minimum gain, waiting for better hullmods and the story point reserve are in the mod's settings."));
+                        + "Limits, minimum gain, waiting for better hullmods and the story point reserve are all in the mod's settings."));
     }
 
     static final String SMODS = "jao_build_smods";

@@ -327,22 +327,22 @@ public class JAOScreenButton implements EveryFrameScript {
                 if (OPEN.equals(id)) {
                     tt.addPara("Plans the whole fleet's Optimal fits together like every weapon and fighter blueprint you know "
                             + "is in stock, then lists everything custom production would have to build for it. Nothing gets ordered "
-                            + "until you hit Queue all, and hitting it again later only orders what's still missing.", 0f);
-                    tt.addPara("Budget: %s of your credits (in the mod's settings).", 6f, Misc.getHighlightColor(),
+                            + "until you hit Queue all, and if you hit it again later it only orders what's still missing.", 0f);
+                    tt.addPara("Budget: %s of your credits (you can change that in the mod's settings).", 6f, Misc.getHighlightColor(),
                             Math.round(JAOSettings.productionBudget * 100f) + "%");
                 } else if (OPTIMIZE.equals(id)) {
-                    tt.addPara("Brings up the Optimize fleet settings first (storage, stored ships, shops and a credit limit, s-mods, "
+                    tt.addPara("This brings up the Optimize fleet settings first (storage, stored ships, shops and a credit limit, s-mods, "
                             + "officers and augments). Plan fleet then plans every combat ship's Optimal fit together, balancing the whole "
-                            + "fleet (anti-shield, armor-cracking, fighter roles), and shows you what changes on each ship. Nothing changes "
-                            + "until you hit Apply to all ships.", 0f);
+                            + "fleet (anti-shield, armor-cracking, fighter roles), and shows you what changes on each ship. Nothing actually "
+                            + "changes until you hit Apply to all ships.", 0f);
                 } else if (LOCK.equals(id)) {
                     tt.addPara("Locks or unlocks the ship shown here. Optimize fleet and Order fleet weapons leave a locked ship "
                             + "alone, so its weapons, wings, hullmods, vents and capacitors stay the same, nothing gets ordered for it, "
-                            + "and what it carries doesn't get used on other ships. It still counts toward the fleet's balance.", 0f);
-                    tt.addPara("You can still use Optimal from the Autofit button on a locked ship.", 6f);
+                            + "and what it carries doesn't get used on other ships. It still counts toward the fleet's balance though.", 0f);
+                    tt.addPara("You can still use Optimal from the Autofit button on a locked ship if you want to.", 6f);
                 } else {
-                    tt.addPara("Shows what your fleet carries (anti-shield and armor-cracking against what it should have, damage types, "
-                            + "fighter roles, point defense, range bands and empty mounts) with some recommendations. It doesn't change anything.", 0f);
+                    tt.addPara("Shows you what your fleet's carrying (anti-shield and armor-cracking against what it should have, damage types, "
+                            + "fighter roles, point defense, range bands and empty mounts) with some recommendations. It doesn't change anything, it's just a look.", 0f);
                 }
             }
         }, TooltipMakerAPI.TooltipLocation.BELOW);

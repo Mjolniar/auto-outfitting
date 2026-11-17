@@ -63,8 +63,8 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             head.addPara("Couldn't plan the fleet order (see starsector.log).", 6f, bad);
         } else {
             if (plan.lines.isEmpty() && plan.settlementLines.isEmpty()) {
-                head.addPara(plan.laterItems > 0 ? "Nothing fits the budget right now." : "Nothing new to build. Your fleet's plan only uses what you own or have on order, or you don't "
-                        + "know any blueprint that would improve it.", 6f);
+                head.addPara(plan.laterItems > 0 ? "Nothing fits the budget right now." : "There's nothing new to build. Your fleet's plan only uses what you own or have on order, or you don't "
+                        + "know any blueprint that would make it better.", 6f);
             } else {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.lines) units += l.count;
