@@ -50,7 +50,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         TooltipMakerAPI head = element(W - 20f, 210f, false, 10f, 10f);
         head.addSectionHeading(title(), Alignment.MID, 0f);
         if (fleet == null || fleet.ships == 0) {
-            head.addPara(fleet == null ? "Couldn't read the fleet (see starsector.log)." : "No combat ships in the fleet.", 6f, fleet == null ? bad : g);
+            head.addPara(fleet == null ? "Couldn't read the fleet (see starsector.log)." : "There aren't any combat ships in the fleet.", 6f, fleet == null ? bad : g);
             buttons();
             return;
         }
@@ -76,7 +76,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         TooltipMakerAPI list = element(W - 20f, H - 290f, true, 10f, 230f);
         list.addSectionHeading("Recommendations", Alignment.MID, 0f);
         List<String> recs = recommendations(fleet, shieldShort, armorShort);
-        if (recs.isEmpty()) list.addPara("The fleet is balanced; nothing to re-fit.", 4f, good);
+        if (recs.isEmpty()) list.addPara("The fleet's balanced, so there's nothing to re-fit.", 4f, good);
         for (String r : recs) list.addPara(esc(BULLET + r), 4f);
         list.addSectionHeading("Ships", Alignment.MID, 10f);
         List<JAOFleetContext.Ship> ships = new ArrayList<>(fleet.perShip);
@@ -124,7 +124,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
         List<String> out = new ArrayList<>();
         JAOFleetMix mix = f.mix;
         if (shieldShort || armorShort) out.add((shieldShort ? "Anti-shield is short (" + pct(mix.shieldShare()) + ")" : "Anti-armor is short (" + pct(mix.armorShare()) + " armor-cracking)")
-                + ". Optimize fleet plans every ship together and leans each toward what the rest lacks; ships doing least of it now: " + lowest(f, shieldShort) + ".");
+                + ". Optimize fleet plans every ship together and leans each one toward what the rest are missing. Ships doing the least of it right now: " + lowest(f, shieldShort) + ".");
         float filled = 0f;
         for (float b : mix.wingBays) filled += b;
         if (filled >= 4f) {
@@ -147,11 +147,11 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
             if (s.maxRange - s.minRange > 400f && s.minRange < Float.MAX_VALUE) mixed.add(name(s) + " (" + Math.round(s.minRange) + "-" + Math.round(s.maxRange) + ")");
             if (s.emptyMounts > 0) empty.add(name(s) + " (" + s.emptyMounts + ")");
         }
-        if (!noEscort.isEmpty()) out.add("Interceptors next to bombers (a carrier with any bomber never sends fighters to escort, so the interceptors don't screen it): "
+        if (!noEscort.isEmpty()) out.add("Interceptors next to bombers (with too many bombers a carrier won't send its fighters to escort, so the interceptors may not screen it): "
                 + join(noEscort, 6) + ".");
         if (!pd.isEmpty()) out.add("Point defense below need: " + join(pd, 6) + ".");
-        if (!mixed.isEmpty()) out.add("Guns spread over two range bands (the AI fights at the shortest, so long guns idle or the ship gets dragged in): " + join(mixed, 6) + ".");
-        if (!empty.isEmpty()) out.add("Empty mounts: " + join(empty, 6) + ". Re-fit with Optimal, or the stock may be out of weapons that fit.");
+        if (!mixed.isEmpty()) out.add("Guns spread over two range bands (the AI fights at the shortest one, so long guns sit idle or the ship gets dragged in): " + join(mixed, 6) + ".");
+        if (!empty.isEmpty()) out.add("Empty mounts: " + join(empty, 6) + ". Re-fit with Optimal, or you might be out of weapons that fit.");
         return out;
     }
 

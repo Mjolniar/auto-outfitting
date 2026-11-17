@@ -71,7 +71,7 @@ abstract class JAOOverlayPanel implements CustomUIPanelPlugin {
         TooltipMakerAPI t = element(width() - 20f, 90f, false, 10f, 10f);
         t.addSectionHeading(title(), Alignment.MID, 0f);
         t.addPara(esc(progress()) + " ...", 8f, Misc.getHighlightColor());
-        t.addPara("Every ship is planned with the rest of the fleet in view; a big fleet takes a few seconds.", 4f, Misc.getGrayColor());
+        t.addPara("It plans every ship with the rest of the fleet in mind, so a big fleet takes a few seconds.", 4f, Misc.getGrayColor());
         TooltipMakerAPI b = element(width() - 20f, 40f, false, 10f, height() - 50f);
         b.addButton("Close", "close", 140f, 30f, 0f);
     }

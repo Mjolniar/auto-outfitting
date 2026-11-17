@@ -63,24 +63,24 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             head.addPara("Couldn't plan the fleet order (see starsector.log).", 6f, bad);
         } else {
             if (plan.lines.isEmpty() && plan.settlementLines.isEmpty()) {
-                head.addPara(plan.laterItems > 0 ? "Nothing fits the budget now." : "Nothing new to build: your fleet's plan uses only what you own or have on order, or you know no "
-                        + "blueprint that would improve it.", 6f);
+                head.addPara(plan.laterItems > 0 ? "Nothing fits the budget right now." : "Nothing new to build. Your fleet's plan only uses what you own or have on order, or you don't "
+                        + "know any blueprint that would improve it.", 6f);
             } else {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.lines) units += l.count;
                 for (JAOFleetPlanner.Line l : plan.settlementLines) units += l.count;
-                head.addPara("%s items (%s kinds) for the fleet's plan, %s in all. You have %s; budget %s.", 6f, h,
+                head.addPara("%s items (%s kinds) for the fleet's plan, %s in all. You have %s and the budget is %s.", 6f, h,
                         "" + units, "" + (plan.lines.size() + plan.settlementLines.size()), Misc.getDGSCredits(plan.totalCost + plan.settlementCost),
                         Misc.getDGSCredits(plan.credits), Misc.getDGSCredits(plan.budget));
             }
-            if (plan.laterItems > 0) head.addPara("Over the budget: %s more items for %s ships (%s). Press Order fleet weapons again later to order them.",
+            if (plan.laterItems > 0) head.addPara("Over the budget: %s more items for %s ships (%s). Hit Order fleet weapons again later to order them.",
                     4f, h, "" + plan.laterItems, "" + plan.laterShips, Misc.getDGSCredits(plan.laterCost));
             if (plan.before != null && plan.after != null) head.addPara(esc(mixLine(plan.before, plan.after)), 4f, g);
             if (!plan.moved.isEmpty()) {
                 int units = 0;
                 for (JAOFleetPlanner.Line l : plan.moved) units += l.count;
                 head.addPara("%s items from an earlier order (%s) are in the game's own production list, which AoTD's screen doesn't "
-                        + "show. Queue all moves them into AoTD's production.", 4f, h, "" + units, Misc.getDGSCredits(plan.movedCost));
+                        + "show. Queue all moves them over to AoTD's production.", 4f, h, "" + units, Misc.getDGSCredits(plan.movedCost));
             }
             JAOProduction.Settlement st = plan.settlement;
             if (st != null) {
@@ -92,7 +92,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                         Misc.getDGSCredits(st.budget), Misc.getDGSCredits(st.maxBudget), Misc.getDGSCredits(st.perMonth));
             }
             if (plan.aotd) {
-                head.addPara("Production: Ashes of the Domain (Colonies, Custom production). Each unit is paid when it's finished, "
+                head.addPara("Production: Ashes of the Domain (Colonies, Custom production). Each unit gets paid for when it's finished, "
                         + "and AoTD needs its resources delivered.", 4f, g);
                 if (!plan.resources.isEmpty()) {
                     // AoTD's order takes these from your colonies' exports every month; a good no colony makes stalls it
@@ -105,18 +105,18 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                     for (String c : none) names.add(JAOProduction.commodityName(c));
                     if (cm) {
                         head.addPara(esc((none.isEmpty() ? "" : "Auto Colonies plans a producer for " + Misc.getAndJoined(names)
-                                + " (Special project supply, under Items and AI cores); those items wait until it runs. ")
-                                + "It only plans for goods no colony makes: one your colonies make little of just slows the order."), 4f, g);
+                                + " (Special project supply, under Items and AI cores), and those items wait until it runs. ")
+                                + "It only plans for goods no colony makes, so one your colonies make little of just slows it down."), 4f, g);
                     } else if (!none.isEmpty()) {
                         head.addPara(esc("Those items wait until a colony makes " + Misc.getAndJoined(names) + "."), 4f, bad);
                     }
                 }
             } else if (plan.monthlyCapacity <= 0 && st != null) {
-                head.addPara("No custom production capacity (Heavy Industry or Orbital Works): the settlement takes what fits its budget.", 4f, g);
+                head.addPara("No custom production capacity (Heavy Industry or Orbital Works), so the settlement takes what fits its budget.", 4f, g);
             } else if (plan.monthlyCapacity <= 0) {
-                head.addPara("You have no custom production capacity: you need a colony with Heavy Industry or Orbital Works.", 4f, bad);
+                head.addPara("You don't have any custom production capacity. You need a colony with Heavy Industry or Orbital Works.", 4f, bad);
             } else if (plan.totalCost > 0) {
-                head.addPara("Production capacity %s a month: about %s, paid each month as items are built.", 4f, h,
+                head.addPara("Production capacity is %s a month, about %s, paid each month as items get built.", 4f, h,
                         Misc.getDGSCredits(plan.monthlyCapacity), months(plan.totalCost, plan.monthlyCapacity));
             }
             if (plan.problem != null) head.addPara(plan.problem + ".", 4f, bad);

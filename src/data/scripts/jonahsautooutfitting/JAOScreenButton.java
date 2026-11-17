@@ -325,24 +325,24 @@ public class JAOScreenButton implements EveryFrameScript {
             public float getTooltipWidth(Object o) { return 440f; }
             public void createTooltip(TooltipMakerAPI tt, boolean expanded, Object o) {
                 if (OPEN.equals(id)) {
-                    tt.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
-                            + "were in stock, and lists everything custom production would have to build for it. Nothing is ordered "
-                            + "until you press Queue all; pressing it again later only orders what's still missing.", 0f);
-                    tt.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
+                    tt.addPara("Plans the whole fleet's Optimal fits together like every weapon and fighter blueprint you know "
+                            + "is in stock, then lists everything custom production would have to build for it. Nothing gets ordered "
+                            + "until you hit Queue all, and hitting it again later only orders what's still missing.", 0f);
+                    tt.addPara("Budget: %s of your credits (in the mod's settings).", 6f, Misc.getHighlightColor(),
                             Math.round(JAOSettings.productionBudget * 100f) + "%");
                 } else if (OPTIMIZE.equals(id)) {
-                    tt.addPara("Opens the Optimize fleet settings: storage, stored ships, shops and a credit limit, s-mods, officers "
-                            + "and augments. Plan fleet then plans every combat ship's Optimal fit together, balancing the whole fleet "
-                            + "(anti-shield, armor-cracking, fighter roles), and shows what changes on each ship. Nothing changes until "
-                            + "you press Apply to all ships.", 0f);
+                    tt.addPara("Brings up the Optimize fleet settings first (storage, stored ships, shops and a credit limit, s-mods, "
+                            + "officers and augments). Plan fleet then plans every combat ship's Optimal fit together, balancing the whole "
+                            + "fleet (anti-shield, armor-cracking, fighter roles), and shows you what changes on each ship. Nothing changes "
+                            + "until you hit Apply to all ships.", 0f);
                 } else if (LOCK.equals(id)) {
                     tt.addPara("Locks or unlocks the ship shown here. Optimize fleet and Order fleet weapons leave a locked ship "
-                            + "as it is: its weapons, wings, hullmods, vents and capacitors don't change, nothing is ordered for it, "
-                            + "and what it carries isn't used for other ships. It still counts toward the fleet's balance.", 0f);
-                    tt.addPara("The Autofit button's Optimal fit still works on a locked ship.", 6f);
+                            + "alone, so its weapons, wings, hullmods, vents and capacitors stay the same, nothing gets ordered for it, "
+                            + "and what it carries doesn't get used on other ships. It still counts toward the fleet's balance.", 0f);
+                    tt.addPara("You can still use Optimal from the Autofit button on a locked ship.", 6f);
                 } else {
-                    tt.addPara("What your fleet carries: anti-shield and armor-cracking against their aims, damage types, fighter roles, "
-                            + "point defense, range bands and empty mounts, with recommendations. Changes nothing.", 0f);
+                    tt.addPara("Shows what your fleet carries (anti-shield and armor-cracking against what it should have, damage types, "
+                            + "fighter roles, point defense, range bands and empty mounts) with some recommendations. It doesn't change anything.", 0f);
                 }
             }
         }, TooltipMakerAPI.TooltipLocation.BELOW);

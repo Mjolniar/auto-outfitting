@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.61 - 2026-11-17
+
+- Text: Settings descriptions (LunaLib and the settings file), tooltips, the Optimize fleet, Order fleet weapons and Fleet analysis panels and the README reworded in the author's voice. Same settings, numbers and ids.
+- Settings: Civilian ships description says leftover OP goes into vents and capacitors.
+- Settings: Minimum gain to buy says Optimize fleet buys only with its shop ticks on.
+- Settings: Order weapons for fleet button says turning it off hides only that button.
+- Fleet analysis: The interceptors and bombers note says a carrier with too many bombers doesn't send fighters to escort.
+
 ## 0.5.60 - 2026-11-16
 
 - Compatibility: Fixed real Nimbus LPCs (IX Revival) being deleted from cargo and storage on save. Only the Nimbus drone wings are removed.

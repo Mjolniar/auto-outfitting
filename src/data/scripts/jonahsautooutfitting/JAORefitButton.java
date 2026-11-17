@@ -33,10 +33,10 @@ public class JAORefitButton extends BaseRefitButton {
 
     @Override
     public void addTooltip(TooltipMakerAPI tooltip, FleetMemberAPI member, ShipVariantAPI variant, MarketAPI market) {
-        tooltip.addPara("Plans the whole fleet's Optimal fits together as if every weapon and fighter blueprint you know "
-                + "were in stock, and lists what custom production would have to build. Nothing is ordered until you press "
+        tooltip.addPara("Plans the whole fleet's Optimal fits together like every weapon and fighter blueprint you know "
+                + "is in stock, then lists what custom production would have to build. Nothing gets ordered until you hit "
                 + "Queue all.", 0f);
-        tooltip.addPara("Budget: %s of your credits (mod settings).", 6f, Misc.getHighlightColor(),
+        tooltip.addPara("Budget: %s of your credits (in the mod's settings).", 6f, Misc.getHighlightColor(),
                 Math.round(JAOSettings.productionBudget * 100f) + "%");
     }
 
