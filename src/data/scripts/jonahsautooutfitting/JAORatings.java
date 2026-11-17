@@ -435,7 +435,8 @@ public class JAORatings {
             if (h.getHints().contains(ShipTypeHints.STATION) || h.getHints().contains(ShipTypeHints.MODULE)) continue;
             boolean shield = h.getShieldType() == ShieldType.FRONT || h.getShieldType() == ShieldType.OMNI;
             float eff = shield && h.getShieldSpec() != null ? h.getShieldSpec().getFluxPerDamageAbsorbed() : 0f;
-            rows.get(size).add(new float[]{h.getArmorRating(), h.getHitpoints(), h.getFluxCapacity(), h.getFluxDissipation(), eff, shield ? 1f : 0f});
+            float speed = h.getEngineSpec() == null ? 0f : h.getEngineSpec().getMaxSpeed();
+            rows.get(size).add(new float[]{h.getArmorRating(), h.getHitpoints(), h.getFluxCapacity(), h.getFluxDissipation(), eff, shield ? 1f : 0f, speed});
         }
         float[] threats = threats();
         refs = new JAOModel.Target[4][2];
@@ -459,6 +460,7 @@ public class JAORatings {
                 }
                 t.weight = k == 0 ? share : 1f - share;
                 t.threat = threats[s];
+                t.speed = median(all, 6, JAORole.DEFAULT_SPEED[s]);
                 refs[s][k] = t;
             }
         }
@@ -534,6 +536,7 @@ public class JAORatings {
                 c.size = t.size; c.armor = t.armor; c.hull = t.hull; c.cap = t.cap; c.diss = t.diss; c.shield = t.shield;
                 c.shieldEff = t.shieldEff;
                 c.threat = t.threat;
+                c.speed = t.speed;
                 c.weight = mix[s] * t.weight;
                 out.add(c);
             }

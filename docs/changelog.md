@@ -1,5 +1,19 @@
 # Patch notes
 
+## 0.5.59 - 2026-11-16
+
+- Fleet roles: Added the Brawler role for slow frigates, destroyers and cruisers (Enforcer, Dominator, Monitor and similar). Speed against other loaded ships of the same size now sets the role: slow ships brawl, very fast cruisers flank.
+- Fleet roles: Fast ships get survival for outrunning what they fight (Skirmisher most, Flanker less). Phase Skimmer and Phase Teleporter ships count it more, and burn drives and jets add their speed. Plasma Burn doesn't count.
+- Fleet roles: Mora, Drover, Gemini and Colossus Mk.III are battle carriers. Monitor and Centurion are escorts. Atlas Mk.II is line artillery.
+- Carriers: AI support carriers (Heron, Condor, Astral) take point defense and missiles over guns.
+- Flagship: The ship you fly gets a balanced fit. It fights every ship size, carries its own point defense, has kinetic and armor-cracking damage, and keeps its role. A carrier flagship keeps guns. Setting "Balanced flagship", on by default.
+- Optimize fleet: The flagship is planned first and gets first pick of the weapons. Special hulls (Ziggurat, Remnant, Omega and other ships no blueprint builds) are planned before others of their size.
+- Search: Added extra search starts, each with the most repeated weapon set aside for a fresh fill. Fits were better on 9 of 89 vanilla hulls and worse on none. Fit time is about 20% longer.
+- Hullmods: Armored Weapons and Advanced Optics are no longer blocked by the drawback filter for turret turn rate. ECCM no longer counts as a missile range loss.
+- Hullmods: High Scatter Amplifier beams deal hard flux, and its damage bonus counts once. Missile Autoloader reloads small missiles only. Makeshift Shield Generator now gives a shield in the model. Accelerated and Extended Shields count more on small ships.
+- Hardpoints: Hardpoint aim depends on the ship's turn rate. Auxiliary Thrusters count more on slow hardpoint ships like the Onslaught.
+- Checks: 875 automated checks pass.
+
 ## 0.5.58 - 2026-11-16
 
 - Optimize fleet: Fixed the settings page staying on screen under the plan after Plan fleet.

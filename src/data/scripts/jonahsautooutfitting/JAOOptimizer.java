@@ -292,6 +292,7 @@ class JAOOptimizer {
         if (!module) {
             String what = role != null ? role.label : "";
             if (st != JAOStyle.AUTO && st != JAOStyle.BALANCED) what = what.isEmpty() ? st.label : what + ", " + st.label;
+            if (p.flagship) what = what.isEmpty() ? "Flagship" : what + ", flagship";
             current.setVariantDisplayName(JAOGoals.PREFIX + (what.isEmpty() ? "" : ": " + what) + (built > 0 ? " +" + built + " s-mod" + (built > 1 ? "s" : "") : "")
                     + (unused > 0 ? " (" + unused + " OP spare" + (!JAOSettings.allowDrawbacks && !world.drawbacks.isEmpty() ? ": drawbacks off)" : ")") : ""));
             delegate.syncUIWithVariant(current);
@@ -312,7 +313,7 @@ class JAOOptimizer {
      * the damage it's short of. The fleet plan passes the rest of its plan; a single fit reads the fleet as it stands.
      */
     private JAOModel.Params paramsFor(ShipHullSpecAPI hull, JAORole role, JAOStyle st) {
-        JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role);
+        JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role, flagshipFit());
         if (!module && JAOSettings.fleetBalance) {
             try {
                 JAOFleetMix others = fleetMix != null ? fleetMix : JAOFleetContext.of(delegate.getFleetMember()).mix;
@@ -528,6 +529,7 @@ class JAOOptimizer {
             case BALLISTIC: return JAOModel.SLOT_BAL;
             case ENERGY: return JAOModel.SLOT_ENE;
             case HYBRID: return JAOModel.SLOT_HYB;
+            case MISSILE: return JAOModel.SLOT_MIS;
             default: return -1;
         }
     }
@@ -1069,12 +1071,23 @@ class JAOOptimizer {
     }
 
     static JAOModel.Params params(JAOStyle style, int size, JAORole role) {
+        return params(style, size, role, false);
+    }
+
+    /** flagship: the player's ship (0.5.59): balanced, fights every size, carries its own point defense (Params.flagship). */
+    static JAOModel.Params params(JAOStyle style, int size, JAORole role, boolean flagship) {
         JAOModel.Params p = new JAOModel.Params();
         p.apply(style, role, JAOSettings.range);
         p.fightSeconds = JAOSettings.fightSeconds;
         p.pdFloor = JAOSettings.pdFloor;
         p.rareBonus = JAOSettings.preferRare ? JAOSettings.rareBonus : 0f;
         float[] mix = role != null && role.targets != null ? role.targets : JAORatings.TARGET_MIX[Math.max(0, Math.min(3, size))];
+        if (flagship) {
+            p.flagship(size);
+            float[] wide = new float[4];
+            for (int i = 0; i < 4; i++) wide[i] = (1f - JAOModel.FLAGSHIP_MIX) * mix[i] + JAOModel.FLAGSHIP_MIX * 0.25f;
+            mix = wide;
+        }
         p.targets = JAORatings.targets(mix, style);
         return p;
     }
@@ -1097,7 +1110,51 @@ class JAOOptimizer {
         // bays with built-in wings aren't a carrier's choice (0.5.45, build audit: Venture, Apex)
         int bays = hull.getFighterBays() - (hull.getBuiltInWings() == null ? 0 : hull.getBuiltInWings().size());
         return JAORole.detect(hull.getDesignation(), size, phase, Math.max(0, bays), op > 0 ? slots / op : 1f,
-                slots > 0f ? missile / slots : 0f, hull.isCivilianNonCarrier(), hull.getShipSystemId());
+                slots > 0f ? missile / slots : 0f, hull.isCivilianNonCarrier(), hull.getShipSystemId(), speedRatio(hull, size));
+    }
+
+    /** The hull's max speed against the median of the loaded combat hulls of its size (0.5.59); 1 when unknown. */
+    static float speedRatio(ShipHullSpecAPI hull, int size) {
+        try {
+            float median = JAORatings.refs()[Math.max(0, Math.min(3, size))][0].speed;
+            float speed = hull.getEngineSpec() == null ? 0f : hull.getEngineSpec().getMaxSpeed();
+            return median > 0f && speed > 0f ? speed / median : 1f;
+        } catch (Throwable t) {
+            return 1f;
+        }
+    }
+
+    /**
+     * A special hull (0.5.59, user 11/16: a unique ship gains priority in Optimize fleet): one no blueprint builds
+     * (no "_bp" tag: Ziggurat, Omega, Remnant, Threat and Dweller hulls, one-off story ships), or tagged omega, threat,
+     * dweller or restricted. Derelict drones and civilian hulls are not. A skin keeps only its own tags ((D) hulls have
+     * just hide_in_codex), so the base hull's tags decide.
+     */
+    static boolean special(ShipHullSpecAPI hull) {
+        if (hull == null || hull.isCivilianNonCarrier()) return false;
+        java.util.Set<String> tags = new java.util.HashSet<>(hull.getTags());
+        try {
+            String base = hull.getBaseHullId();
+            if (base != null && !base.equals(hull.getHullId())) {
+                ShipHullSpecAPI b = Global.getSettings().getHullSpec(base);
+                if (b != null) tags.addAll(b.getTags());
+            }
+        } catch (Throwable ignored) { }
+        if (tags.contains("derelict")) return false;
+        for (String t : new String[]{"omega", "threat", "dweller", "restricted"}) if (tags.contains(t)) return true;
+        for (String t : tags) if (t != null && t.endsWith("_bp")) return false;
+        return true;
+    }
+
+    /** The player's flagship gets the balanced flagship fit (0.5.59, setting jao_flagshipBalanced). */
+    private boolean flagshipFit() {
+        if (module || !JAOSettings.flagshipBalanced) return false;
+        try {
+            FleetMemberAPI m = delegate.getFleetMember();
+            return m != null && m.isFlagship();
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** jao_rules one_per_ship: more than one feedback weapon makes them hurt their own ship (Emergent Threats). */

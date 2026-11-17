@@ -105,8 +105,12 @@ final class JAOFleetPlan {
         this.hullmods = new ArrayList<>(new java.util.TreeSet<>(Global.getSector().getPlayerFaction().getKnownHullMods()));
         // one Optimize fleet spends story points down to the reserve, or at most jao_smodFleetMax of them when set (0.5.30; 0 = no cap since 0.5.35)
         this.storyPoints = spendable(Global.getSector().getPlayerStats().getStoryPoints(), JAOSettings.smodReserve, JAOSettings.smodFleetMax);
+        // 0.5.59 (user 11/16): the flagship picks first, then biggest ships; a special hull (JAOOptimizer.special) before
+        // others of its size
         List<FleetMemberAPI> order = new ArrayList<>(members);
-        order.sort(Comparator.comparingInt((FleetMemberAPI m) -> -m.getHullSpec().getHullSize().ordinal())
+        order.sort(Comparator.comparingInt((FleetMemberAPI m) -> m.isFlagship() && JAOSettings.flagshipBalanced ? 0 : 1)
+                .thenComparingInt(m -> -m.getHullSpec().getHullSize().ordinal())
+                .thenComparingInt(m -> JAOOptimizer.special(m.getHullSpec()) ? 0 : 1)
                 .thenComparing(m -> -m.getDeploymentPointsCost()).thenComparing(m -> m.getShipName() == null ? "" : m.getShipName())
                 .thenComparing(FleetMemberAPI::getId));
         for (FleetMemberAPI m : order) {

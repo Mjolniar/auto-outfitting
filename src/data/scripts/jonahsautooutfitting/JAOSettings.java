@@ -12,7 +12,7 @@ public class JAOSettings {
     public static final String MOD = "jonahs_auto_outfitting", LUNA = "lunalib", FILE = "data/config/jonahs_auto_outfitting.json";
     static final Logger LOG = Global.getLogger(JAOSettings.class);
 
-    public static boolean enabled = true, roles = true, civilianLogistics = true, civilianSmods, productionButton = true, allowDrawbacks, allStyles, specialWeapons = true, preferRare, cheatItems, communityTiers = true, keepPriority = true, logistics, debug, smodWait = true, fleetBalance = true, ratSettlement = true, shroudedHullmods;
+    public static boolean enabled = true, roles = true, civilianLogistics = true, civilianSmods, productionButton = true, allowDrawbacks, allStyles, specialWeapons = true, preferRare, cheatItems, communityTiers = true, keepPriority = true, logistics, debug, smodWait = true, fleetBalance = true, ratSettlement = true, shroudedHullmods, flagshipBalanced = true;
     public static JAOStyle style = JAOStyle.AUTO;
     /** 0 auto, 1 long, 2 close. */
     public static int range;
@@ -62,6 +62,7 @@ public class JAOSettings {
         civilianSmods = bool("jao_civilianSmods", false);
         productionButton = bool("jao_productionButton", true);
         fleetBalance = bool("jao_fleetBalance", true);
+        flagshipBalanced = bool("jao_flagshipBalanced", true);
         productionBudget = clamp(dbl("jao_productionBudget", 0.5f), 0.05f, 1f);
         ratSettlement = bool("jao_ratSettlement", true);
         String r = string("jao_range", "Auto");
@@ -122,7 +123,7 @@ public class JAOSettings {
 
     /** One log line with the current options. */
     static String summary() {
-        return (enabled ? "Optimal goal on" : "Optimal goal off") + ", style " + style.label + (roles ? ", fleet roles" : "") + (civilianLogistics ? ", civilian logistics fits" + (civilianSmods ? " with fleet-wide s-mods" : "") : "") + (fleetBalance ? ", fleet balance" : "") + (ratSettlement ? "" : ", RAT settlement orders off") + (allStyles ? " (+ one goal per style)" : "")
+        return (enabled ? "Optimal goal on" : "Optimal goal off") + ", style " + style.label + (roles ? ", fleet roles" : "") + (civilianLogistics ? ", civilian logistics fits" + (civilianSmods ? " with fleet-wide s-mods" : "") : "") + (fleetBalance ? ", fleet balance" : "") + (flagshipBalanced ? ", balanced flagship" : "") + (ratSettlement ? "" : ", RAT settlement orders off") + (allStyles ? " (+ one goal per style)" : "")
                 + ", range " + (range == 1 ? "long" : range == 2 ? "close" : "auto") + ", fight " + (int) fightSeconds + "s"
                 + ", special weapons " + specialWeapons + (preferRare ? ", rare bonus " + rareBonus : "") + (cheatItems ? ", cheat-only items allowed" : "") + (communityTiers ? "" : ", no community tiers") + ", PD floor " + pdFloor + ", buy gain " + buyGain + " per 10k" + ", logistics " + logistics + ", drawbacks " + (allowDrawbacks ? "allowed" : "never") + (shroudedHullmods ? ", Shrouded hullmods" : "") + ", SO " + (safetyOverrides == 0 ? "never" : safetyOverrides == 1 ? "frigates/destroyers" : "when best")
                 + ", s-mods up to " + smodCount + " per fit, " + (smodFleetMax > 0 ? smodFleetMax + " SP per Optimize fleet" : "no SP limit per Optimize fleet") + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"

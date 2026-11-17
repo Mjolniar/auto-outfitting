@@ -6,6 +6,7 @@
 	"jao_civilianLogistics":true,   # civilian ships get campaign hullmods, no weapons, no vents or capacitors
 	"jao_civilianSmods":false,      # with Build in s-mods ticked, civilian cruisers, capitals and salvage rigs build in fleet-wide hullmods (Treasure Hunt, surveying, sensors, burn)
 	"jao_fleetBalance":true,        # complement the rest of the fleet (fighter roles, anti-shield / anti-armor)
+	"jao_flagshipBalanced":true,    # the player's flagship: balanced, own point defense, planned first
 	"jao_style":"Auto",            # Auto, Balanced, Anti-shield, Anti-armor, Hull killer
 	"jao_allStyles":false,
 	"jao_range":"Auto",            # Auto, Long, Close

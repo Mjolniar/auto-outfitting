@@ -44,6 +44,10 @@ final class JAOModel {
     /** Weapon bonus classes (ballistic, energy, missile), as the ship stats split them. */
     static final int BAL = 0, ENE = 1, MIS = 2;
     static final float MAX_DR = 0.85f, MIN_ARMOR = 0.05f, ENGAGE_SECONDS = 30f, REACH_SAT = 1100f;
+    /** Armor left in front of the hull phase's hits, share of the rating (calibration, 0.5.59). */
+    static float HULL_ARMOR = 0.05f;
+    /** Scale on the outranging survival term (calibration, 0.5.59). */
+    static float OUTRANGE_K = 1f;
     static final float[] KA = {10f, 15f, 20f, 25f};
     /**
      * Reference incoming fire for the survival term (0.5.14): {damage type, hit strength, share}. Kinetic guns, HE guns,
@@ -422,6 +426,8 @@ final class JAOModel {
         float armor, hull, cap, diss, shieldEff, weight = 1f;
         /** Range its main battery fights at, range hullmods included (stock loadouts: about 660/800/1000/1250). */
         float threat = 800f;
+        /** Median max speed of the loaded combat hulls of its size (0.5.59, evasion); 0 = unknown. */
+        float speed;
         boolean shield;
     }
 
@@ -451,6 +457,16 @@ final class JAOModel {
         float interferenceMult = 1f;
         /** Can't vent (Safety Overrides). */
         boolean noVent;
+        /** Ship system that moves it out of trouble (0.5.59, JAORole.dashLevel): 2 skimmer or teleporter, 1 dash, 0 none. */
+        int dash;
+        /** Average speed the ship system adds over a fight (0.5.59: burn drive, jets), for evasion. */
+        float sysSpeed;
+        /** Shield turn and unfold rate against the hull's own (0.5.59: Accelerated Shields 2); 1 = unchanged. */
+        float shieldAgility = 1f;
+        /** ECCM (0.5.59): missile guidance +1, poorly guided missiles count as guided. */
+        boolean guidance;
+        /** Missile Autoloader (0.5.59): ammo multiplier for small finite missiles only. */
+        float ammoSmallMis = 1f;
         /** 0 steady, 1 aggressive/reckless, 2 cautious/timid. */
         int personality;
         /** The hull never sends fighters to escort (NO_AUTO_ESCORT, e.g. the Legion). */
@@ -554,7 +570,7 @@ final class JAOModel {
             s.fluxMult = fluxMult.clone(); s.beamDmgMult = beamDmgMult; s.beamFluxMult = beamFluxMult; s.ammoMult = ammoMult;
             s.pdDmg = pdDmg; s.armorTaken = armorTaken; s.hullTaken = hullTaken; s.shieldTaken = shieldTaken; s.bfSmall = bfSmall;
             s.bfMedium = bfMedium; s.bfCap = bfCap; s.hsa = hsa; s.extra = extra; s.personality = personality;
-            s.interferenceMult = interferenceMult; s.noVent = noVent;
+            s.interferenceMult = interferenceMult; s.noVent = noVent; s.dash = dash; s.sysSpeed = sysSpeed; s.guidance = guidance; s.ammoSmallMis = ammoSmallMis; s.shieldAgility = shieldAgility;
             s.noAutoEscort = noAutoEscort; s.valkRange = valkRange; s.fluxSoft = fluxSoft; s.fluxLimit = fluxLimit;
             s.turnRate = turnRate; s.baseTurn = baseTurn; s.baseCap = baseCap; s.plagueMult = plagueMult; s.maxCr = maxCr; s.deployCr = deployCr; s.deck = deck; s.dta = dta;
             s.malfAt = malfAt; s.critAt = critAt; s.degradeAt = degradeAt;
@@ -584,7 +600,7 @@ final class JAOModel {
     }
 
     /** Slot weapon types for slot-dependent hullmods. */
-    static final int SLOT_BAL = 0, SLOT_ENE = 1, SLOT_HYB = 3;
+    static final int SLOT_BAL = 0, SLOT_ENE = 1, SLOT_MIS = 2, SLOT_HYB = 3;
 
     /** Average flux level Energy Weapon Mastery is scored at (the AI fights at about half flux). */
     static final float EWM_FLUX = 0.5f;
@@ -643,6 +659,14 @@ final class JAOModel {
         float creditCost;
         /** Kill-layer weights (shield, armor, hull), firepower vs survival, speed, point defense and fighter weights. */
         float wS = 1f, wA = 1f, wH = 1f, offenseW = 0.6f, mobilityW, pdMult = 1f, wingMult = 1f;
+        /** Survival from outrunning the targets (role's evasion, 0.5.59). */
+        float evasionW;
+        /** The player's flagship (0.5.59, flagship()). */
+        boolean flagship;
+        /** An AI carrier (0.5.59): guns other than point defense and missiles count CARRIER_GUN. */
+        boolean carrierGuns;
+        /** The Range setting (0 Auto) as given to apply(). */
+        int rangeSetting;
         JAORole role;
 
         /**
@@ -654,11 +678,32 @@ final class JAOModel {
             role = r;
             if (st == JAOStyle.AUTO && r != null) { wS = r.shield; wA = r.armor; wH = r.hull; }
             else { JAOStyle s = st == JAOStyle.AUTO ? JAOStyle.BALANCED : st; wS = s.shield; wA = s.armor; wH = s.hull; }
-            if (r != null) { offenseW = r.offense; mobilityW = r.mobility; pdMult = r.pd; wingMult = r.wings; }
+            if (r != null) { offenseW = r.offense; mobilityW = r.mobility; pdMult = r.pd; wingMult = r.wings; evasionW = r.evasion; }
             rangePref = rangeSetting != 0 ? rangeSetting : r != null ? r.range : 0;
+            this.rangeSetting = rangeSetting;
+            // support carriers (Heron, Condor, Astral) carry point defense and long-range missiles: any other gun makes the AI
+            // fly the carrier in to use it (roles_1116, carrier threads)
+            carrierGuns = r == JAORole.CARRIER;
             // specialists (carriers, support, phase, missile boats) may lean one way; line ships may not
             coverage = (st == JAOStyle.AUTO || st == JAOStyle.BALANCED) && (r == null || r == JAORole.SKIRMISHER || r == JAORole.FLANKER
-                    || r == JAORole.LINE || r == JAORole.ANCHOR || r == JAORole.BATTLE_CARRIER);
+                    || r == JAORole.LINE || r == JAORole.ANCHOR || r == JAORole.BATTLE_CARRIER || r == JAORole.BRAWLER);
+        }
+
+        /**
+         * The player's flagship (0.5.59, user 11/16: the player's ship does everything on its own; a capital fights the
+         * world, keeping its own specialty): the role's kill layers halfway to even, its own point defense (no escort
+         * covers it), kinetic and armor-cracking damage on board whatever the role, and on capitals a little more
+         * survival. The target mix is widened in JAOOptimizer.params (FLAGSHIP_MIX).
+         */
+        void flagship(int size) {
+            flagship = true;
+            if (style == JAOStyle.AUTO && role != null) { wS = (wS + 1f) / 2f; wA = (wA + 1f) / 2f; wH = (wH + 1f) / 2f; }
+            pdMult = role == JAORole.PHASE ? Math.max(pdMult, 0.75f) : Math.max(pdMult, FLAGSHIP_PD);
+            if (role != JAORole.CIVILIAN) coverage = style == JAOStyle.AUTO || style == JAOStyle.BALANCED;
+            if (size >= 3 && offenseW > 0.45f) offenseW = Math.max(0.45f, offenseW - 0.05f);
+            // the player flies it: guns on a carrier, and no long-range bias unless the Range setting asks for one
+            carrierGuns = false;
+            if (rangeSetting == 0 && role != JAORole.PHASE) rangePref = 0;
         }
         /** 0 auto, 1 long, 2 close. */
         int rangePref;
@@ -678,6 +723,36 @@ final class JAOModel {
      * finish anything. Up to x0.85 each when kinetic is under 20% of its damage or armor-cracking under 15%.
      */
     static final float COVERAGE = 0.85f, COVER_KINETIC = 0.20f, COVER_CRACK = 0.15f;
+
+    /** The flagship's point defense need at least x this (0.5.59). Its targets: FLAGSHIP_MIX of every size, the rest the role's. */
+    static final float FLAGSHIP_PD = 1.2f, FLAGSHIP_MIX = 0.5f;
+    /** What an AI carrier's guns (not point defense, not missiles) count for (0.5.59). */
+    static final float CARRIER_GUN = 0.3f, CARRIER_CLOSE = 0.3f;
+    /** Shield tank bonus by hull size for a shield arc of 360 and for a twice-as-fast shield (0.5.59). */
+    static final float[] SHIELD_WRAP = {0.12f, 0.08f, 0.04f, 0.02f}, SHIELD_AGILE = {0.12f, 0.08f, 0.04f, 0.02f};
+
+    /**
+     * Evasion (0.5.59, user 11/16: frigates live by keeping enemies busy, chasing weak ships and not dying): a ship that
+     * outruns what it fights can break off, dodge and come back. Per target size, the speed edge s / median - 1 (handling
+     * counts at the fourth root) saturates as 1 - exp(-edge / EVADE_SCALE); the target-weighted mean scales survival by
+     * 1 + role evasion x (1 + EVADE_DASH x the ship system's dash level) x edge. Slower than the target: no credit. Only
+     * the speed-dependent part changes a fit (speed hullmods, s-mod penalties, Safety Overrides).
+     */
+    static final float EVADE_SCALE = 0.5f, EVADE_DASH = 0.5f, ZERO_FLUX_BOOST = 50f;
+
+    static float evasion(Ship s, Target[] targets, float w) {
+        if (w <= 0f || s.speed <= 0f || targets == null) return 1f;
+        // the zero-flux boost (+50; always on under Safety Overrides, a fifth of the time otherwise) and the system's speed
+        float v = (s.speed + ZERO_FLUX_BOOST * (s.noVent ? 1f : 0.2f) + s.sysSpeed) * (float) Math.pow(clamp(s.maneuver, 0.5f, 2f), 0.25f), sum = 0f, wt = 0f;
+        for (Target t : targets) {
+            if (t.speed <= 0f || t.weight <= 0f) continue;
+            float edge = Math.max(0f, v / t.speed - 1f);
+            sum += t.weight * (1f - (float) Math.exp(-edge / EVADE_SCALE));
+            wt += t.weight;
+        }
+        if (wt <= 0f) return 1f;
+        return 1f + w * (1f + EVADE_DASH * Math.max(0, Math.min(2, s.dash))) * sum / wt;
+    }
 
     static float coverage(float kineticShare, float crackShare) {
         return (COVERAGE + (1f - COVERAGE) * Math.min(1f, kineticShare / COVER_KINETIC))
@@ -932,12 +1007,14 @@ final class JAOModel {
             float rof = w.wing || w.hullmod ? 1f : s.rofMult[w.cls];
             // wings fly from this ship's deck: its refit time, replacement rate and engagement range (deckFactor)
             float dm = w.wing ? s.deck : w.hullmod ? 1f : s.dmgMult[w.cls] * (w.beam ? s.beamDmgMult : 1f);
-            if (w.beam && s.hsa) dm *= 1.1f;
+            // High Scatter Amplifier's +10% beam damage is in beamDmgMult already (0.5.59: it was counted twice)
             float base = w.wing ? w.dps : chargedDps(w, s, p.fightSeconds);
             float fluxScale = w.dps > 0f ? base / w.dps : 1f;
             x.dps = base * dm * rof * w.prior;
             x.flux = w.wing ? 0f : w.hullmod ? w.flux : w.flux * fluxScale * s.fluxMult[w.cls] * (w.beam ? s.beamFluxMult : 1f) * rof;
-            x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult : 1f) * w.prior;
+            // Missile Autoloader reloads small missiles without regeneration in small missile slots (MissileAutoloader)
+            boolean reload = w.size == 0 && fits.get(i).slotSize == 0 && fits.get(i).slotType == SLOT_MIS && w.regen <= 0f;
+            x.pool = w.pool * dm * (w.cls == MIS ? s.ammoMult * (reload ? s.ammoSmallMis : 1f) : 1f) * w.prior;
             // a slower missile rate (Expanded Missile Racks' s-mod penalty) delivers less of the pool within a fight
             if (w.cls == MIS && !w.wing) x.pool *= Math.min(1f, rof);
             // a launcher can't fire faster than its rate: in a fight it delivers at most rate x fight length, however deep
@@ -982,6 +1059,8 @@ final class JAOModel {
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             if (w.wing || w.pd || w.cls == MIS || w.hullmod) continue;
+            // an AI carrier stands off at its missile or carrier range; carrierPen prices the guns pulling it in (0.5.59)
+            if (p.carrierGuns) continue;
             float wt = (w.size == 0 ? 1f : w.size == 1 ? 3f : 7f) * (fits.get(i).hardpoint ? 2f : 1f) + (w.cls == BAL ? 1f : 0f);
             float[] g = groups.computeIfAbsent(w.id, k -> new float[]{0f, Float.MAX_VALUE});
             g[0] += wt;
@@ -1008,13 +1087,13 @@ final class JAOModel {
         float rclose = reng;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (!w.wing && !w.pd && !w.pdOnly && w.cls != MIS && !w.hullmod) rclose = Math.min(rclose, e[i].range);
+            if (!w.wing && !w.pd && !w.pdOnly && w.cls != MIS && !w.hullmod && !p.carrierGuns) rclose = Math.min(rclose, e[i].range);
         }
         if (s.personality == 1 && rminAll < Float.MAX_VALUE) rclose = Math.min(rclose, Math.max(0.7f * rminAll, rminAll - 200f));
         rclose = Math.max(100f, rclose);
         float close = s.personality == 1 ? 0.8f : s.personality == 2 ? 0.15f : 0.4f;
         // staying power against each enemy class by who out-ranges whom, at both distances
-        float k = p.rangePref == 1 ? 0.6f : p.rangePref == 2 ? 0.3f : 0.5f, rs = 0f, rw = 0f;
+        float k = (p.rangePref == 1 ? 0.6f : p.rangePref == 2 ? 0.3f : 0.5f) * OUTRANGE_K, rs = 0f, rw = 0f;
         for (Target t : p.targets) {
             float far = 1f + k * clamp((reng - t.threat) / 400f, -1f, 0.75f);
             float near = 1f + k * clamp((rclose - t.threat) / 400f, -1f, 0.75f);
@@ -1098,6 +1177,7 @@ final class JAOModel {
             float pdShare = w.pdOnly ? 0f : !w.pd ? 1f : w.pdAlso ? 0.6f : 0.25f;
             d *= pdShare;
             db *= pdShare;
+            if (p.carrierGuns && !w.wing && !w.hullmod && !w.pd && !w.pdOnly && w.cls != MIS) { d *= CARRIER_GUN; db *= CARRIER_GUN; }
             eff[i] = d;
             effB[i] = db;
             if (w.pd || w.pdOnly || w.interceptor) {
@@ -1113,7 +1193,7 @@ final class JAOModel {
             }
             if (x.pool > 0f && x.dps <= 0f) {
                 // finite missiles: unguided ones only count when they can face the target, and miss more (missileReliability)
-                float use = ((w.guided || x.front) ? 1f : 0.25f) * (w.wing ? 1f : missileReliability(w));
+                float use = ((w.guided || x.front) ? 1f : 0.25f) * (w.wing ? 1f : s.guidance && w.guidedPoor ? 1f : missileReliability(w));
                 x.rel = use;
                 if (w.strike) missilePoolStrike += x.pool * use; else missilePool += x.pool * use;
             }
@@ -1137,6 +1217,10 @@ final class JAOModel {
         if (s.shield) {
             float eF = Math.max(0.05f, s.shieldEff * s.shieldTaken);
             tank = (0.5f + 0.4f * clamp((1f - eF) / 0.4f, 0f, 1f)) * (float) Math.sqrt(Math.min(1f, s.arc / 180f));
+            // small ships die to hits under or around the shield (roles_1116: Omen, Tempest, Wolf take Accelerated and
+            // Extended Shields before weapons): arc past 180 and a faster shield count, most on frigates (0.5.59)
+            int sz = Math.max(0, Math.min(3, s.size));
+            tank *= 1f + SHIELD_WRAP[sz] * clamp((s.arc - 180f) / 180f, 0f, 1f) + SHIELD_AGILE[sz] * clamp(s.shieldAgility - 1f, 0f, 1f);
             if (s.armor >= 1000f) tank *= 0.8f;
             shieldHp = tank * (SHIELD_USABLE * s.cap + SHIELD_REGEN_SECONDS * Math.max(0f, diss - SHIELD_UPTIME * s.upkeep - 0.5f * load)) / eF;
         }
@@ -1155,6 +1239,9 @@ final class JAOModel {
         // phase ships avoid much of the damage, longer the more flux they have to phase on (0.5.15: experts max their
         // capacitors; a flat x1.3 made Heavy Armor the best use of their OP)
         if (s.phase) ehp *= 1f + PHASE_EHP * (float) Math.sqrt(Math.max(0.5f, (s.baseCap > 0f ? s.cap / s.baseCap : 1f) / clamp(s.phaseCost, 0.25f, 4f)));
+        // ships that outrun what they fight break off and come back (0.5.59)
+        float evade = evasion(s, p.targets, p.evasionW);
+        ehp *= evade;
         // peak time against a whole battle (several engagements), not one fight: a cut peak time (Safety
         // Overrides x0.33) costs combat readiness unless Hardened Subsystems offsets it
         float battle = Math.max(180f, 2f * p.fightSeconds);
@@ -1215,6 +1302,18 @@ final class JAOModel {
         }
         if (gunDps > 0f) groupFactor *= 1f - OFF_BAND * offBand / gunDps;
 
+        // an AI carrier with guns flies in to use them (0.5.59): up to CARRIER_CLOSE off the score by the guns' mount weight
+        float carrierPen = 1f;
+        if (p.carrierGuns) {
+            float all = 0f, guns = 0f;
+            for (Fit f : fits) {
+                if (f.w.wing || f.w.hullmod) continue;
+                float wt = f.w.size == 0 ? 1f : f.w.size == 1 ? 2f : 4f;
+                all += wt;
+                if (!f.w.pd && !f.w.pdOnly && f.w.cls != MIS) guns += wt;
+            }
+            if (all > 0f) carrierPen = 1f - CARRIER_CLOSE * guns / all;
+        }
         // line ships carry both kinetic and an armor-cracker (finite missiles counted over the fight)
         float cover = 1f;
         if (p.coverage && !s.noVent) {
@@ -1250,7 +1349,7 @@ final class JAOModel {
             gunW += wt;
             if (f.hardpoint) hpW += wt;
         }
-        float turnNeed = (s.baseTurn > 0f ? clamp(TURN_REF / s.baseTurn, 0.3f, 1f) : 1f) * (0.6f + 0.4f * (gunW > 0f ? hpW / gunW : 0f));
+        float turnNeed = (s.baseTurn > 0f ? clamp(TURN_REF / s.baseTurn, 0.3f, 1f) : 1f) * (0.6f + 0.2f * (gunW > 0f ? hpW / gunW : 0f));
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(clamp(s.speed / s.baseSpeed, 0.2f, SPEED_CAP), mw) : 1f)
                 * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), (0.5f * mw + 0.04f) * turnNeed);
         // combat readiness the ship starts its fights at: its own max CR (skills, hullmods, d-mods) less what Seeker's
@@ -1267,7 +1366,7 @@ final class JAOModel {
         // (faster venting counts through duty())
         float resist = 1f + EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - s.empTaken, 0f, 1f);
         float stay = duty(s, diss);
-        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * stay * (1f + s.extra);
+        float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * stay * carrierPen * (1f + s.extra);
         if (out != null) {
             if (plague > 0f) out.put("plague", plague);
             if (s.maxCr != CR_BASE || plague > 0f) { out.put("maxCr", s.maxCr - plague / 100f); out.put("crStart", startCr); }
@@ -1277,6 +1376,8 @@ final class JAOModel {
             if (malf < 1f) out.put("malf", malf);
             if (s.shield) out.put("stay", stay);
             out.put("score", score); out.put("ttk", ttk); out.put("t1", t1s / wsum); out.put("t2", t2s / wsum); out.put("t3", t3s / wsum);
+            if (evade != 1f) out.put("evade", evade);
+            if (carrierPen != 1f) out.put("carrier", carrierPen);
             out.put("ehp", ehp); out.put("uptime", uptime); out.put("load", load); out.put("budget", budget); out.put("reng", reng);
             out.put("pd", pd); out.put("pdNeed", need); out.put("outrange", outrange); out.put("rclose", rclose);
             out.put("burstUp", burstUp); out.put("groups", (float) groupIds.size()); out.put("guns", (float) gunIds.size());
@@ -1311,7 +1412,7 @@ final class JAOModel {
         float[] eff = new float[n], effB = new float[n];
         for (int i = 0; i < n; i++) {
             Fit fit = fits.get(i);
-            float acc = accuracy(fit.w, t.size, spreadMult) * (ship == null ? 1f : track(fit, ship, ts));
+            float acc = (ship != null && ship.guidance && fit.w.cls == MIS && fit.w.guidedPoor ? 1f : accuracy(fit.w, t.size, spreadMult)) * (ship == null ? 1f : track(fit, ship, ts));
             eff[i] = effAll[i] * acc;
             effB[i] = effBurst[i] * acc;
         }
@@ -1402,14 +1503,15 @@ final class JAOModel {
             a -= chunk;
         }
         t2 = Math.min(600f, t2 * 1.5f);
-        // hull, through the leftover armor
+        // hull, through the leftover armor (HULL_ARMOR of the rating on average: hits spread over cells still armored)
+        float hullFloor = t.armor * Math.max(MIN_ARMOR, HULL_ARMOR);
         float hullRate = arc;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
-            if (w.extraFrac > 0f) hullRate += (mRate[i] + Math.max(0f, effB[i])) * w.extraFrac * armorFactor(w.extraHit * ARMOR_MULT[w.extraDmg], floor);
+            if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], hullFloor);
+            if (w.extraFrac > 0f) hullRate += (mRate[i] + Math.max(0f, effB[i])) * w.extraFrac * armorFactor(w.extraHit * ARMOR_MULT[w.extraDmg], hullFloor);
             if (effB[i] <= 0f) continue;
-            hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], floor);
+            hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], hullFloor);
         }
         float t3 = hullRate <= 0.01f ? 600f : Math.min(600f, t.hull / hullRate);
         // Target Analysis: more damage to this target's size, so each phase goes faster
@@ -1513,7 +1615,10 @@ final class JAOModel {
      */
     static float track(Fit f, Ship s, int ts) {
         W w = f.w;
-        if (w.wing || w.cls == MIS || w.homing || f.hardpoint || w.turnRate <= 0f) return 1f;
+        if (w.wing || w.cls == MIS || w.homing) return 1f;
+        // hardpoints aim by turning the ship (0.5.59, interplay_1116 gap 7): an Onslaught (turn 4) against a frigate 0.74
+        if (f.hardpoint) return s.turnRate > 0f ? 0.5f + 0.5f * clamp((5f + s.turnRate) / CROSSING[Math.max(0, Math.min(3, ts))], TRACK_MIN, 1f) : 1f;
+        if (w.turnRate <= 0f) return 1f;
         float turn = w.turnRate * (w.beam ? s.beamTurnMult : s.turnMult) + (f.front ? 0.5f * s.turnRate : 0f);
         float k = clamp(turn / CROSSING[Math.max(0, Math.min(3, ts))], TRACK_MIN, 1f);
         return w.beam ? 0.5f + 0.5f * k : k;

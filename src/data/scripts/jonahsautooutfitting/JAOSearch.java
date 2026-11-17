@@ -261,6 +261,17 @@ final class JAOSearch {
             }
             mods.addAll(firstMods);
         }
+        if (DIVERSIFY) {
+            Set<String> tried = new HashSet<>();
+            // extra starts get at most DIVERSIFY_BUDGET of the evaluations the first two took (big modded hulls on the
+            // refit screen fit while the player waits)
+            long base = evaluations, cap = base + (long) (DIVERSIFY_BUDGET * base), last = base / 2;
+            for (int k = 0; k < DIVERSIFY_ROUNDS && evaluations + last <= cap; k++) {
+                long before = evaluations;
+                if (!diversify(order, startMods, tried)) break;
+                last = evaluations - before;
+            }
+        }
         // 4. never leave ordnance points unspent, nor a mount empty for a small modelled gain
         spendLeftover(order);
         fillEmpty(order);
@@ -301,6 +312,65 @@ final class JAOSearch {
             addMods();
             removeMods();
         }
+    }
+
+    /** Third start on (0.5.59); JAOProbe -Ddiversify=false turns it off for comparisons. */
+    static boolean DIVERSIFY = true;
+    /** Most set-aside rounds, one weapon each (the most-used first). */
+    static int DIVERSIFY_ROUNDS = 3;
+    /** Evaluations the extra starts may use, as a share of the first two starts' (1.0: one round on most hulls, about +20% fit time). */
+    static float DIVERSIFY_BUDGET = 1.0f;
+
+    /**
+     * Third start (0.5.59, review 11/16): greedy fills copy the first cheap weapon that fits across a row of mounts (six
+     * LR PD lasers on a Champion) and the swap passes can't leave that valley one mount at a time; with LR PD lasers
+     * out of the stock the same search found a better Champion. The weapon in the most mounts (3 or more) is set aside
+     * for a fresh fill, then allowed back for the swap passes; the better fit stands.
+     */
+    private boolean diversify(List<Slot> order, Set<String> startMods, Set<String> tried) {
+        Map<String, Integer> count = new HashMap<>();
+        for (Slot s : slots) if (s.fixed == null && !s.bay && s.pick != null) count.merge(s.pick.w.id, 1, Integer::sum);
+        String top = null;
+        int most = 2;
+        for (Map.Entry<String, Integer> e : count.entrySet()) {
+            if (tried.contains(e.getKey())) continue;
+            if (e.getValue() > most || (e.getValue() == most && top != null && e.getKey().compareTo(top) < 0)) { most = e.getValue(); top = e.getKey(); }
+        }
+        if (top == null) return false;
+        tried.add(top);
+        float before = objective();
+        Map<Slot, Cand> keep = new HashMap<>();
+        for (Slot s : slots) keep.put(s, s.pick);
+        Set<String> keepMods = new LinkedHashSet<>(mods);
+        clear(startMods);
+        Map<Slot, List<Cand>> all = new HashMap<>();
+        for (Slot s : slots) {
+            boolean has = false;
+            for (Cand c : s.cands) if (c.w.id.equals(top)) { has = true; break; }
+            if (!has) continue;
+            all.put(s, new ArrayList<>(s.cands));
+            final String banned = top;
+            s.cands.removeIf(c -> c.w.id.equals(banned));
+        }
+        improve(order);
+        for (Map.Entry<Slot, List<Cand>> e : all.entrySet()) { e.getKey().cands.clear(); e.getKey().cands.addAll(e.getValue()); }
+        for (int round = 0; round < 2; round++) {
+            boolean changed = false;
+            for (Slot s : order) if (s.fixed == null && pickBest(s, true)) changed = true;
+            if (addMods()) changed = true;
+            if (removeMods()) changed = true;
+            if (!changed) break;
+        }
+        if (objective() <= before) {
+            clear(startMods);
+            for (Slot s : slots) {
+                Cand c = keep.get(s);
+                if (s.fixed == null && c != null && take(c)) s.pick = c;
+            }
+            mods.clear();
+            mods.addAll(keepMods);
+        }
+        return true;
     }
 
     /** Empties every choosable mount (stock given back) and resets the hullmods to these. */

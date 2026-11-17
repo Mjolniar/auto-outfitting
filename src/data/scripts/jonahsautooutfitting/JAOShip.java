@@ -334,7 +334,17 @@ final class JAOShip implements JAOSearch.World {
             s.shieldTaken *= JAOModel.shieldTypeFactor(byType);
             s.upkeep = hull.getShieldSpec().getUpkeepCost() * st.getShieldUpkeepMult().getModifiedValue();
             s.arc = st.getShieldArcBonus().computeEffective(hull.getShieldSpec().getArc());
+        } else if (type == ShieldType.NONE && work.hasHullMod("frontshield") && !ruleOn("no_shield")) {
+            // Makeshift Shield Generator (0.5.59, interplay_1116 gap 14): FrontShieldGenerator gives a shieldless hull a front
+            // shield after creation, which the scratch member never shows: arc 90, efficiency 1.2, upkeep 0.5 of dissipation
+            s.shield = true;
+            s.shieldEff = 1.2f * st.getShieldAbsorptionMult().getModifiedValue();
+            s.shieldTaken = st.getShieldDamageTakenMult().getModifiedValue();
+            shieldEffNow = s.shieldEff * s.shieldTaken;
+            s.upkeep = 0.5f * hull.getFluxDissipation() * st.getShieldUpkeepMult().getModifiedValue();
+            s.arc = st.getShieldArcBonus().computeEffective(90f);
         }
+        try { s.shieldAgility = (float) Math.sqrt(Math.max(0.1f, st.getShieldTurnRateMult().getModifiedValue()) * Math.max(0.1f, st.getShieldUnfoldRateMult().getModifiedValue())); } catch (Throwable ignored) { }
         s.speed = st.getMaxSpeed().getModifiedValue();
         // the ship's own time rate (0.5.44: timeflow hulls and hullmods): it fires, dissipates and moves faster
         try {
@@ -345,6 +355,8 @@ final class JAOShip implements JAOSearch.World {
             }
         } catch (Throwable ignored) { }
         s.baseSpeed = hull.getEngineSpec() == null ? s.speed : hull.getEngineSpec().getMaxSpeed();
+        s.dash = JAORole.dashLevel(hull.getShipSystemId());
+        s.sysSpeed = systemSpeed(hull.getShipSystemId());
         if (hull.getEngineSpec() != null && hull.getEngineSpec().getMaxTurnRate() > 0f && hull.getEngineSpec().getAcceleration() > 0f) {
             float turn = st.getMaxTurnRate().getModifiedValue() / hull.getEngineSpec().getMaxTurnRate();
             float accel = st.getAcceleration().getModifiedValue() / hull.getEngineSpec().getAcceleration();
@@ -357,6 +369,10 @@ final class JAOShip implements JAOSearch.World {
         bonus(s, JAOModel.BAL, st.getBallisticWeaponRangeBonus());
         bonus(s, JAOModel.ENE, st.getEnergyWeaponRangeBonus());
         bonus(s, JAOModel.MIS, st.getMissileWeaponRangeBonus());
+        // missiles reach further when they fly faster (ECCM: x0.8 range, x1.25 speed, net x1.0)
+        s.rangeMult[JAOModel.MIS] *= missileSpeed(st);
+        // ECCM's guidance +1 (0.5.59): poorly guided missiles fly as guided ones
+        s.guidance = work.hasHullMod("eccm");
         StatBonus beam = st.getBeamWeaponRangeBonus();
         s.beamPct = beam.getPercentMod(); s.beamFlat = beam.getFlatBonus(); s.beamMult = beam.getMult();
         float th = st.getWeaponRangeThreshold().getModifiedValue();
@@ -388,13 +404,16 @@ final class JAOShip implements JAOSearch.World {
             s.bfCap = largeBallistic ? 900f : 800f;
         }
         s.hsa = work.hasHullMod("high_scatter_amp");
+        // High Scatter Amplifier's beams deal hard flux on shields (0.5.59, interplay_1116 gap 4)
+        if (s.hsa) s.hardBeamsAll = true;
         s.interferenceMult = work.hasHullMod("fluxbreakers") ? 0.5f : 1f;
         s.noVent = st.getVentRateMult().getModifiedValue() <= 0f;
         // more listener hullmods, modelled roughly: Missile Autoloader reloads small finite missiles (+6/9/15/24
         // capacity, 5 s cooldown), Phase Anchor makes phasing free and raises dissipation/recharge while phased
         // (x2 in 0.98a, x1.5 in 0.98.5a; read from the game)
         // as an s-mod the Autoloader waits 10 s after a reload instead of 5 (its s-mod penalty)
-        if (work.hasHullMod("missile_autoloader")) s.ammoMult *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
+        // 0.5.59 (interplay_1116 gap 15): it reloads small finite missiles in small mounts only
+        if (work.hasHullMod("missile_autoloader")) s.ammoSmallMis *= work.getSMods().contains("missile_autoloader") ? 1.35f : 1.5f;
         if (work.hasHullMod("phase_anchor") && s.phase) s.extra += JAOModel.phaseAnchorExtra(phaseAnchorMult());
         // Adaptive Phase Coils (0.98a): a phased ship keeps its speed to 50% more hard flux, so it can phase in, fire and
         // get out; experts take it or Phase Anchor on every phase ship (research meta_report 5, builds_update_1106)
@@ -1070,6 +1089,33 @@ final class JAOShip implements JAOSearch.World {
         }
     }
 
+    /**
+     * Speed a ship system adds on average over a fight (0.5.59, interplay_1116 gap 8): boost x active time / cycle.
+     * Burn Drive +200 for 5 of 18 s, Plasma Jets +125 for 3 of 11, Maneuvering Jets +50 for 5 of 12.
+     */
+    static float systemSpeed(String sys) {
+        if (sys == null) return 0f;
+        switch (sys) {
+            case "burndrive": case "combat_burn": return 55f;
+            case "plasmajets": return 34f;
+            case "maneuveringjets": return 21f;
+            default: return 0f;
+        }
+    }
+
+    /**
+     * Missile speed against the missiles' own (0.5.59): a missile flies for its flight time, so its reach grows with its
+     * speed. ECCM's range x0.8 and speed x1.25 cancel (interplay_1116 gap 9).
+     */
+    static float missileSpeed(MutableShipStatsAPI st) {
+        try {
+            float m = st.getMissileMaxSpeedBonus().computeEffective(100f) / 100f;
+            return m > 0.2f ? m : 1f;
+        } catch (Throwable t) {
+            return 1f;
+        }
+    }
+
     /** Every stat a hullmod could make worse, each turned so that bigger is better. */
     private float[] snapshot() {
         MutableShipStatsAPI st = scratch.getStats();
@@ -1080,7 +1126,7 @@ final class JAOShip implements JAOSearch.World {
                 st.getFluxCapacity().getModifiedValue(), st.getFluxDissipation().getModifiedValue(),
                 st.getMaxSpeed().getModifiedValue(), st.getAcceleration().getModifiedValue(), st.getMaxTurnRate().getModifiedValue(),
                 st.getBallisticWeaponRangeBonus().computeEffective(1000f), st.getEnergyWeaponRangeBonus().computeEffective(1000f),
-                st.getMissileWeaponRangeBonus().computeEffective(1000f), st.getBeamWeaponRangeBonus().computeEffective(1000f),
+                st.getMissileWeaponRangeBonus().computeEffective(1000f) * missileSpeed(st), st.getBeamWeaponRangeBonus().computeEffective(1000f),
                 st.getWeaponRangeThreshold().getModifiedValue() > 0f ? -1f : 0f,
                 -st.getShieldAbsorptionMult().getModifiedValue(), -st.getShieldUpkeepMult().getModifiedValue(), st.getShieldArcBonus().computeEffective(arc),
                 -st.getShieldDamageTakenMult().getModifiedValue(), -st.getArmorDamageTakenMult().getModifiedValue(), -st.getHullDamageTakenMult().getModifiedValue(),
@@ -1100,6 +1146,13 @@ final class JAOShip implements JAOSearch.World {
                 st.getMaxBurnLevel().getModifiedValue(), shield ? 1f : 0f, -salaryMult(st), -crewLoss(st)};
     }
 
+    /**
+     * Losses the score already weighs (0.5.59, review 11/16): turret and beam turn rate go into JAOModel.track and
+     * pdTrack, so Armored Weapons (armor +10%, recoil x0.75) and Advanced Optics (beam range +200) are judged on their
+     * whole effect. Experts take Armored Weapons on 22% of builds and Advanced Optics on 13%; the filter had kept both off.
+     */
+    static final Set<String> PRICED = new java.util.HashSet<>(java.util.Arrays.asList("weapon turn rate", "beam turn rate"));
+
     /** The first stat mod makes worse (by more than 0.5%), or null when it only helps. */
     String drawback(String mod, Set<String> mods) {
         if (KNOWN_DRAWBACKS.containsKey(mod)) return KNOWN_DRAWBACKS.get(mod);
@@ -1117,6 +1170,7 @@ final class JAOShip implements JAOSearch.World {
             setMods(mods);
             scratch.setVariant(work, false, true);
             for (int i = 0; i < before.length; i++) {
+                if (PRICED.contains(STAT_NAMES[i])) continue;
                 if (after[i] < before[i] - Math.max(0.005f * Math.abs(before[i]), 1e-4f)) return STAT_NAMES[i];
             }
         } catch (Throwable t) {
