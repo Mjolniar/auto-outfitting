@@ -1,7 +1,7 @@
 # Auto Outfitting
 
 > [!WARNING]
-> Heads up, this is AI-generated. The mod, the docs and the build checks were all written by AI coding agents. Every version gets checked offline (compile, bytecode checks, test fits on vanilla hulls), but the newer changes haven't been tested in a real game yet. If you hit a bug, post it in the [issues](https://github.com/Mjolniar/auto-outfitting/issues) with `starsector-core/starsector.log` and your modlist.
+> Heads up, this is AI-generated. The mod, the docs and the build checks were all written by AI coding agents. If you hit a bug, post it in the [issues](https://github.com/Mjolniar/auto-outfitting/issues) with `starsector-core/starsector.log` and your modlist.
 
 - Optimal: This adds an Optimal option to the refit screen's autofit list. It picks weapons, fighters, hullmods, vents and capacitors from your cargo, storage and the market if you want, and it scores them on combat numbers and how the game's AI actually flies the ship.
 - Optimize fleet: This fits your whole fleet together in one go. The button brings up its settings first (storage, stored ships, legal shops, black markets, a credit limit, s-mods with story points, s-mod changes with credits, officers and augments), so you can set it up how you want before it runs anything.
