@@ -59,10 +59,28 @@ public class JAORatings {
 
     // ------------------------------------------------------------------ weapons
 
+    /**
+     * 0.5.60: a mod weapon with degenerate stats (0 refire, infinite burst) gave Infinity or NaN figures, and one NaN made
+     * every score of a ship NaN (no comparison passes: empty mounts, no hullmods). Such figures count as 0.
+     */
+    static void finite(JAOModel.W w) {
+        if (!Float.isFinite(w.dps)) w.dps = 0f;
+        if (!Float.isFinite(w.flux)) w.flux = 0f;
+        if (!Float.isFinite(w.hit)) w.hit = 0f;
+        if (!Float.isFinite(w.range)) w.range = 0f;
+        if (!Float.isFinite(w.pool)) w.pool = 0f;
+        if (!Float.isFinite(w.burst)) w.burst = 0f;
+        if (!Float.isFinite(w.emp)) w.emp = 0f;
+        if (!Float.isFinite(w.burstDps)) w.burstDps = 0f;
+        if (!Float.isFinite(w.projSpeed) || w.projSpeed <= 0f) w.projSpeed = 1000f;
+        if (!Float.isFinite(w.turnRate)) w.turnRate = 0f;
+    }
+
     static JAOModel.W weapon(WeaponSpecAPI spec) {
         JAOModel.W w = weapons.get(spec.getWeaponId());
         if (w == null) {
             w = makeWeapon(spec);
+            finite(w);
             weapons.put(spec.getWeaponId(), w);
         }
         return w;
@@ -312,6 +330,8 @@ public class JAORatings {
         w.wing = true;
         w.name = r.name;
         w.range = Math.max(1000f, spec.getRange());
+        // range-0 wings stay with the carrier (0.5.60: the 1000 floor above had made JAOModel's home-wing rule dead)
+        w.homeWing = spec.getRange() <= 0f;
         w.wingRole = r.role;
         w.interceptor = r.role == JAOModel.W_INTERCEPTOR;
         w.bomber = r.role == JAOModel.W_BOMBER;

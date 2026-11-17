@@ -83,7 +83,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 : market.getFaction().isHostileTo(Factions.PLAYER) ? CampaignUIAPI.CoreUITradeMode.SNEAK : CampaignUIAPI.CoreUITradeMode.OPEN;
         com.fs.starfarer.api.campaign.CoreUIAPI ui = JAOShops.ui(refit, guess);
         CampaignUIAPI.CoreUITradeMode mode = market == null ? guess : JAOShops.mode(ui);
-        List<JAOShops.Shop> shops = market == null ? new ArrayList<>() : JAOShops.at(market, ui);
+        List<JAOShops.Shop> shops = market == null ? new ArrayList<>() : JAOShops.at(market, ui, false);
         boolean hasStorage = market != null && Misc.playerHasStorageAccess(market);
         float credits = 0f;
         try { credits = Global.getSector().getPlayerFleet().getCargo().getCredits().get(); } catch (Throwable ignored) { }
@@ -203,7 +203,14 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if (job.fleet.locked > 0) notes.append(job.fleet.locked).append(job.fleet.locked == 1
                 ? " locked ship stays as it is, and what it carries isn't used for other ships"
                 : " locked ships stay as they are, and what they carry isn't used for other ships").append(" (lock or unlock on the refit screen). ");
-        if (job.fleet.failed > 0) notes.append(job.fleet.failed).append(" ships couldn't be planned and stay as they are (see starsector.log). ");
+        if (job.fleet.failed > 0) {
+            // 0.5.60: a ship that failed on a later pass keeps the plan of an earlier one
+            int stay = 0, earlier = 0;
+            for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (s.failed) { if (s.plan == null) stay++; else earlier++; }
+            if (stay > 0) notes.append(stay).append(stay == 1 ? " ship couldn't be planned and stays as it is" : " ships couldn't be planned and stay as they are").append(" (see starsector.log). ");
+            if (earlier > 0) notes.append(earlier).append(earlier == 1 ? " ship keeps" : " ships keep").append(" the plan of an earlier pass (see starsector.log). ");
+        }
+        for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (s.keep) notes.append(s.name).append(" stays as it is: it's the ship on the refit screen and still has its stock loadout (show another ship first, or change it once by hand). ");
         if (job.crShips > 0) notes.append("Refitting in space costs CR, as on the refit screen: ").append(job.crShips)
                 .append(job.crShips == 1 ? " ship loses " : " ships lose ").append("up to ").append(Math.round(job.crMax * 100f))
                 .append("% (shown per ship). Refits at a market cost no CR. ");
@@ -291,6 +298,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         } catch (Throwable ignored) { }
         return n;
     }
+
+    @Override void closing() { cancelJob(); }
 
     private void cancelJob() {
         if (job != null) {

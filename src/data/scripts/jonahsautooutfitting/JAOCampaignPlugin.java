@@ -19,6 +19,8 @@ public class JAOCampaignPlugin extends BaseCampaignPlugin {
 
     @Override
     public PluginPick<AutofitPlugin> pickAutofitPlugin(FleetMemberAPI member) {
+        // 0.5.60: with the Optimal goal setting off the game's own autofit (or another mod's) runs, without our boxes
+        if (!JAOSettings.enabled) return null;
         PersonAPI commander = null;
         if (member != null) {
             commander = member.getFleetCommanderForStats();

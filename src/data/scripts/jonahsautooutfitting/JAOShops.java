@@ -71,12 +71,15 @@ final class JAOShops {
     }
 
     /** Shops at this market you can buy from now, in the market's order; storage and shops closed to you are left out. */
-    static List<Shop> at(MarketAPI market, CoreUIAPI ui) {
+    static List<Shop> at(MarketAPI market, CoreUIAPI ui) { return at(market, ui, true); }
+
+    /** refresh false: only which shops there are (0.5.60: the settings view no longer restocks every shop on each redraw). */
+    static List<Shop> at(MarketAPI market, CoreUIAPI ui, boolean refresh) {
         List<Shop> out = new ArrayList<>();
         if (market == null || market.isPlanetConditionMarketOnly()) return out;
         // the stock as the refit screen's weapon picker sees it: every submarket updated first (a shop not opened yet
         // has no cargo, and one not visited for a month has old stock)
-        for (SubmarketAPI sub : market.getSubmarketsCopy()) {
+        if (refresh) for (SubmarketAPI sub : market.getSubmarketsCopy()) {
             try {
                 if (sub.getPlugin() == null) continue;
                 sub.getPlugin().updateCargoPrePlayerInteraction();

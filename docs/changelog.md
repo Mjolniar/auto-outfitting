@@ -1,5 +1,28 @@
 # Patch notes
 
+## 0.5.60 - 2026-11-16
+
+- Compatibility: Fixed real Nimbus LPCs (IX Revival) being deleted from cargo and storage on save. Only the Nimbus drone wings are removed.
+- Optimize fleet: Station modules get their planned vents and capacitors. Modules no longer end up over their OP.
+- Optimize fleet: Hullmods that need an item (Fragment Swarm, Shrouded hullmods, Secondary Fabricator) are planned for as many ships as there are items. A ship whose item is gone at Apply skips that hullmod.
+- Optimize fleet: Hullmod items come only from fleet cargo when "Use storage here" is off.
+- Optimize fleet: The ship on the refit screen stays as it is while it still has its stock loadout. The plan says so.
+- Optimize fleet: A ship that can't be planned keeps all its weapons and LPCs. Other ships no longer plan with them.
+- Optimize fleet: Closing the panel any way (Escape, a click outside, leaving the refit tab) stops the planning.
+- Optimize fleet: Planning that stops part way shows "Couldn't plan the fleet".
+- Optimize fleet: The settings page no longer restocks the market's shops each time it is redrawn.
+- Order fleet weapons: Closing the panel stops the planning.
+- S-mods: The wait timer for better hullmods ends when s-mods are built.
+- S-mod changes: A new s-mod only goes on while the ship is at or under its size cap. Hidden and never_remove s-mods are not removed.
+- Optimal fit: A stripped Converted Hangar no longer leaves a wing in a bay the ship doesn't have.
+- Optimal fit: S-mods already on the ship are not added again as hullmods. Their OP is no longer left unspent.
+- Optimal fit: When the fit fails on a hull with no stock goal, the ship goes back to its old loadout.
+- Logistics fit: A civilian ship stays within its OP when its s-mods can't be built.
+- Carriers: Wings with range 0 stay with the carrier and don't count toward the escort rule.
+- Weapons: Mod weapons with infinite or undefined damage figures count as 0.
+- Settings: "Optimal goal" off hands the Autofit panel to the game or to other mods.
+- Settings: "Order weapons for fleet button" off hides only that button. Optimize fleet, Fleet analysis and Lock stay.
+
 ## 0.5.59 - 2026-11-16
 
 - Fleet roles: Added the Brawler role for slow frigates, destroyers and cruisers (Enforcer, Dominator, Monitor and similar). Speed against other loaded ships of the same size now sets the role: slow ships brawl, very fast cruisers flank.

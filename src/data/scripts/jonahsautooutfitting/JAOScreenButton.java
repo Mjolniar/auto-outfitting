@@ -52,6 +52,8 @@ public class JAOScreenButton implements EveryFrameScript {
     private Object lockShown;
     private Boolean lockStateShown;
     private int reports, placements;
+    /** The buttons were placed with Order fleet weapons (the setting can change while the screen is open). */
+    private boolean madeWithOrder;
     private String lastReport;
 
     public boolean isDone() { return false; }
@@ -74,7 +76,7 @@ public class JAOScreenButton implements EveryFrameScript {
 
     void update() {
         CampaignUIAPI ui = Global.getSector().getCampaignUI();
-        if (!JAOSettings.productionButton || ui.getCurrentCoreTab() != CoreUITabId.REFIT) {
+        if (ui.getCurrentCoreTab() != CoreUITabId.REFIT) {
             remove();
             closeOrder();
             refit = null;
@@ -82,8 +84,11 @@ public class JAOScreenButton implements EveryFrameScript {
         }
         UIPanelAPI found = refitPanel(ui);
         if (found == null) { remove(); report("refit panel not found", null, null, null); return; }
-        if (button != null && found == refit && JAORefl.children(refit).contains(button)) { refreshLock(false); return; }   // still in place
+        // 0.5.60: "Order weapons for fleet button" off hides only that button; Optimize fleet, Fleet analysis and Lock stay
+        boolean order = JAOSettings.productionButton;
+        if (button != null && found == refit && madeWithOrder == order && JAORefl.children(refit).contains(button)) { refreshLock(false); return; }   // still in place
         remove();
+        madeWithOrder = order;
         refit = found;
         List<UIComponentAPI> leaves = new ArrayList<>();
         collect(refit, leaves, 0);
@@ -101,19 +106,24 @@ public class JAOScreenButton implements EveryFrameScript {
         // Without those cells, each button goes wherever there's room.
         boolean two = false;
         float[] at = null;
-        if (autofit != null) {
+        if (autofit != null && order) {
             float[] stack = {autofit[0] + autofit[2] + 3f, autofit[1] - h - 3f};
             if (spot(rect(refit), leaves, null, null, w, 2f * h + 3f, stack) != null) { at = stack; two = true; }
         }
         if (at == null) at = spot(rect(refit), leaves, op, autofit, w, h);
-        if (at == null) { report("no free spot", leaves, op, autofit); return; }
-        button = make(w, h, two);
+        if (at == null) {
+            report("no free spot", leaves, op, autofit);
+            // 0.5.60: the whole panel walk again only every 2 s while there's no room
+            timer = 2f;
+            return;
+        }
+        button = order ? make(w, h, two) : single(w, h, OPTIMIZE, "Optimize fleet");
         PositionAPI rp = refit.getPosition();
         refit.addComponent(button).inBL(at[0] - rp.getX(), at[1] - rp.getY());
         List<float[]> ours = new ArrayList<>();
         ours.add(new float[]{at[0], at[1], w, two ? 2f * h + 3f : h});
         float[] atOpt = null;
-        if (!two) {
+        if (!two && order) {
             atOpt = spot(rect(refit), leaves, op, autofit, w, h, null, ours);
             if (atOpt != null) {
                 button2 = single(w, h, OPTIMIZE, "Optimize fleet");
@@ -364,6 +374,7 @@ public class JAOScreenButton implements EveryFrameScript {
         UIPanelAPI host = core != null ? core : refit;
         if (host == null) return false;
         overlay = Global.getSettings().createCustom(w, h, content);
+        shown = content;
         PositionAPI hp = host.getPosition();
         float sw = screen(true) > 0f ? screen(true) : hp.getWidth(), sh = screen(false) > 0f ? screen(false) : hp.getHeight();
         host.addComponent(overlay).inBL((sw - w) / 2f - hp.getX(), (sh - h) / 2f - hp.getY());
@@ -372,10 +383,16 @@ public class JAOScreenButton implements EveryFrameScript {
     }
 
     void closeOrder() {
+        // 0.5.60: every way the panel closes stops its planning
+        try { if (shown != null) shown.closing(); } catch (Throwable ignored) { }
+        shown = null;
         try { if (overlay != null && overlayHost != null) overlayHost.removeComponent(overlay); } catch (Throwable ignored) { }
         overlay = null;
         overlayHost = null;
     }
+
+    /** The panel on screen, for closing(). */
+    private JAOOverlayPanel shown;
 
     void remove() {
         for (CustomPanelAPI b : new CustomPanelAPI[]{button, button2, button3, button4}) {

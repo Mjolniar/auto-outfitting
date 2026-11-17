@@ -179,9 +179,14 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         return m <= 1 ? "one month" : m + " months";
     }
 
+    @Override void closing() {
+        try { if (job != null) job.fleet.cancel(); } catch (Throwable ignored) { }
+    }
+
     @Override
     public void buttonPressed(Object id) {
         if ("close".equals(id)) {
+            closing();
             close.run();
         } else if ("queue".equals(id) && queue != null && queue.isEnabled() && plan != null) {
             String msg = JAOFleetPlanner.queue(plan);

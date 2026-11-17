@@ -368,6 +368,8 @@ final class JAOModel {
         boolean beam, soft, pd, pdOnly, pdAlso, strike, guided, guidedPoor, fireWhenInefficient, wing, interceptor, bomber;
         /** Wings: W_FIGHTER / W_BOMBER / W_INTERCEPTOR / W_SUPPORT. */
         int wingRole;
+        /** Wings with range 0: they stay with the carrier and don't count as ranged wings (0.5.60). */
+        boolean homeWing;
         /** Wings: share of their firepower that can shoot missiles and fighters (Broadsword's machine guns), for PD. */
         float wingPd;
         /** Sustained damage/s, flux/s, damage per hit, base range; pool = total damage of finite ammo (0 = unlimited). */
@@ -1124,7 +1126,7 @@ final class JAOModel {
             if (!f.w.wing) continue;
             bays[Math.max(0, Math.min(3, f.w.wingRole))] += 1f;
             shipWings++;
-            if (f.w.range <= 0f) continue; // range-0 wings always stay with the carrier
+            if (f.w.homeWing || f.w.range <= 0f) continue; // range-0 wings always stay with the carrier
             ranged++;
             if (f.w.wingRole != W_BOMBER) escorts++;
             if (f.w.wingRole == W_INTERCEPTOR || f.w.wingRole == W_SUPPORT) screens++;

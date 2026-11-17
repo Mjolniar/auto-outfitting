@@ -61,7 +61,7 @@ plague_immune,SKR_plagueCultist,,
 not_on_phase,heavyarmor,,phase ships survive by phasing: experts spend the OP on capacitors and Phase Anchor or Adaptive Phase Coils
 min_size,targetingunit,DESTROYER,+10% range on a frigate is not worth its OP (Grievous69 and GrumpyThumper 0.98 guides)
 wing_mult,defective_manufactory,0.88,vanilla d-mod: fighters 25% slower and take 25% more damage
-purge_lpc,nimbus_tw_*,,IX: TrinityRetrofit deletes these from cargo itself; 0.5.1's Optimize fleet left some in storage
+purge_lpc,nimbus_tw_wing_*,,IX: Nimbus drone wings TrinityRetrofit deletes from cargo itself; 0.5.1's Optimize fleet left some in storage. Not nimbus_tw_wing (the real Nimbus LPC)
 never_add_ui,Installation,,Yunru Install hullmods: with Install Confirmation they become permanent conversions (automation / AI cores / lobsters / Silvervale) once the ship is shown
 never_add,yunru_install_confirm,,Yunru: the trigger for those conversions
 never_add,vice_apotheosis_protocol,,ET: installs a milspec hullmod and a wing and then removes itself

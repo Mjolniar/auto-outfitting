@@ -193,7 +193,7 @@ final class JAOFleetApply {
         tradeMode = mode;
         // the panel's own ticks (0.5.57); "Build in s-mods" follows the Autofit box until it's set on the panel
         smods = JAOFleetOptions.smods();
-        shops = market == null ? new ArrayList<>() : JAOShops.at(market, ui);
+        shops = market == null ? new ArrayList<>() : JAOShops.at(market, ui, JAOFleetOptions.buyLegal() || JAOFleetOptions.buyBlack());
         buyLegal = JAOFleetOptions.buyLegal();
         buyBlack = JAOFleetOptions.buyBlack();
         int owned = weapons.size() + fighters.size();
@@ -210,6 +210,14 @@ final class JAOFleetApply {
         fleet.changeSmods = changeOn && changeHere;
         if (buying || fleet.changeSmods) fleet.creditsLeft = creditLimit;
         fleet.variantOf = m -> live(m, false);
+        fleet.itemMarket(storage != null ? market : null);
+        // 0.5.60: the refit screen's ship on a stock variant can't be changed in place (live), so it's kept as it is and
+        // what it carries stays on it
+        for (JAOFleetPlan.ShipPlan s : fleet.ships) {
+            try {
+                if (!s.locked && shown(s.member) && live(s.member, false).isStockVariant()) s.keep = true;
+            } catch (Throwable ignored) { }
+        }
         JAOOfficers o = null;
         if (placeOfficers()) {
             try { o = new JAOOfficers(fleet); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: officer placement couldn't start", t); }
@@ -365,6 +373,10 @@ final class JAOFleetApply {
             smodChanges += s.smodsBought.size() + s.smodsRemoved.size();
             changeTotal += s.changeCost;
             if (now.getNumFluxVents() != s.plan.getNumFluxVents() || now.getNumFluxCapacitors() != s.plan.getNumFluxCapacitors()) c.flux = 1;
+            for (String slot : s.plan.getStationModules().keySet()) {
+                ShipVariantAPI mn = now.getModuleVariant(slot), mp = s.plan.getModuleVariant(slot);
+                if (mn != null && mp != null && (mn.getNumFluxVents() != mp.getNumFluxVents() || mn.getNumFluxCapacitors() != mp.getNumFluxCapacitors())) c.flux = 1;
+            }
             storyPoints += c.smods.size();
             if (c.any()) changedShips++;
             // in-space refit: the game compares the ship's saved variant with the new one (the shown ship's unsaved
@@ -515,15 +527,22 @@ final class JAOFleetApply {
                 missing += fit(v, s.plan, used, s.scripted);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
                     ShipVariantAPI mv = module(v, slot), mp = s.plan.getModuleVariant(slot);
-                    if (mv != null && mp != null) missing += fit(mv, mp, used, java.util.Collections.emptySet());
+                    if (mv == null || mp == null) continue;
+                    missing += fit(mv, mp, used, java.util.Collections.emptySet());
+                    // 0.5.60: the module plan spends its flux OP on weapons too (vents and capacitors left as they were put it over its OP)
+                    mv.setNumFluxVents(mp.getNumFluxVents());
+                    mv.setNumFluxCapacitors(mp.getNumFluxCapacitors());
                 }
-                built += hullmods(v, s, ps);
+                int builtHere = hullmods(v, s, ps);
+                built += builtHere;
                 v.setNumFluxVents(s.plan.getNumFluxVents());
                 v.setNumFluxCapacitors(s.plan.getNumFluxCapacitors());
                 settle(v, s.member);
                 v.setVariantDisplayName(s.plan.getDisplayName());
                 v.setSource(VariantSource.REFIT);
                 if (s.smods != null && s.smods.waiting) JAOSMods.waitedDays(s.member.getId(), true);
+                // 0.5.60: s-mods built, so the wait is over (an old timer read as expired the next time a slot opened)
+                else if (builtHere > 0) JAOSMods.stopWaiting(s.member.getId());
                 List<String> before = new ArrayList<>(v.getHullMods());
                 s.member.updateStats();
                 // the refresh ran the ship's hullmod scripts: bays they fill (Nimbus drones, 10 OP each on a Maquech) or
@@ -549,6 +568,12 @@ final class JAOFleetApply {
                 }
                 done.add(s.member);
                 ships++;
+                // 0.5.60: its hullmod items are taken now, so the next ship's check sees what's left (the refit screen's
+                // ship is reported after the screen saves it, below)
+                if (!shown(s.member)) {
+                    try { com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().reportFleetMemberVariantSaved(s.member, storage != null ? market : null); }
+                    catch (Throwable t) { Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: hullmod item bookkeeping failed for " + s.name, t); }
+                }
                 Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " (" + v.getHullSpec().getHullId() + "): "
                         + emptyMounts(v) + " empty mounts, " + emptyBays(v) + " empty bays, wings " + fittedWings(v) + ", hullmods "
                         + v.getNonBuiltInHullmods() + ", s-mods " + v.getSMods() + ", vents " + v.getNumFluxVents() + ", caps "
@@ -593,7 +618,7 @@ final class JAOFleetApply {
         // need, give back what removed ones held; it works from the difference, so a second report changes nothing
         for (FleetMemberAPI m : done) {
             try {
-                com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().reportFleetMemberVariantSaved(m, market);
+                com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().reportFleetMemberVariantSaved(m, storage != null ? market : null);
             } catch (Throwable t) {
                 Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: hullmod item bookkeeping failed for " + m.getShipName(), t);
             }
@@ -764,7 +789,16 @@ final class JAOFleetApply {
         }
         List<String> newS = new ArrayList<>();
         for (String id : plan.getSMods()) if (!v.getSMods().contains(id) && !s.smodsBought.contains(id)) newS.add(id);
-        for (String id : plan.getNonBuiltInHullmods()) if (!newS.contains(id) && !v.hasHullMod(id)) v.addMod(id);
+        for (String id : plan.getNonBuiltInHullmods()) {
+            if (newS.contains(id) || v.hasHullMod(id)) continue;
+            // 0.5.60: a hullmod whose item isn't there any more stays off (the game would install it without taking one)
+            if (!itemThere(id, s.member, v)) {
+                Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: Optimize fleet: no item left for " + id + " on " + s.name + "; left off");
+                continue;
+            }
+            v.addMod(id);
+        }
+        newS.removeIf(id -> !itemThere(id, s.member, v));
         if (changeFailed) {
             // the s-mods meant to come off are still there: new story point s-mods only up to the free room
             int room = Math.min(Misc.getMaxPermanentMods(s.member, ps), JAOOptimizer.sizeCap(v.getHullSize())) - v.getSMods().size();
@@ -800,6 +834,17 @@ final class JAOFleetApply {
             PlaythroughLog.getInstance().getSModsInstalled().add(rec);
         }
         return newS.size();
+    }
+
+    /** The item a hullmod needs is in cargo (or storage here, when used) beyond what this ship's other changes take. */
+    private boolean itemThere(String id, FleetMemberAPI m, ShipVariantAPI v) {
+        try {
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            if (spec == null || spec.getEffect() == null || spec.getEffect().getRequiredItem() == null) return true;
+            return com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().isRequiredItemAvailable(id, m, v, storage != null ? market : null);
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     /** S-mods changed with credits by this Apply, and what they cost. */

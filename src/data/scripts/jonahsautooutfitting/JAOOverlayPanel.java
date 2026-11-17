@@ -41,6 +41,11 @@ abstract class JAOOverlayPanel implements CustomUIPanelPlugin {
     boolean work() { return true; }
     /** The progress line while work() runs. */
     String progress() { return ""; }
+    /**
+     * The panel is going away (any close: its buttons, Escape, a click outside, leaving the refit tab, LunaLib closing it).
+     * 0.5.60: planning panels stop their worker here; before, only their own Close button did, and the worker waited 30 s.
+     */
+    void closing() { }
     abstract void buildResult();
 
     /** Called once the panel exists: the result straight away, or the progress view until work() is done. */

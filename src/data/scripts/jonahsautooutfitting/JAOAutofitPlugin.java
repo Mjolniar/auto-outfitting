@@ -41,16 +41,24 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
             super.doFit(current, target, maxSMods, delegate);
             return;
         }
+        ShipVariantAPI before = null;
+        try { before = current.clone(); } catch (Throwable ignored) { }
         try {
             fittedWeapons.clear();
             fittedFighters.clear();
             new JAOOptimizer(this, current, maxSMods, delegate, style).run();
         } catch (Throwable t) {
-            // never leave the player with a half-stripped ship: log it and fall back to the game's fit of a stock goal
+            // never leave the player with a half-stripped ship: log it and fall back to the game's fit of a stock goal,
+            // or (0.5.60, a hull with no stock goal) of the loadout it had
             Global.getLogger(JAOAutofitPlugin.class).error("Auto Outfitting: Optimal fit failed for "
                     + current.getHullSpec().getHullId() + "; using the game's autofit", t);
             ShipVariantAPI fallback = JAOGoals.styleOf(target) == null ? target : JAOGoals.stockGoal(current.getHullSpec().getHullId());
-            if (fallback != null) super.doFit(current, fallback, maxSMods, delegate);
+            if (fallback == null) fallback = before;
+            if (fallback != null) {
+                fittedWeapons.clear();
+                fittedFighters.clear();
+                super.doFit(current, fallback, maxSMods, delegate);
+            }
         }
     }
 

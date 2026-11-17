@@ -61,6 +61,8 @@ final class JAOFleetPlan {
         boolean civilian;
         /** Locked on the refit screen (JAOLocks, 0.5.21): its plan is the ship as it is, what it carries stays on it, and it still counts toward the balance. */
         boolean locked;
+        /** Kept as it is like a locked ship, not by the player's lock (0.5.60: the refit screen's ship still on its stock variant). */
+        boolean keep;
         /** 0.5.57: credits the plan spends at shops for this ship, and on s-mod changes. */
         double buyCost, changeCost;
         /** 0.5.57: s-mods the plan takes off and builds in with credits (the game's Change s-mods), and the lines saying so. */
@@ -178,7 +180,7 @@ final class JAOFleetPlan {
     private void readyLocked() {
         lockedReady = true;
         for (ShipPlan s : ships) {
-            if (!s.locked) continue;
+            if (!s.locked && !s.keep) continue;
             try {
                 ShipVariantAPI v = variantOf.apply(s.member).clone();
                 keepOwn(s.member);
@@ -198,8 +200,17 @@ final class JAOFleetPlan {
         long t0 = System.nanoTime(), end = t0 + budgetMs * 1_000_000L;
         // 0.5.40: on a worker thread in turns with the game's (JAOCoop), so a ship whose fit takes seconds doesn't
         // freeze the screen; the progress line updates between slices
-        if (JAOCoop.enabled && !done) {
-            if (coop == null) coop = new JAOCoop(() -> { while (!done) { advance(); JAOCoop.checkpoint(); } }, "Auto Outfitting fleet plan");
+        if (JAOCoop.enabled && !done && coop == null && !coopStarted) {
+            coopStarted = true;
+            try {
+                coop = new JAOCoop(() -> { while (!done) { advance(); JAOCoop.checkpoint(); } }, "Auto Outfitting fleet plan");
+            } catch (Throwable t) {
+                // 0.5.60: no worker thread (out of native threads): plan on the game's thread from now on
+                JAOCoop.enabled = false;
+                Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't start the planning thread; planning on the game's thread", t);
+            }
+        }
+        if (coop != null && !done) {
             coop.run(budgetMs);
             nanos += System.nanoTime() - t0;
             if (coop.error != null) {
@@ -208,8 +219,15 @@ final class JAOFleetPlan {
                 if (e instanceof RuntimeException) throw (RuntimeException) e;
                 throw new RuntimeException(e);
             }
+            // 0.5.60: the worker stopped without finishing (30 s with no turn, or cancelled): the stock is half handed out,
+            // so the plan can't go on; it fails and Plan fleet starts over
+            if (coop.done() && !done) {
+                coop = null;
+                throw new IllegalStateException("planning stopped before it finished (no turn for " + JAOCoop.IDLE_MS / 1000L + " s)");
+            }
             return done;
         }
+        if (coopStarted && coop == null && JAOCoop.enabled && !done) throw new IllegalStateException("planning stopped before it finished");
         while (!done && System.nanoTime() < end) advance();
         nanos += System.nanoTime() - t0;
         return done;
@@ -232,6 +250,7 @@ final class JAOFleetPlan {
     }
 
     private JAOCoop coop;
+    private boolean coopStarted;
 
     String progress() {
         if (done) return "Planned " + ships.size() + " ships";
@@ -239,7 +258,8 @@ final class JAOFleetPlan {
     }
 
     private void planOne(ShipPlan s) {
-        if (s.locked) return;
+        // 0.5.60: a ship kept as it is, or one that failed with no plan (it keeps what it carries, once), isn't planned again
+        if (s.locked || s.keep || (s.failed && s.plan == null)) return;
         if (s.civilian) { planCivilian(s); return; }
         ShipVariantAPI old = s.plan;
         List<Object> oldUsed = new ArrayList<>(s.used);
@@ -256,7 +276,7 @@ final class JAOFleetPlan {
             for (int attempt = 0; attempt < 2; attempt++) {
                 if (d != null) { give(d.used); d = null; }
                 v = (old == null ? variantOf.apply(s.member) : old).clone();
-                d = delegate(s.member, old == null ? hullmods : new ArrayList<>(v.getNonBuiltInHullmods()));
+                d = delegate(s.member, withoutTakenItems(s, old == null ? hullmods : new ArrayList<>(v.getNonBuiltInHullmods())));
                 d.noBuy = attempt > 0;
                 // 8: shop items the credits left can't pay for aren't offered at all
                 d.maxPrice = creditsLeft;
@@ -279,7 +299,8 @@ final class JAOFleetPlan {
             JAOCompat.Probe probe = JAOCompat.settle(v, capsFirst(v));
             if (old != null) {
                 float vNew = score(v, others, s.member), vOld = score(old, others, s.member);
-                if (vNew <= vOld * (1f + KEEP)) {
+                if (vNew <= vOld * (1f + KEEP) && available(oldUsed, d.used)) {
+                    if (s.failed) { s.failed = false; failed--; }
                     give(d.used);
                     take(oldUsed);
                     creditsLeft -= JAOShops.cost(oldUsed);
@@ -322,6 +343,7 @@ final class JAOFleetPlan {
                 s.changeCost = o.changeCost;
                 creditsLeft -= o.changeCost;
             }
+            if (s.failed) { s.failed = false; failed--; }
             changedThisPass++;
         } catch (Throwable t) {
             if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
@@ -368,7 +390,75 @@ final class JAOFleetPlan {
             if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
             failed++;
             s.failed = true;
+            keepOwn(s.member);
             Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't plan " + s.name + "'s logistics fit", t);
+        }
+    }
+
+    /**
+     * Where hullmod items (Fragment Fabricator, Shroud items ...) come from: fleet cargo and this market's storage (null:
+     * cargo only, "Use storage here" off). Set by Optimize fleet.
+     */
+    MarketAPI itemMarket;
+    private boolean itemMarketSet;
+
+    void itemMarket(MarketAPI m) { itemMarket = m; itemMarketSet = true; }
+
+    /** Hullmods that need an item, and the item each needs (type and id), worked out once. */
+    private Map<String, String> itemOf;
+
+    static String itemKey(com.fs.starfarer.api.campaign.CargoStackAPI req) {
+        Object data = req.getData();
+        if (data instanceof com.fs.starfarer.api.campaign.SpecialItemData) {
+            com.fs.starfarer.api.campaign.SpecialItemData sd = (com.fs.starfarer.api.campaign.SpecialItemData) data;
+            return req.getType() + ":" + sd.getId() + ":" + sd.getData();
+        }
+        return req.getType() + ":" + data;
+    }
+
+    /**
+     * The hullmod list without the hullmods whose item every unit of is already planned for other ships (0.5.60: each ship
+     * was checked against cargo and storage alone, so two ships planned the one Fragment Fabricator and the second got
+     * Fragment Swarm for free). A hullmod the ship already has keeps its item.
+     */
+    private List<String> withoutTakenItems(ShipPlan self, List<String> mods) {
+        try {
+            if (itemOf == null) {
+                itemOf = new HashMap<>();
+                for (String id : hullmods) {
+                    com.fs.starfarer.api.loading.HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+                    if (spec == null || spec.getEffect() == null) continue;
+                    com.fs.starfarer.api.campaign.CargoStackAPI req = spec.getEffect().getRequiredItem();
+                    if (req != null) itemOf.put(id, itemKey(req));
+                }
+            }
+            if (itemOf.isEmpty()) return mods;
+            ShipVariantAPI own = variantOf.apply(self.member);
+            Map<String, Integer> taken = new HashMap<>();
+            for (ShipPlan t : ships) {
+                if (t == self || t.plan == null) continue;
+                ShipVariantAPI had = variantOf.apply(t.member);
+                for (String id : t.plan.getHullMods()) {
+                    String item = itemOf.get(id);
+                    if (item != null && !had.hasHullMod(id)) taken.merge(item, 1, Integer::sum);
+                }
+            }
+            MarketAPI from = itemMarketSet ? itemMarket : market;
+            List<String> out = new ArrayList<>();
+            for (String id : mods) {
+                String item = itemOf.get(id);
+                if (item != null && !own.hasHullMod(id)) {
+                    com.fs.starfarer.api.loading.HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+                    int have = com.fs.starfarer.api.impl.campaign.HullModItemManager.getInstance().getNumAvailable(spec.getEffect().getRequiredItem(), from);
+                    if (have - taken.getOrDefault(item, 0) < 1) continue;
+                }
+                out.add(id);
+            }
+            return out;
+        } catch (Throwable t) {
+            if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
+            Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't count hullmod items for " + self.name, t);
+            return mods;
         }
     }
 
@@ -401,29 +491,39 @@ final class JAOFleetPlan {
                 + (probe.over > 0 ? ", " + probe.over + " OP over (taken from flux)" : ""));
     }
 
-    /** A ship that couldn't be planned keeps what it carries: those items leave the shared stock. */
+    /**
+     * A ship that couldn't be planned keeps what it carries: those items leave the shared stock. 0.5.60: all of them, even
+     * when bigger ships planned earlier already took some: the last entry goes below 0 (owed), so no one picks it, and what
+     * those ships give back when they're planned again pays it off.
+     */
     private void keepOwn(FleetMemberAPI m) {
         Map<String, Integer> w = new java.util.TreeMap<>(), f = new java.util.TreeMap<>();
         try { addMountedWithModules(variantOf.apply(m), w, f); } catch (Throwable ignored) { return; }
         for (Map.Entry<String, Integer> e : w.entrySet()) {
             int n = e.getValue();
+            AvailableWeapon last = null;
             for (AvailableWeapon a : weapons) {
                 if (n <= 0) break;
                 if (!(a instanceof PlanWeapon) || ((PlanWeapon) a).blueprint || ((PlanWeapon) a).sub != null || !a.getId().equals(e.getKey())) continue;
-                int k = Math.min(n, a.getQuantity());
+                int k = Math.min(n, Math.max(0, a.getQuantity()));
                 a.setQuantity(a.getQuantity() - k);
                 n -= k;
+                last = a;
             }
+            if (n > 0 && last != null) last.setQuantity(last.getQuantity() - n);
         }
         for (Map.Entry<String, Integer> e : f.entrySet()) {
             int n = e.getValue();
+            AvailableFighter last = null;
             for (AvailableFighter a : fighters) {
                 if (n <= 0) break;
                 if (!(a instanceof PlanFighter) || ((PlanFighter) a).blueprint || ((PlanFighter) a).sub != null || !a.getId().equals(e.getKey())) continue;
-                int k = Math.min(n, a.getQuantity());
+                int k = Math.min(n, Math.max(0, a.getQuantity()));
                 a.setQuantity(a.getQuantity() - k);
                 n -= k;
+                last = a;
             }
+            if (n > 0 && last != null) last.setQuantity(last.getQuantity() - n);
         }
     }
 
@@ -465,6 +565,22 @@ final class JAOFleetPlan {
         d.captainSet = true;
         d.captain = c;
         return new JAOOptimizer(plugin, variantOf.apply(m).clone(), d, JAOSettings.style, false, true).scoreAsIs();
+    }
+
+    /**
+     * Whether every entry in used is in stock once the units in back are returned (0.5.60: an old plan whose items a
+     * failed ship kept isn't taken again).
+     */
+    static boolean available(List<Object> used, List<Object> back) {
+        Map<Object, Integer> need = new java.util.IdentityHashMap<>();
+        for (Object o : used) need.merge(o, 1, Integer::sum);
+        for (Object o : back) if (need.containsKey(o)) need.merge(o, -1, Integer::sum);
+        for (Map.Entry<Object, Integer> e : need.entrySet()) {
+            Object o = e.getKey();
+            int q = o instanceof AvailableWeapon ? ((AvailableWeapon) o).getQuantity() : ((AvailableFighter) o).getQuantity();
+            if (e.getValue() > q) return false;
+        }
+        return true;
     }
 
     private static void give(List<Object> used) {

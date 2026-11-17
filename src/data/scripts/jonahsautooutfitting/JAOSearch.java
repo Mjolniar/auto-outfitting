@@ -501,7 +501,7 @@ final class JAOSearch {
         while (true) {
             float base = objective();
             String best = null;
-            float bestV = base * 1.002f;
+            float bestV = gain(base, 0.002f);
             JAOModel.Ship sh = ship();
             int[] vc = flux();
             boolean surplus = vc[0] >= sh.maxVents && vc[1] >= sh.maxCaps && mountsUsed();
@@ -633,7 +633,7 @@ final class JAOSearch {
     boolean swapMods() {
         float base = objective();
         String bestOut = null, bestIn = null;
-        float bestV = base * 1.002f;
+        float bestV = gain(base, 0.002f);
         for (String out : new ArrayList<>(mods)) {
             if (keepMods.contains(out)) continue;
             mods.remove(out);
@@ -658,11 +658,17 @@ final class JAOSearch {
             if (keepMods.contains(m)) continue;
             float base = objective();
             mods.remove(m);
-            if (objective() > base * 1.001f) { any = true; continue; }
+            if (objective() > gain(base, 0.001f)) { any = true; continue; }
             mods.add(m);
         }
         return any;
     }
+
+    /**
+     * The score a change must beat: base x (1 + share). 0.5.60: from 0 or below (the start already over the OP limit, -1)
+     * a percentage doesn't work (-1 x 1.002 is below -1, so every hullmod "helped"); any real rise counts there.
+     */
+    static float gain(float base, float share) { return base > 0f ? base * (1f + share) : base + 1e-4f; }
 
     boolean take(Cand c) {
         Integer q = stock.get(c.stockKey);

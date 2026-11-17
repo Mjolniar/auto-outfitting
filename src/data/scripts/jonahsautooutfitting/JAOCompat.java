@@ -452,11 +452,25 @@ final class JAOCompat {
         return n;
     }
 
+    /**
+     * A wing no shop sells and no fight drops (tagged no_drop, no_sell or restricted), or one the game doesn't know. A
+     * purge rule never deletes an LPC the player can buy (0.5.60: nimbus_tw_* matched IX's real Nimbus LPC).
+     */
+    static boolean scriptOnly(String wingId) {
+        try {
+            com.fs.starfarer.api.loading.FighterWingSpecAPI spec = Global.getSettings().getFighterWingSpec(wingId);
+            if (spec == null) return true;
+            return spec.hasTag("no_drop") || spec.hasTag("no_sell") || spec.hasTag("restricted");
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
     private static int purge(CargoAPI c, List<String> pats) {
         int n = 0;
         for (CargoAPI.CargoItemQuantity<String> q : c.getFighters()) {
             String id = q.getItem();
-            if (id == null) continue;
+            if (id == null || !scriptOnly(id)) continue;
             for (String p : pats) {
                 if (!JAORatings.glob(p, id)) continue;
                 n += q.getCount();
