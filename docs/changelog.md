@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.68 - 2026-11-18
+
+- Optimize fleet: Fixed the time left growing while it plans. Ships not planned yet are scaled by how the ships already planned compared with their estimate.
+- Optimize fleet: Fixed the starting estimate. Planning time grows with slots^1.6 per ship, and s-mod planning is no longer counted as the main cost.
+- Optimize fleet: The estimate learns one rate per finished run. 0.5.67 learned ship by ship, so the last and smallest ships set the rate.
+- Optimize fleet: Expected passes are no longer rounded up to 3.
+- Optimize fleet: The estimate and the measured planning time are written to starsector.log.
+
 ## 0.5.67 - 2026-11-18
 
 - Optimize fleet: The settings page estimates how long Plan fleet takes, from the ships, their choosable slots, the kinds of weapons and LPCs it can pick from, s-mod planning and officer placement.

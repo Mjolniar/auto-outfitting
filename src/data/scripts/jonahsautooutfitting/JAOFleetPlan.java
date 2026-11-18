@@ -116,44 +116,61 @@ final class JAOFleetPlan {
         return ids.size();
     }
 
-    /** Whether a ship is expected to plan s-mods (the plan builds them and story points are left). */
-    boolean smodWork(ShipPlan s) {
-        return s.smods != null || (smods && storyPoints > 0 && !s.civilian);
-    }
+    /** A warship the passes plan (civilians are planned once, locked and kept ships not at all). */
+    static boolean timed(ShipPlan s) { return !s.locked && !s.keep && !s.civilian; }
 
-    /** Seconds one pass of a ship takes: measured once it ran, else JAOPlanTimes' rate. */
+    /**
+     * Seconds one pass of a ship takes: its own last pass once it ran; before that JAOPlanTimes' estimate, scaled by how
+     * the ships planned so far compared with theirs (0.5.68: the time left no longer grows as big ships come in slower).
+     */
     float passSeconds(ShipPlan s) {
         if (s.passesRun > 0) return s.lastPassNanos / 1e9f;
-        return JAOPlanTimes.passSeconds(smodWork(s), s.slots, kinds);
+        float measured = 0f, estimated = 0f;
+        for (ShipPlan o : ships) {
+            if (o.passesRun <= 0 || !timed(o)) continue;
+            measured += o.allNanos / 1e9f;
+            estimated += JAOPlanTimes.passSeconds(o.slots, kinds) * o.passesRun;
+        }
+        return JAOPlanTimes.corrected(JAOPlanTimes.passSeconds(s.slots, kinds), measured, estimated);
     }
 
-    /** Seconds left: this pass's remaining ships, then the passes still expected. */
+    /** Seconds left: this pass's remaining ships, then the passes still expected (learned, 1-3). */
     float secondsLeft() {
         if (done) return 0f;
         float rest = 0f, all = 0f;
         for (int i = 0; i < ships.size(); i++) {
             ShipPlan s = ships.get(i);
-            if (s.locked || s.keep || s.civilian) continue;
+            if (!timed(s)) continue;
             float p = passSeconds(s);
             all += p;
             if (i >= index) rest += p;
         }
         JAOPlanTimes.load();
-        float more = Math.max(0f, Math.round(JAOPlanTimes.passes) - pass - 1);
-        return rest + more * all;
+        return rest + Math.max(0f, JAOPlanTimes.passes - pass - 1) * all;
     }
 
-    /** The measured times into JAOPlanTimes once the plan is done (once). */
+    /** Seconds the whole plan was expected to take when it started (for the log). */
+    private float startEstimate = -1f;
+
+    /** The measured times into JAOPlanTimes once the plan is done (once): one rate for the whole run. */
     private void recordTimes() {
         if (timesRecorded) return;
         timesRecorded = true;
         try {
+            float seconds = 0f, work = 0f;
+            int n = 0;
             for (ShipPlan s : ships) {
-                if (s.passesRun <= 0 || s.civilian || s.locked || s.keep) continue;
-                JAOPlanTimes.recordShip(s.smods != null, s.slots, kinds, s.allNanos / 1e9f / s.passesRun);
+                if (s.passesRun <= 0 || !timed(s)) continue;
+                seconds += s.allNanos / 1e9f;
+                work += JAOPlanTimes.work(s.slots, kinds) * s.passesRun;
+                n++;
             }
-            JAOPlanTimes.recordPasses(pass);
+            float before = JAOPlanTimes.rate;
+            JAOPlanTimes.recordRun(seconds, work, pass);
             JAOPlanTimes.save();
+            Global.getLogger(JAOFleetPlan.class).info("Auto Outfitting: planning took " + Math.round(seconds) + " s for " + n + " warships, "
+                    + pass + " passes, " + kinds + " kinds of weapons and LPCs (estimated " + Math.round(startEstimate) + " s at the start); rate "
+                    + before + " -> " + JAOPlanTimes.rate);
         } catch (Throwable t) {
             Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't record the planning times", t);
         }
@@ -295,6 +312,12 @@ final class JAOFleetPlan {
 
     /** One ship planned, then the next (and the next pass after the last). */
     private void advance() {
+        if (startEstimate < 0f) {
+            float pass1 = 0f;
+            for (ShipPlan o : ships) if (timed(o)) pass1 += JAOPlanTimes.passSeconds(o.slots, kinds);
+            JAOPlanTimes.load();
+            startEstimate = pass1 * JAOPlanTimes.passes;
+        }
         ShipPlan s = ships.get(index);
         long t = System.nanoTime();
         planOne(s);

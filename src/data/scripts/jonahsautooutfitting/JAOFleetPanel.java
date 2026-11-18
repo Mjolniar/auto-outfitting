@@ -101,20 +101,20 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 for (com.fs.starfarer.api.plugins.AutofitPlugin.AvailableFighter a : sf) ids.add("f:" + a.getId());
             }
             int kinds = ids.size();
-            com.fs.starfarer.api.characters.MutableCharacterStatsAPI ps = Global.getSector().getPlayerStats();
-            boolean smods = JAOFleetOptions.smods() && ps.getStoryPoints() > JAOSettings.smodReserve;
             List<com.fs.starfarer.api.fleet.FleetMemberAPI> ships = JAOFleetPlan.combatShips(members, new int[1]);
             float pass = 0f;
             int planned = 0;
             for (com.fs.starfarer.api.fleet.FleetMemberAPI m : ships) {
                 if (JAOLocks.locked(m) || m.getVariant() == null) continue;
                 planned++;
-                boolean room = Math.min(Misc.getMaxPermanentMods(m, ps), JAOOptimizer.sizeCap(m.getHullSpec().getHullSize())) > m.getVariant().getSMods().size();
-                pass += JAOPlanTimes.passSeconds(smods && room, JAOPlanTimes.slots(m), kinds);
+                pass += JAOPlanTimes.passSeconds(JAOPlanTimes.slots(m), kinds);
             }
             int civilians = JAOSettings.civilianLogistics ? JAOFleetPlan.civilianShips(members).size() : 0;
             int cells = JAOFleetApply.placeOfficers() ? planned * (pf.getFleetData().getOfficersCopy().size() + 1) : 0;
-            return JAOPlanTimes.text(JAOPlanTimes.estimate(pass, civilians, cells));
+            float total = JAOPlanTimes.estimate(pass, civilians, cells);
+            Global.getLogger(JAOFleetPanel.class).info("Auto Outfitting: planning estimate " + Math.round(total) + " s (" + planned + " warships, " + kinds
+                    + " kinds of weapons and LPCs, " + civilians + " civilian, " + cells + " officer and ship pairs, rate " + JAOPlanTimes.rate + ", passes " + JAOPlanTimes.passes + ")");
+            return JAOPlanTimes.text(total);
         } catch (Throwable t) {
             Global.getLogger(JAOFleetPanel.class).warn("Auto Outfitting: couldn't estimate the planning time", t);
             return null;

@@ -8,34 +8,34 @@ import org.json.JSONObject;
 
 /**
  * How long Optimize fleet takes to plan (0.5.66, user 11/18: "7 giant battleships that needed completely new mods took 5
- * minutes"; the panel said a big fleet takes a few seconds). A ship's search grows with its choosable mounts and bays
- * times the kinds of weapons and LPCs it can pick from, and much more when it plans s-mods (every candidate s-mod is a
- * fit of its own). Per pass a ship takes rate x slots x kinds seconds, with one rate for ships that plan s-mods and one
- * for ships that don't; officer placement takes a fixed time per officer and ship pair.
- *
- * The rates start from the user's 11/18 run (7 capitals with new s-mods in about 5 minutes: about 20 slots, a few hundred
- * kinds, 2-3 passes) and the logged ship searches (median 0.1 s a pass), and are learned
- * from every finished plan (half old, half new), so they follow the player's PC. They're kept in the game's common
- * folder (jao_plan_times.json), shared by every save.
+ * minutes"; the panel said a big fleet takes a few seconds). 0.5.68 (user: the estimate was far off and the time left
+ * kept growing): a ship's pass takes rate x slots^1.6 x kinds seconds (choosable mounts and bays; kinds of weapons and
+ * LPCs it can pick from). The 1.6 is from 218 logged ship searches (time ~ slots^1.65); s-mod planning was no
+ * predictor (capitals with all their s-mods took 12-34 s a pass in the user's 11/18 run). The rate is learned per whole
+ * run (seconds over work, half old and half new), so the order ships are recorded in doesn't matter (0.5.67 learned
+ * ship by ship, and the last, smallest ships set the rate). While a plan runs, ships not planned yet are scaled by how
+ * the ships already planned compared with their estimate, so the time left settles after the first ships. Kept in the
+ * game's common folder (jao_plan_times.json), shared by every save.
  */
 final class JAOPlanTimes {
     static final String FILE = "jao_plan_times.json";
-    /** Seconds per pass per choosable slot per kind of weapon or LPC: [0] no s-mods, [1] with s-mod planning. */
-    static final float[] DEFAULT_RATE = {0.0002f, 0.004f};
+    /** Seconds per pass per slots^EXP per kind of weapon or LPC (the user's 11/18 run: capitals of about 25 slots, 20 s a pass). */
+    static final float DEFAULT_RATE = 1.5e-4f, EXP = 1.6f;
     static final float DEFAULT_CELL = 0.006f, DEFAULT_PASSES = 2.5f;
     /** A civilian ship's logistics fit, planned once. */
     static final float CIVILIAN_SECONDS = 0.3f;
     /** Weight of a new measurement. */
     static final float LEARN = 0.5f;
 
-    static float[] rate;
-    static float cell, passes;
+    static boolean loaded;
+    static float rate, cell, passes;
 
     private JAOPlanTimes() { }
 
     static synchronized void load() {
-        if (rate != null) return;
-        rate = DEFAULT_RATE.clone();
+        if (loaded) return;
+        loaded = true;
+        rate = DEFAULT_RATE;
         cell = DEFAULT_CELL;
         passes = DEFAULT_PASSES;
         try {
@@ -43,8 +43,8 @@ final class JAOPlanTimes {
             String text = Global.getSettings().readTextFileFromCommon(FILE);
             if (text == null || text.trim().isEmpty()) return;
             JSONObject o = new JSONObject(text);
-            rate[0] = sane((float) o.optDouble("rate0", rate[0]), rate[0]);
-            rate[1] = sane((float) o.optDouble("rate1", rate[1]), rate[1]);
+            // 0.5.68: "rate" (slots^1.6 work); 0.5.67's rate0 / rate1 are left out
+            rate = sane((float) o.optDouble("rate", rate), rate);
             cell = sane((float) o.optDouble("cell", cell), cell);
             passes = Math.max(1f, Math.min(3f, sane((float) o.optDouble("passes", passes), passes)));
         } catch (Throwable t) {
@@ -56,8 +56,7 @@ final class JAOPlanTimes {
         load();
         try {
             JSONObject o = new JSONObject();
-            o.put("rate0", rate[0]);
-            o.put("rate1", rate[1]);
+            o.put("rate", rate);
             o.put("cell", cell);
             o.put("passes", passes);
             Global.getSettings().writeTextFileToCommon(FILE, o.toString());
@@ -90,20 +89,32 @@ final class JAOPlanTimes {
         return Math.max(1, n);
     }
 
+    /** Work of one pass of one ship: slots^EXP x kinds. */
+    static float work(int slots, int kinds) {
+        return (float) Math.pow(Math.max(1, slots), EXP) * Math.max(1, kinds);
+    }
+
     /** Seconds one pass of one ship takes. */
-    static float passSeconds(boolean smods, int slots, int kinds) {
+    static float passSeconds(int slots, int kinds) {
         load();
-        return rate[smods ? 1 : 0] * Math.max(1, slots) * Math.max(1, kinds);
+        return rate * work(slots, kinds);
     }
 
-    /** A finished ship: its seconds per pass, slots, kinds, and whether it planned s-mods. */
-    static synchronized void recordShip(boolean smods, int slots, int kinds, float secondsPerPass) {
-        load();
-        int i = smods ? 1 : 0;
-        rate[i] = learn(rate[i], secondsPerPass / (Math.max(1, slots) * (float) Math.max(1, kinds)));
+    /**
+     * An estimate scaled by how the ships planned so far compared with theirs (measured over estimated seconds, held to
+     * 0.02-50); unchanged before any ship ran.
+     */
+    static float corrected(float estimate, float measuredSum, float estimatedSum) {
+        if (!(measuredSum > 0f) || !(estimatedSum > 0f)) return estimate;
+        return estimate * Math.max(0.02f, Math.min(50f, measuredSum / estimatedSum));
     }
 
-    static synchronized void recordPasses(int n) { load(); passes = Math.max(1f, Math.min(3f, learn(passes, n))); }
+    /** A finished plan: warships' seconds over their work (every pass), passes run. */
+    static synchronized void recordRun(float seconds, float work, int passesRun) {
+        load();
+        if (work > 0f) rate = learn(rate, seconds / work);
+        if (passesRun > 0) passes = Math.max(1f, Math.min(3f, learn(passes, passesRun)));
+    }
 
     static synchronized void recordCells(int cells, float seconds) {
         if (cells <= 0) return;
