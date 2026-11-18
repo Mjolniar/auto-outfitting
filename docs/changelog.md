@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.67 - 2026-11-18
+
+- Optimize fleet: The settings page estimates how long Plan fleet takes, from the ships, their choosable slots, the kinds of weapons and LPCs it can pick from, s-mod planning and officer placement.
+- Optimize fleet: The progress line shows the time left while it plans and places officers.
+- Optimize fleet: The estimate learns from every finished plan and is kept in the game's common folder (jao_plan_times.json).
+- Optimize fleet: Fixed the progress note saying a big fleet takes a few seconds.
+
 ## 0.5.66 - 2026-11-18
 
 - Reverse Engineered Private Arsenal: Optimize fleet buys from the Private Arsenal at the docked colony with Legal shops on. With an Omega core in the hub its items cost nothing.

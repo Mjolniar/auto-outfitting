@@ -106,7 +106,8 @@ final class JAOOfficers {
     /** Scores pairs for about budgetMs; true when placement is done. */
     boolean step(long budgetMs) {
         if (done) return true;
-        long end = System.nanoTime() + budgetMs * 1_000_000L;
+        long t0 = System.nanoTime(), end = t0 + budgetMs * 1_000_000L;
+        if (startNanos == 0L) startNanos = t0;
         int n = ships.size(), cells = n * (officers.size() + 1);
         while (next < cells && System.nanoTime() < end) {
             int s = next % n, o = next / n - 1;
@@ -120,13 +121,18 @@ final class JAOOfficers {
             next++;
         }
         if (next < cells) return false;
+        // 0.5.66: seconds per officer and ship pair, wall time from the first step (JAOPlanTimes)
+        JAOPlanTimes.recordCells(cells, (System.nanoTime() - startNanos) / 1e9f);
         finish();
         return true;
     }
 
+    private long startNanos;
+
     String progress() {
         int n = Math.max(1, ships.size()), cells = n * (officers.size() + 1);
-        return "Placing officers (" + Math.min(next, cells) + " of " + cells + ")";
+        return "Placing officers (" + Math.min(next, cells) + " of " + cells + "), "
+                + JAOPlanTimes.text(JAOPlanTimes.cellSeconds(cells - Math.min(next, cells))) + " left";
     }
 
     private void finish() {

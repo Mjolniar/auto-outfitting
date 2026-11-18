@@ -76,6 +76,51 @@ final class JAOFleetPanel extends JAOOverlayPanel {
 
     // ------------------------------------------------------------------ settings
 
+    /**
+     * About how long Plan fleet takes with what's here now (0.5.66, JAOPlanTimes): the kinds of weapons and LPCs it can
+     * pick from (fleet cargo, what's on the ships, storage here when it's used, the shops when they're ticked), each
+     * unlocked warship's choosable slots, s-mod planning where the ship has room and story points are above the reserve,
+     * civilian fits and officer placement. Null if it can't be worked out.
+     */
+    private String planTime(MarketAPI market, List<JAOShops.Shop> shops, boolean hasStorage) {
+        try {
+            com.fs.starfarer.api.campaign.CampaignFleetAPI pf = Global.getSector().getPlayerFleet();
+            java.util.Map<String, Integer> w = new java.util.TreeMap<>(), f = new java.util.TreeMap<>();
+            JAOFleetPlan.addCargo(pf.getCargo(), w, f);
+            if (hasStorage && JAOFleetOptions.useStorage()) JAOFleetPlan.addCargo(Misc.getStorageCargo(market), w, f);
+            List<com.fs.starfarer.api.fleet.FleetMemberAPI> members = pf.getFleetData().getMembersListCopy();
+            for (com.fs.starfarer.api.fleet.FleetMemberAPI m : members) if (m.getVariant() != null) JAOFleetPlan.addMountedWithModules(m.getVariant(), w, f);
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (String k : w.keySet()) ids.add("w:" + k);
+            for (String k : f.keySet()) ids.add("f:" + k);
+            if (shops != null && (JAOFleetOptions.buyLegal() || JAOFleetOptions.buyBlack())) {
+                List<com.fs.starfarer.api.plugins.AutofitPlugin.AvailableWeapon> sw = new ArrayList<>();
+                List<com.fs.starfarer.api.plugins.AutofitPlugin.AvailableFighter> sf = new ArrayList<>();
+                JAOShops.stock(shops, JAOFleetOptions.buyLegal(), JAOFleetOptions.buyBlack(), sw, sf);
+                for (com.fs.starfarer.api.plugins.AutofitPlugin.AvailableWeapon a : sw) ids.add("w:" + a.getId());
+                for (com.fs.starfarer.api.plugins.AutofitPlugin.AvailableFighter a : sf) ids.add("f:" + a.getId());
+            }
+            int kinds = ids.size();
+            com.fs.starfarer.api.characters.MutableCharacterStatsAPI ps = Global.getSector().getPlayerStats();
+            boolean smods = JAOFleetOptions.smods() && ps.getStoryPoints() > JAOSettings.smodReserve;
+            List<com.fs.starfarer.api.fleet.FleetMemberAPI> ships = JAOFleetPlan.combatShips(members, new int[1]);
+            float pass = 0f;
+            int planned = 0;
+            for (com.fs.starfarer.api.fleet.FleetMemberAPI m : ships) {
+                if (JAOLocks.locked(m) || m.getVariant() == null) continue;
+                planned++;
+                boolean room = Math.min(Misc.getMaxPermanentMods(m, ps), JAOOptimizer.sizeCap(m.getHullSpec().getHullSize())) > m.getVariant().getSMods().size();
+                pass += JAOPlanTimes.passSeconds(smods && room, JAOPlanTimes.slots(m), kinds);
+            }
+            int civilians = JAOSettings.civilianLogistics ? JAOFleetPlan.civilianShips(members).size() : 0;
+            int cells = JAOFleetApply.placeOfficers() ? planned * (pf.getFleetData().getOfficersCopy().size() + 1) : 0;
+            return JAOPlanTimes.text(JAOPlanTimes.estimate(pass, civilians, cells));
+        } catch (Throwable t) {
+            Global.getLogger(JAOFleetPanel.class).warn("Auto Outfitting: couldn't estimate the planning time", t);
+            return null;
+        }
+    }
+
     private void buildSetup() {
         Color h = Misc.getHighlightColor(), g = Misc.getGrayColor();
         MarketAPI market = JAOFleetApply.dockedMarket();
@@ -91,6 +136,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         TooltipMakerAPI t = scroller(W - 20f, H - 70f);
         t.addSectionHeading(title(), Alignment.MID, 0f);
         t.addPara("These settings are just for this save. Plan fleet shows you every change before anything happens, and nothing actually changes until you hit Apply to all ships.", 6f, g);
+        String eta = planTime(market, shops, hasStorage);
+        if (eta != null) t.addPara("With what you've got here right now, planning should take %s. It learns how fast your PC is from every run, so this gets more accurate over time.", 4f, g, h, eta);
 
         t.addSectionHeading("Weapons and LPCs", Alignment.MID, 10f);
         t.addPara("It always uses whatever's on the ships and in your fleet cargo.", 4f, g);

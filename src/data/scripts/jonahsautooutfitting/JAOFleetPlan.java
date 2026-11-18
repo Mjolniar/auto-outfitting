@@ -67,9 +67,14 @@ final class JAOFleetPlan {
         double buyCost, changeCost;
         /** 0.5.57: s-mods the plan takes off and builds in with credits (the game's Change s-mods), and the lines saying so. */
         final List<String> smodsRemoved = new ArrayList<>(), smodsBought = new ArrayList<>(), changeNotes = new ArrayList<>();
+        /** 0.5.66: planning time (JAOPlanTimes): choosable slots, every pass and the last one, passes run. */
+        final int slots;
+        long allNanos, lastPassNanos;
+        int passesRun;
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
+            this.slots = JAOPlanTimes.slots(member);
             this.name = member.getShipName() == null || member.getShipName().isEmpty() ? member.getHullSpec().getHullName() : member.getShipName();
         }
     }
@@ -99,11 +104,66 @@ final class JAOFleetPlan {
     double creditsLeft = Double.MAX_VALUE;
     boolean done;
     long nanos;
+    /** 0.5.66: kinds of weapons and LPCs in the stock (JAOPlanTimes). */
+    final int kinds;
+    private boolean timesRecorded;
+
+    /** Distinct weapon and LPC ids a plan can pick from. */
+    static int kinds(List<AvailableWeapon> weapons, List<AvailableFighter> fighters) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (weapons != null) for (AvailableWeapon w : weapons) if (w != null) ids.add("w:" + w.getId());
+        if (fighters != null) for (AvailableFighter f : fighters) if (f != null) ids.add("f:" + f.getId());
+        return ids.size();
+    }
+
+    /** Whether a ship is expected to plan s-mods (the plan builds them and story points are left). */
+    boolean smodWork(ShipPlan s) {
+        return s.smods != null || (smods && storyPoints > 0 && !s.civilian);
+    }
+
+    /** Seconds one pass of a ship takes: measured once it ran, else JAOPlanTimes' rate. */
+    float passSeconds(ShipPlan s) {
+        if (s.passesRun > 0) return s.lastPassNanos / 1e9f;
+        return JAOPlanTimes.passSeconds(smodWork(s), s.slots, kinds);
+    }
+
+    /** Seconds left: this pass's remaining ships, then the passes still expected. */
+    float secondsLeft() {
+        if (done) return 0f;
+        float rest = 0f, all = 0f;
+        for (int i = 0; i < ships.size(); i++) {
+            ShipPlan s = ships.get(i);
+            if (s.locked || s.keep || s.civilian) continue;
+            float p = passSeconds(s);
+            all += p;
+            if (i >= index) rest += p;
+        }
+        JAOPlanTimes.load();
+        float more = Math.max(0f, Math.round(JAOPlanTimes.passes) - pass - 1);
+        return rest + more * all;
+    }
+
+    /** The measured times into JAOPlanTimes once the plan is done (once). */
+    private void recordTimes() {
+        if (timesRecorded) return;
+        timesRecorded = true;
+        try {
+            for (ShipPlan s : ships) {
+                if (s.passesRun <= 0 || s.civilian || s.locked || s.keep) continue;
+                JAOPlanTimes.recordShip(s.smods != null, s.slots, kinds, s.allNanos / 1e9f / s.passesRun);
+            }
+            JAOPlanTimes.recordPasses(pass);
+            JAOPlanTimes.save();
+        } catch (Throwable t) {
+            Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't record the planning times", t);
+        }
+    }
 
     JAOFleetPlan(List<FleetMemberAPI> members, List<AvailableWeapon> weapons, List<AvailableFighter> fighters, boolean fit, boolean smods,
                  MarketAPI market, CampaignUIAPI.CoreUITradeMode tradeMode) {
         this.weapons = weapons; this.fighters = fighters; this.fit = fit; this.smods = smods;
         this.market = market; this.tradeMode = tradeMode;
+        this.kinds = kinds(weapons, fighters);
         this.hullmods = new ArrayList<>(new java.util.TreeSet<>(Global.getSector().getPlayerFaction().getKnownHullMods()));
         // one Optimize fleet spends story points down to the reserve, or at most jao_smodFleetMax of them when set (0.5.30; 0 = no cap since 0.5.35)
         this.storyPoints = spendable(Global.getSector().getPlayerStats().getStoryPoints(), JAOSettings.smodReserve, JAOSettings.smodFleetMax);
@@ -235,12 +295,20 @@ final class JAOFleetPlan {
 
     /** One ship planned, then the next (and the next pass after the last). */
     private void advance() {
-        planOne(ships.get(index));
+        ShipPlan s = ships.get(index);
+        long t = System.nanoTime();
+        planOne(s);
+        // 0.5.66: wall time on the worker, waits for its turns included (what the player waits)
+        long dt = System.nanoTime() - t;
+        s.lastPassNanos = dt;
+        s.allNanos += dt;
+        s.passesRun++;
         if (++index >= ships.size()) {
             index = 0;
             pass++;
             if (pass >= PASSES || (pass > 1 && changedThisPass == 0)) done = true;
             changedThisPass = 0;
+            if (done) recordTimes();
         }
     }
 
@@ -254,7 +322,8 @@ final class JAOFleetPlan {
 
     String progress() {
         if (done) return "Planned " + ships.size() + " ships";
-        return "Planning " + ships.get(index).name + " (" + (index + 1) + " of " + ships.size() + ", pass " + (pass + 1) + " of " + PASSES + ")";
+        return "Planning " + ships.get(index).name + " (" + (index + 1) + " of " + ships.size() + ", pass " + (pass + 1) + " of " + PASSES + "), "
+                + JAOPlanTimes.text(secondsLeft()) + " left";
     }
 
     private void planOne(ShipPlan s) {

@@ -75,7 +75,7 @@ final class JAOFleetPlanner {
         boolean custom() { return aotd || monthlyCapacity > 0; }
     }
 
-    /** Builds the order a frame at a time (the plan behind it can take a few seconds on a big fleet). */
+    /** Builds the order a frame at a time (the plan behind it can take minutes on a big fleet). */
     static final class Job {
         final Plan plan = new Plan();
         final JAOFleetPlan fleet;
