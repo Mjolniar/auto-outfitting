@@ -25,6 +25,8 @@ public class JAOSettings {
     public static int smodMaxFrigate = 1, smodMaxDestroyer = 2;
     /** Optimize fleet's "Change s-mods with credits" (0.5.57): gain one s-mod change must add (scaled by ship size). */
     public static float smodChangeMinGain = 0.1f;
+    /** AI Tweaks' Custom AI on every cruiser and capital (0.5.64, user 11/17). */
+    public static boolean customAi = true;
     /** Debug option: remove all s-mods from the fleet and refund them (JAODebug; acts on off -> on in the menu only). */
     public static boolean refundSmods;
     /** Share of the player's credits a fleet production order may cost. */
@@ -93,6 +95,7 @@ public class JAOSettings {
         smodMaxFrigate = clamp(integer("jao_smodMaxFrigate", 1), 0, 3);
         smodMaxDestroyer = clamp(integer("jao_smodMaxDestroyer", 2), 0, 3);
         smodChangeMinGain = clamp(dbl("jao_smodChangeMinGain", 0.1f), 0.02f, 0.5f);
+        customAi = bool("jao_customAi", true);
         debug = bool("jao_debug", false);
         refundSmods = bool("jao_debugRefundSmods", false);
         return true;
@@ -129,6 +132,7 @@ public class JAOSettings {
                 + ", s-mods up to " + smodCount + " per fit, " + (smodFleetMax > 0 ? smodFleetMax + " SP per Optimize fleet" : "no SP limit per Optimize fleet") + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"
                 + (smodBySize ? ", gain by ship size" : "") + ", at most " + smodMaxFrigate + " on frigates, " + smodMaxDestroyer + " on destroyers, change gain " + smodChangeMinGain
                 + ")"
+                + (customAi ? ", Custom AI on cruisers and capitals" : "")
                 + (debug ? ", debug log" : "");
     }
 }

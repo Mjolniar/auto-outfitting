@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.64 - 2026-11-17
+
+- AI Tweaks: Optimal and Optimize fleet add Custom AI to every cruiser and capital when AI Tweaks is enabled and the hullmod is known. Frigates and destroyers keep what they have. Never built in as an s-mod.
+- Settings: Added "Custom AI on cruisers and capitals (AI Tweaks)", on by default.
+
 ## 0.5.63 - 2026-11-17
 
 - Optimize fleet: Fixed the settings page shifting right below the credit limit's Less and More buttons and cutting off text at the right edge.

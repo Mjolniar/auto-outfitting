@@ -171,6 +171,12 @@ class JAOOptimizer {
         // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
         p.creditCost = planning && !buying ? 0f : JAOSettings.buyGain / 10000f;
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+        // 0.5.64: AI Tweaks' Custom AI on cruisers and capitals; it costs no OP, so it's kept like a hullmod the ship has
+        if (!module && JAOCompat.customAiWanted(hull.getHullSize(), delegate.getAvailableHullmods())
+                && !current.hasHullMod(JAOCompat.CUSTOM_AI) && world.canAdd(JAOCompat.CUSTOM_AI, keepMods)) {
+            current.addMod(JAOCompat.CUSTOM_AI);
+            keepMods.add(JAOCompat.CUSTOM_AI);
+        }
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
         if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
@@ -1002,6 +1008,9 @@ class JAOOptimizer {
             if (!fleetNeeds(world, mods, smods, id, false, others, enough)) continue;
             mods.add(id);
         }
+        // 0.5.64: AI Tweaks' Custom AI on civilian cruisers and capitals too (0 OP, not a logistics hullmod)
+        if (JAOCompat.customAiWanted(hull.getHullSize(), available) && !mods.contains(JAOCompat.CUSTOM_AI)
+                && world.canAdd(JAOCompat.CUSTOM_AI, mods)) mods.add(JAOCompat.CUSTOM_AI);
         for (String m : mods) if (!smods.contains(m) && !current.hasHullMod(m)) current.addMod(m);
         int built = smods.isEmpty() ? 0 : buildIn(smods, real, hull);
         // 0.5.60: s-mods that couldn't be built went on as ordinary hullmods with OP the plan didn't count; they come off

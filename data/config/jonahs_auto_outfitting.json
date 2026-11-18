@@ -24,6 +24,7 @@
 	"jao_allowDrawbacks":false,      # true: hullmods with any downside (supplies, range, speed, etc.) can get used
 	"jao_safetyOverrides":"Frigates and destroyers",   # Never, Frigates and destroyers, When it scores best
 	"jao_logistics":false,
+	"jao_customAi":true,             # AI Tweaks' Custom AI on every cruiser and capital (0 OP)
 	"jao_skipWeapons":"",          # weapon ids or patterns the Optimal fit never picks, e.g. "stardust_lightproton, SKR_*"
 
 	# s-mods: only built with the Autofit box "Build in s-mods" (Optimal fit) or the Optimize fleet tick (story points spent on them are gone for good)

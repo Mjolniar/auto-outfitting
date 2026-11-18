@@ -6,6 +6,7 @@ import com.fs.starfarer.api.campaign.CargoAPI;
 import com.fs.starfarer.api.campaign.econ.MarketAPI;
 import com.fs.starfarer.api.characters.MutableCharacterStatsAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.fleet.FleetMemberType;
@@ -425,6 +426,27 @@ final class JAOCompat {
         List<String> out = new ArrayList<>();
         for (String id : ids) out.add(JAOSMods.name(id));
         return Misc.getAndJoined(out);
+    }
+
+    // ------------------------------------------------------------------ AI Tweaks
+
+    /** AI Tweaks' Custom AI hullmod (0 OP, no_build_in, known from the start). */
+    static final String CUSTOM_AI = "aitweaks_custom_ship_ai";
+
+    /**
+     * Custom AI goes on this hull (0.5.64, user 11/17: "a definite improvement for any ship cruiser size and up"): the
+     * setting is on, AI Tweaks is enabled, the player knows the hullmod, and the hull is a cruiser or bigger. Frigates
+     * and destroyers keep whatever they have (never_remove keeps it on any ship that has it).
+     */
+    static boolean customAiWanted(ShipAPI.HullSize size, java.util.Collection<String> known) {
+        boolean on;
+        try { on = Global.getSettings().getModManager().isModEnabled("aitweaks"); } catch (Throwable t) { on = false; }
+        return customAiWanted(JAOSettings.customAi, on, size, known);
+    }
+
+    static boolean customAiWanted(boolean setting, boolean aiTweaks, ShipAPI.HullSize size, java.util.Collection<String> known) {
+        return setting && aiTweaks && size != null && size.ordinal() >= ShipAPI.HullSize.CRUISER.ordinal()
+                && known != null && known.contains(CUSTOM_AI);
     }
 
     // ------------------------------------------------------------------ cargo
