@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.65 - 2026-11-17
+
+- Optimize fleet: Officer placement values an officer by the share the ship's score rises, times the ship's deployment points. Capitals and cruisers get officers ahead of frigates with a similar gain.
+- Optimize fleet: The officers note says officers move to where they help the fleet the most.
+
 ## 0.5.64 - 2026-11-17
 
 - AI Tweaks: Optimal and Optimize fleet add Custom AI to every cruiser and capital when AI Tweaks is enabled and the hullmod is known. Frigates and destroyers keep what they have. Never built in as an s-mod.

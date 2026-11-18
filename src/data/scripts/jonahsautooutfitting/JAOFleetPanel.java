@@ -139,7 +139,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
 
         t.addSectionHeading("Officers and augments", Alignment.MID, 10f);
         officersBox = box(t, "Place officers", "officers", JAOFleetApply.placeOfficers());
-        t.addPara("Officers move to whichever ship they help the most. You and any AI cores stay put.", 0f, g);
+        t.addPara("Officers move to wherever they help the fleet the most, and bigger ships count for more. You and any AI cores stay put.", 0f, g);
         augmentsBox = null;
         if (JAOEsr.present()) {
             augmentsBox = box(t, "Place augments", "augments", JAOAugments.place());
@@ -226,8 +226,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if (notes.length() > 0) list.addPara(esc(notes.toString().trim()), 2f, g);
         if (job.officers != null) {
             int moves = job.officerMoves();
-            if (moves > 0) list.addPara("Officers: %s move to whichever ship they help the most. You and any AI cores stay put.", 2f, h, "" + moves);
-            else list.addPara("Officers: every officer's already on the ship they help the most.", 2f, g);
+            if (moves > 0) list.addPara("Officers: %s move to wherever they help the fleet the most. You and any AI cores stay put.", 2f, h, "" + moves);
+            else list.addPara("Officers: every officer's already where they help the fleet the most.", 2f, g);
         }
         if (job.augments != null && job.augments.any()) {
             int moves = job.augmentMoves();

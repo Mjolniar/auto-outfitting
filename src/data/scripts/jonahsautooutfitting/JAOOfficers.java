@@ -20,10 +20,13 @@ import java.util.Map;
  *    not on a locked ship.
  *  - Ships that take one: warships in the plan that aren't the flagship, automated (AI cores only), mothballed or
  *    locked, and aren't commanded by the player, an AI core or an unremovable officer.
- *  - Each officer on each ship is worth the ship's build score with that officer minus without (the ship as it is now,
- *    JAOFleetPlan.scoreWithCaptain): bigger ships and skills that suit the fit count more. The best total is found
- *    greedily, then improved by swapping and moving officers until nothing gains (assign). An officer stays where they
- *    are unless a move gains more than STAY of their value there.
+ *  - Each officer on each ship is worth the share the ship's build score rises with that officer (the ship as it is
+ *    now, JAOFleetPlan.scoreWithCaptain) times the hull's deployment points (worth). 0.5.65, user 11/17: officers went
+ *    to frigates over capitals. Each ship is scored against enemies its own size, so a capital's score is not much
+ *    bigger than a frigate's, and Wolfpack Tactics adds damage and peak time on officered frigates; the raw score gain
+ *    put a +20% frigate ahead of a +10% capital. The best total is found greedily, then improved by swapping and
+ *    moving officers until nothing gains (assign). An officer stays where they are unless a move gains more than STAY
+ *    of their value there.
  *  - The fleet plan then fits every ship under its new captain; Apply moves the officers before refitting.
  * Runs a few scores per frame (step), like the plan.
  */
@@ -37,6 +40,8 @@ final class JAOOfficers {
     /** Where each officer is now: the member they command (any ship in the fleet), or null. */
     final List<FleetMemberAPI> from = new ArrayList<>();
     float[] base;
+    /** Each ship's deployment points (dp). */
+    float[] weight;
     float[][] value;
     private int next;
     boolean done;
@@ -61,6 +66,8 @@ final class JAOOfficers {
             from.add(at);
         }
         base = new float[ships.size()];
+        weight = new float[ships.size()];
+        for (int s = 0; s < weight.length; s++) weight[s] = dp(ships.get(s));
         value = new float[officers.size()][ships.size()];
         done = ships.isEmpty() || officers.isEmpty();
         if (done) finish();
@@ -79,6 +86,23 @@ final class JAOOfficers {
         return JAOShip.activeOfficer(p);
     }
 
+    /**
+     * An officer's value on a ship: the share the build score rises (with over without) times the ship's deployment
+     * points. +10% on a 40 DP capital is 4, +20% on an 8 DP frigate 1.6. 0 when the ship has no score to raise.
+     */
+    static float worth(float with, float without, float dp) {
+        if (!(without > 0f) || Float.isNaN(with) || Float.isInfinite(with) || Float.isInfinite(without)) return 0f;
+        return (with - without) / without * Math.max(1f, dp);
+    }
+
+    /** The hull's deployment points (its base cost, the same with or without an officer), at least 1. */
+    static float dp(FleetMemberAPI m) {
+        float d = 0f;
+        try { d = m.getHullSpec().getSuppliesToRecover(); } catch (Throwable ignored) { }
+        if (!(d > 0f)) { try { d = m.getDeploymentPointsCost(); } catch (Throwable ignored) { } }
+        return d > 0f ? d : 1f;
+    }
+
     /** Scores pairs for about budgetMs; true when placement is done. */
     boolean step(long budgetMs) {
         if (done) return true;
@@ -88,7 +112,7 @@ final class JAOOfficers {
             int s = next % n, o = next / n - 1;
             try {
                 if (o < 0) base[s] = fleet.scoreWithCaptain(ships.get(s), null);
-                else value[o][s] = fleet.scoreWithCaptain(ships.get(s), officers.get(o)) - base[s];
+                else value[o][s] = worth(fleet.scoreWithCaptain(ships.get(s), officers.get(o)), base[s], weight[s]);
             } catch (Throwable t) {
                 Global.getLogger(JAOOfficers.class).warn("Auto Outfitting: officer placement couldn't score " + ships.get(s).getShipName(), t);
                 if (o >= 0) value[o][s] = 0f;
