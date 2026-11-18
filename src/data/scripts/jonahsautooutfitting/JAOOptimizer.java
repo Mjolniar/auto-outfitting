@@ -216,6 +216,10 @@ class JAOOptimizer {
                 JAOSMods.Plan plan = sm.plan(available, every);
                 smodPlan = plan;
                 smods.addAll(plan.mods);
+                // 0.5.66: an s-mod the hull's script would delete with the s-mods it ends up with (jao_rules smod_lost)
+                Set<String> smodsAfter = new LinkedHashSet<>(current.getSMods());
+                smodsAfter.addAll(smods);
+                smods.removeIf(id -> JAOCompat.smodLost(id, hull.getBuiltInMods(), smodsAfter));
                 smodNote = plan.note + (dmods.isEmpty() ? "" : " (judged without the removable d-mods " + dmods + ")");
                 if (plan.waiting && memberId != null && !planning) {
                     waited = JAOSMods.waitedDays(memberId, true);
@@ -453,6 +457,8 @@ class JAOOptimizer {
         List<String> available = new ArrayList<>();
         for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
         for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
+        // 0.5.66: never one the hull's script deletes next to the s-mods already built in (jao_rules smod_lost)
+        available.removeIf(id -> JAOCompat.smodLost(id, hull.getBuiltInMods(), current.getSMods()));
         // hullmods worth something only as s-mods (Escort Package) aren't ordinary candidates
         for (String id : JAOShip.SMOD_VALUE) {
             if (available.contains(id) || !delegate.getAvailableHullmods().contains(id) || hull.getBuiltInMods().contains(id)
@@ -491,6 +497,8 @@ class JAOOptimizer {
                 // 0.5.60: hidden hullmods and never_remove rules stay, as in the strip
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
                 if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)) continue;
+                // 0.5.66: an s-mod of a complete set stays (jao_rules smod_set: the hull's script would drop the set's bonus)
+                if (JAOCompat.inCompleteSet(id, hull.getBuiltInMods(), current.getSMods())) continue;
                 removable.add(id);
             }
             if (removable.isEmpty() || current.getSMods().size() < full || changeCost + changePrice > changeCredits) return;
@@ -513,7 +521,10 @@ class JAOOptimizer {
                 sm.minGain = JAOSettings.smodMinGain * weight;
                 List<String> ons = new ArrayList<>();
                 for (String id : smodCandidates(candsOff, keepOff, hull)) {
-                    if (!id.equals(off) && !v.getSMods().contains(id) && !smodsRemoved.contains(id)) ons.add(id);
+                    if (id.equals(off) || v.getSMods().contains(id) || smodsRemoved.contains(id)) continue;
+                    Set<String> withOn = new LinkedHashSet<>(v.getSMods());
+                    withOn.add(id);
+                    if (!JAOCompat.smodLost(id, hull.getBuiltInMods(), withOn)) ons.add(id);
                 }
                 // with a new s-mod the change costs two (one off, one on); without, one. 0.5.60: a new one only while the
                 // ship is at or under its size cap (s-mods already on count, as the setting says)
@@ -830,6 +841,9 @@ class JAOOptimizer {
 
     /** Freighters, tankers, liners, salvage and survey ships: hulls that never fight (design 7h). */
     static boolean civilian(ShipHullSpecAPI hull) {
+        // 0.5.66: jao_rules warship rows: hulls with a civilian hint that do a combat job (Navarchy of Tania's Wader: its
+        // ground support grows with its wing and hullmods, so the logistics fit would take its job away)
+        if (JAORatings.ruleMatches("warship", hull.getHullId()) || JAORatings.ruleMatches("warship", hull.getBaseHullId())) return false;
         if (hull.isCivilianNonCarrier()) return true;
         String d = hull.getDesignation() == null ? "" : hull.getDesignation().toLowerCase(java.util.Locale.ROOT);
         // armed conversions (Prometheus Mk II "Modified Tanker", Colossus Mk II/III, "Combat Freighter") are warships

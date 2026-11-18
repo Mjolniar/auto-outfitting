@@ -449,6 +449,84 @@ final class JAOCompat {
                 && known != null && known.contains(CUSTOM_AI);
     }
 
+    // ------------------------------------------------------------------ s-mod sets (Navarchy of Tania's Ancient Frame)
+
+    /**
+     * jao_rules smod_lost (0.5.66): on hulls with the built-in hullmod (id), the hull's script deletes the s-mod before
+     * the @ once every s-mod after it is built in (Ancient Frame swaps an Integrated Point Defense AI s-mod for Expanded
+     * Cargo Holds and a Flux Coil s-mod for Expanded Magazines): the story point would be lost, so AO never builds it.
+     */
+    static boolean smodLost(List<String[]> rules, String smod, java.util.Collection<String> builtIns, java.util.Collection<String> smods) {
+        if (smod == null || builtIns == null || smods == null) return false;
+        for (String[] r : rules) {
+            if (!"smod_lost".equals(r[0]) || !builtIns.contains(r[1])) continue;
+            int at = r[2].indexOf('@');
+            if (at <= 0 || !r[2].substring(0, at).trim().equals(smod)) continue;
+            boolean all = true;
+            for (String need : r[2].substring(at + 1).split(";")) if (!need.trim().isEmpty() && !smods.contains(need.trim())) all = false;
+            if (all) return true;
+        }
+        return false;
+    }
+
+    static boolean smodLost(String smod, java.util.Collection<String> builtIns, java.util.Collection<String> smods) {
+        return smodLost(JAORatings.rules(), smod, builtIns, smods);
+    }
+
+    /**
+     * jao_rules smod_set (0.5.66): on hulls with the built-in hullmod (id), these s-mods together add a set bonus (Ancient
+     * Frame: Solaris Sensor Suite and five more). An s-mod of a complete set is never taken off by s-mod changes, since
+     * the hull's script then removes the set's bonus.
+     */
+    static boolean inCompleteSet(List<String[]> rules, String smod, java.util.Collection<String> builtIns, java.util.Collection<String> smods) {
+        if (smod == null || builtIns == null || smods == null) return false;
+        for (String[] r : rules) {
+            if (!"smod_set".equals(r[0]) || !builtIns.contains(r[1])) continue;
+            List<String> set = new ArrayList<>();
+            for (String s : r[2].split(";")) if (!s.trim().isEmpty()) set.add(s.trim());
+            if (set.contains(smod) && smods.containsAll(set)) return true;
+        }
+        return false;
+    }
+
+    static boolean inCompleteSet(String smod, java.util.Collection<String> builtIns, java.util.Collection<String> smods) {
+        return inCompleteSet(JAORatings.rules(), smod, builtIns, smods);
+    }
+
+    // ------------------------------------------------------------------ Reverse Engineered Private Arsenal
+
+    /**
+     * Reverse Engineered Private Arsenal (re_private_arsenal, 0.5.66, user 11/18): the Private Arsenal at a colony with a
+     * Reverse Engineering Hub sells 50 of every item the hub reverse-engineered, at base value x 2.0 / 1.6 / 1.0 / 0.4 / 0
+     * by the hub's core (none / gamma / beta / alpha / omega; PrivateArsenalSubmarketPlugin.getTariff = mult - 1, and
+     * isFreeTransfer when the mult is 0). The Reverse Engineering Storage next to it holds what the hub is analysing
+     * (free transfer); AO never takes from it or puts anything in it (AO's storage is Misc.getStorageCargo only).
+     */
+    static final String REPA_ARSENAL = "RePA_PrivateArsenalSub";
+
+    /** A free-transfer submarket that is still a shop: the Private Arsenal with an Omega core sells at 0. */
+    static boolean freeShop(String submarketId) {
+        return REPA_ARSENAL.equals(submarketId);
+    }
+
+    /**
+     * Order fleet weapons: what every free Private Arsenal holds counts as owned stock, like storage (an Omega-core hub
+     * gives its stock away). A priced arsenal is a shop: Optimize fleet buys there when docked with Legal shops on.
+     */
+    static void addFreeArsenals(Map<String, Integer> w, Map<String, Integer> f) {
+        try {
+            for (MarketAPI m : Global.getSector().getEconomy().getMarketsCopy()) {
+                if (m == null || !m.isPlayerOwned() || !m.hasSubmarket(REPA_ARSENAL)) continue;
+                com.fs.starfarer.api.campaign.econ.SubmarketAPI sub = m.getSubmarket(REPA_ARSENAL);
+                if (sub == null || sub.getPlugin() == null || !sub.getPlugin().isFreeTransfer()) continue;
+                CargoAPI c = sub.getPlugin().getCargo();
+                if (c != null) JAOFleetPlan.addCargo(c, w, f);
+            }
+        } catch (Throwable t) {
+            Global.getLogger(JAOCompat.class).warn("Auto Outfitting: couldn't read the Private Arsenal", t);
+        }
+    }
+
     // ------------------------------------------------------------------ cargo
 
     /**

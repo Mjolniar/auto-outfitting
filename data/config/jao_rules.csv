@@ -255,3 +255,47 @@ role,colossus3,Battle carrier,The AI flies it as a line ship
 role,monitor,Support,Escort frigate: holds next to bigger ships under the Escort order
 role,centurion,Support,Escort frigate: holds next to bigger ships under the Escort order
 role,atlas2,Line,Artillery: homing missiles and long guns from behind the line
+# 0.5.66: Voidfaring Hubship Start roles (core rows in this order: first match wins)
+role,JHS_junkhubship_core_u*_w1_*,Anchor,"Voidfaring Hubship W1 hulls (18): Remove Some Decks takes 4 of the 6 bays and the 2 left hold built-in Sarissas, so no bay is free; detection reads 4 free bays from the hull spec (Battle carrier). Keep these three core rows in this order"
+role,JHS_junkhubship_core_u1*,Battle carrier,Voidfaring Hubship U1 hulls without W1 (45): 4 free bays and 2 built-in Sarissas (W2: 6 free bays and B-Deck); same as detection; the row stops the base hull row below from matching them through the base hull id
+role,JHS_junkhubship_core_m3,Anchor,"Voidfaring Hubship base hull and the 15 hulls without U1: Remove Decks sets bays x0; detection reads 6 bays from ship_data.csv (Battle carrier); matches every skin through the base hull id, so it stays below the two rows above"
+role,JHS_junkhubship_module_left,Line,"Voidfaring Hubship left module: speed 0, and JAOOptimizer.speedRatio reads speed 0 as 1 (unknown), so detection picks Flanker; it is fixed to a 25-speed capital and fights at the core's range (judgment)"
+role,JHS_junkhubship_module_right,Line,Voidfaring Hubship right module: as the left module
+# 0.5.66: Navarchy of Tania (plans/2026-11-18-new-mods/out/not-hulls.md)
+removed_by,tania_ancient_weapon_sys,safetyoverrides,Navarchy of Tania: Ancient Frame (15 Tania hulls) removes Safety Overrides after ship creation
+removed_by,tania_fixed_frontal_shield,advancedshieldemitter;stabilizedshieldemitter;hardenedshieldemitter;extendedshieldemitter;frontemitter;adaptiveshields,Navarchy of Tania: Low Arc Shield Emitter (15 hulls) removes these after ship creation
+removed_by,tania_combat_forge,missile_autoloader,Navarchy of Tania: Combat Autoforge (Merite; Argentavis; Black Hawk; Black Hawk (P); Vigilante 8) removes Missile Autoloader
+removed_by,tania_battlecruiser_package,missile_autoloader,Navarchy of Tania: Battlecruiser Package (Aracari) removes Missile Autoloader
+removed_by,tania_ballistic_overclock,targetingunit,Navarchy of Tania: Thermal Calibration (Aetos) removes Integrated Targeting Unit
+removed_by,tania_improved_pd_core,pointdefenseai,Navarchy of Tania: Improved Point Defense Core (Gralha) removes Integrated Point Defense AI
+removed_by,tania_navarchy_armor_plate,frontshield;fragment_swarm;shrouded_mantle;shrouded_thunderhead;shrouded_lens,Navarchy of Tania: armor-plate modules remove these (AO adds no module hullmods; guard only)
+combat,tania_combat_forge,MIS_RELOAD_BASE:6:1:DESTROYER,Merite: 24 reload points for 1 small missile slot; a 2-4 OP small missile costs 2-3 a reload (8-12 magazines); 6 after the 10 s wait per reload and AI fire discipline (judgment); the launcher rate cap still applies
+combat,tania_combat_forge,MIS_RELOAD_BASE:2.5:1:CRUISER,Argentavis: 32 reload points over 4 small missile slots at about 3 a reload: 2.7 extra base magazines each
+combat,tania_combat_forge,MIS_RELOAD_BASE:4:1:CAPITAL&-tania_system_spam_order_ai,Black Hawk and Vigilante 8: 40 reload points over 3 small missile slots: 4.4 extra base magazines each
+combat,tania_combat_forge,MIS_RELOAD_BASE:1:1:CAPITAL&+tania_system_spam_order_ai,"Black Hawk (P): 40 reload points over 3 small and 2 large missile slots; a 20-OP large missile costs 20 a reload: about 0.8 extra magazines each, rounded to 1"
+combat,tania_battlecruiser_package,MIS_RELOAD_BASE:1:1,Aracari: every missile weapon is refilled to its base max ammo at 60 s; one refill in a 90 s fight
+combat,tania_special_stealth_mines,PD_NEED:0.8:1,"Stealth Mines set: proximity mines at fighters and missiles within 300/400/550/700, a use every 2 s while charges last (judgment)"
+combat,tania_special_prototype_disruptor,PD_NEED:0.8:1,"Prototype Disruptor set: 350-800 field; enemy mines destroyed, missiles 30 damage a second, fighters slowed (judgment)"
+combat,tania_heart_of_abyss,PD_NEED:0.9:1,Heart of the Abyss set: 50 fragmentation pulses at fighters within 255-1020; no effect on missiles (judgment)
+wing_mult,tania_improved_pd_core,1.15,Gralha: its fighters get damage to fighters and missiles +50% (judgment: a third to half of a wing's damage goes to fighters and missiles)
+wing_mult,tania_strikecraft_support,1.05,"Gralha: its fighters top speed +50, accel +50%, turn +25% (judgment; wing range 0 is already priced by JAOModel dta)"
+role,tania_atlas2,Line,Atlas Mk.B: the vanilla Atlas Mk.II's job (rule atlas2 Line): long guns and homing missiles from behind the line; numbers make it an Anchor
+role,tania_shepherd_nt,Support,Shepherd (NT): drone tender with a built-in Talon wing and 23 OP; numbers make it a Brawler (judgment)
+role,tania_black_hawk_pirate_main,Battle carrier,Black Hawk (P): 4 bays and a gun line; designation Dreadnought makes it an Anchor (judgment)
+role,tania_black_hawk_boss_madman,Battle carrier,Vigilante 8: 4 bays and a gun line; designation Dreadnought makes it an Anchor (judgment)
+role,tania_blood_stork_main,Line,Blood Stork: its main weapon is a built-in 1500-range bomb launcher; the 6 small ballistic slots back it up; speed makes it a Flanker (judgment)
+role,tania_*_plate,Support,"Aetos and Argentavis armor plates: module weapons deal x0.15 damage to hull (Navarchy Armor Plate), so they serve as PD and shield pressure (judgment)"
+role,tania_*_module,Support,Touraco and Aracari armor plates: as above (judgment)
+role,tania_black_hawk_module_*,Support,Black Hawk armor plates: as above (judgment)
+role,tania_merite_left,Support,Merite left armor plate: as above (judgment)
+role,tania_merite_right,Support,Merite right armor plate: as above (judgment)
+# 0.5.66: smod_lost (built-in hullmod -> s-mod@s-mods: its script deletes that s-mod once those are s-mods; never built), smod_set (built-in -> s-mods of a set; kept by s-mod changes), warship (hull id or pattern: fitted as a warship despite a civilian hint)
+smod_lost,tania_ancient_weapon_sys,pointdefenseai@missleracks;expanded_cargo_holds,"Ancient Frame: with Expanded Missile Racks and Expanded Cargo Holds as s-mods, an Integrated Point Defense AI s-mod is swapped for Cargo Holds (story point lost)"
+smod_lost,tania_ancient_weapon_sys,fluxcoil@hiressensors;magazines;turretgyros,"Ancient Frame: with the Solaris set as s-mods, a Flux Coil Adjunct s-mod is swapped for Expanded Magazines (story point lost)"
+smod_set,tania_ancient_weapon_sys,expanded_cargo_holds;missleracks,Ancient Frame: Stealth Mines set
+smod_set,tania_ancient_weapon_sys,ecm;eccm,Ancient Frame: Prototype Disruptor set
+smod_set,tania_ancient_weapon_sys,augmentedengines;insulatedengine;auxiliarythrusters,Ancient Frame: Dysis Engines set
+smod_set,tania_ancient_weapon_sys,hiressensors;magazines;turretgyros,Ancient Frame: Solaris Sensor Suite set (ballistic and energy damage +25%)
+smod_set,tania_ancient_weapon_sys,shrouded_mantle;shrouded_thunderhead;shrouded_lens,Ancient Frame: Heart of the Abyss set
+smod_set,tania_ancient_weapon_sys,fragment_swarm;secondary_fabricator;fragment_coordinator,Ancient Frame: Threat Resonator set
+warship,tania_wader_main,,"Wader: CIVILIAN and TRANSPORT hints, but its ground support grows with its wing and hullmods (Modular Operations Facility), so it gets a warship fit"

@@ -249,6 +249,10 @@ public class JAORatings {
         w.fleetMax = Math.max(0f, num(row, "fleetMax"));
         // 0.5.50: the weapon's script fixes its charge count (RAT's Hyperspatial Javelin 5, Dart 6)
         w.fixedAmmo = "TRUE".equalsIgnoreCase(row.optString("fixedAmmo", "").trim());
+        // 0.5.66: the script splits each shot into this many pellets (Navarchy of Tania's Nidhogg 15, Garra 5): armor sees
+        // the pellet, the damage per second stays the same
+        float pellets = num(row, "pellets");
+        if (pellets > 1f && !w.beam && w.hit > 0f) w.hit /= pellets;
         if (!JAOSettings.specialWeapons) return;
         // 0.5.50: shots home on the ship's target; ammo reloads faster while the ship is phased
         w.homing = "TRUE".equalsIgnoreCase(row.optString("homing", "").trim());
@@ -453,6 +457,9 @@ public class JAORatings {
             try { op = h.getOrdnancePoints(null); } catch (Throwable t) { op = 1; }
             if (size < 0 || op <= 0 || h.isCivilianNonCarrier()) continue;
             if (h.getHints().contains(ShipTypeHints.STATION) || h.getHints().contains(ShipTypeHints.MODULE)) continue;
+            // 0.5.66: each hull design once; skins and d-hulls are left out (Voidfaring Hubship Start adds 78 skins of one
+            // unshielded capital, which moved the capital medians: unshielded weight 0.15 -> 0.27)
+            if (!baseHull(h.getHullId(), h.getBaseHullId())) continue;
             boolean shield = h.getShieldType() == ShieldType.FRONT || h.getShieldType() == ShieldType.OMNI;
             float eff = shield && h.getShieldSpec() != null ? h.getShieldSpec().getFluxPerDamageAbsorbed() : 0f;
             float speed = h.getEngineSpec() == null ? 0f : h.getEngineSpec().getMaxSpeed();
@@ -485,6 +492,11 @@ public class JAORatings {
             }
         }
         return refs;
+    }
+
+    /** A base hull (its own base): skins and d-hulls name another hull as their base. */
+    static boolean baseHull(String hullId, String baseHullId) {
+        return baseHullId == null || baseHullId.isEmpty() || baseHullId.equals(hullId);
     }
 
     /** Fallback main-battery ranges per size (median of the stock goal loadouts in the 11/02 research dump). */

@@ -1,5 +1,19 @@
 # Patch notes
 
+## 0.5.66 - 2026-11-18
+
+- Reverse Engineered Private Arsenal: Optimize fleet buys from the Private Arsenal at the docked colony with Legal shops on. With an Omega core in the hub its items cost nothing.
+- Reverse Engineered Private Arsenal: Order fleet weapons counts a free Private Arsenal's stock as owned. The Reverse Engineering Storage is never used.
+- Navarchy of Tania: Added scripted effects for 6 weapons (Nidhogg and Garra pellets, Agulha Defense System, Acid Howitzer, Purifier, Porcupine Bomb Launcher).
+- Navarchy of Tania: Added 22 hullmod rows, 11 ship system rows and 27 rules (hullmods its hulls delete, Combat Autoforge and Battlecruiser Package missile reloads, set effects, roles).
+- Navarchy of Tania: S-mods that Ancient Frame deletes are never built in (Integrated Point Defense AI next to Missile Racks and Cargo Holds, Flux Coil Adjunct next to the Solaris set).
+- Navarchy of Tania: Change s-mods with credits keeps every s-mod of a complete Ancient Frame set.
+- Navarchy of Tania: The Wader gets a warship fit.
+- Voidfaring Hubship Start: Added roles for the core and side modules, the Offense Focus system and the drone launchers.
+- Weapons: Added a pellets column to jao_weapon_effects.csv (armor sees each pellet, damage per second is unchanged).
+- Scoring: Reference targets count each hull design once. Skins and d-hulls are left out.
+- Rules: Added the kinds smod_lost, smod_set and warship.
+
 ## 0.5.65 - 2026-11-17
 
 - Optimize fleet: Officer placement values an officer by the share the ship's score rises, times the ship's deployment points. Capitals and cruisers get officers ahead of frigates with a similar gain.

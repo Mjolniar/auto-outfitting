@@ -103,6 +103,8 @@ final class JAOFleetPlanner {
             }
             // RAT: the settlement's storage (kept in its planet's storage, a market outside the economy) and its open orders
             JAOProduction.addSettlementStock(ownW, ownF, counted);
+            // Reverse Engineered Private Arsenal: a free arsenal (Omega core) gives its stock away (0.5.66)
+            JAOCompat.addFreeArsenals(ownW, ownF);
             List<FleetMemberAPI> members = pf.getFleetData().getMembersListCopy();
             for (FleetMemberAPI m : members) if (m.getVariant() != null) JAOFleetPlan.addMountedWithModules(m.getVariant(), ownW, ownF);
             // the game's own production list is still built every month even with AoTD (its CoreScript keeps that), so it

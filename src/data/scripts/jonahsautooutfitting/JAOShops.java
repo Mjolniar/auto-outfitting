@@ -91,7 +91,7 @@ final class JAOShops {
         for (SubmarketAPI sub : market.getSubmarketsCopy()) {
             try {
                 SubmarketPlugin plugin = sub.getPlugin();
-                if (plugin == null || plugin.isFreeTransfer() || !plugin.isEnabled(ui)) continue;
+                if (plugin == null || (plugin.isFreeTransfer() && !JAOCompat.freeShop(sub.getSpecId())) || !plugin.isEnabled(ui)) continue;
                 String name = sub.getNameOneLine();
                 out.add(new Shop(sub, plugin.isBlackMarket(), name == null || name.trim().isEmpty() ? sub.getSpecId() : name.trim()));
             } catch (Throwable t) {
@@ -145,8 +145,12 @@ final class JAOShops {
         try { return Global.getSettings().getFloat("shipWeaponBuyPriceMult"); } catch (Throwable t) { return 1f; }
     }
 
-    /** The refit screen's price for one: base value x shipWeaponBuyPriceMult x (1 + tariff), rounded; at least 1. */
+    /**
+     * The refit screen's price for one: base value x shipWeaponBuyPriceMult x (1 + tariff), rounded; at least 1. A tariff
+     * of -1 or less is a shop that gives its stock away (the Private Arsenal with an Omega core): 0.
+     */
     static float price(float baseValue, float mult, float tariff) {
+        if (tariff <= -1f) return 0f;
         return Math.max(1f, Math.round(baseValue * mult * (1f + tariff)));
     }
 
