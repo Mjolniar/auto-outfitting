@@ -801,7 +801,7 @@ final class JAOFleetApply {
         newS.removeIf(id -> !itemThere(id, s.member, v));
         if (changeFailed) {
             // the s-mods meant to come off are still there: new story point s-mods only up to the free room
-            int room = Math.min(Misc.getMaxPermanentMods(s.member, ps), JAOOptimizer.sizeCap(v.getHullSize())) - v.getSMods().size();
+            int room = Math.min(Misc.getMaxPermanentMods(s.member, ps), s.civilian ? 99 : JAOOptimizer.sizeCap(v.getHullSize())) - v.getSMods().size();
             while (newS.size() > Math.max(0, room)) newS.remove(newS.size() - 1);
         }
         if (newS.isEmpty()) return 0;

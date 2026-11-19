@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.73 - 2026-11-19
+
+- Optimize fleet: Added boxes in the S-mods section for which ship types get s-mods: frigates, destroyers, cruisers, capitals and civilian ships. They are saved per save and also apply to Optimal on the refit screen.
+- S-mods: A type that is off gets no new s-mods and no s-mod changes with credits. S-mods already on a ship stay.
+- Settings: "Civilian ships: build in fleet-wide hullmods" is the starting value of the Civilian box.
+
 ## 0.5.72 - 2026-11-19
 
 - Optimize fleet: The planning estimate splits the planner's own time from its share of each frame. A laggy campaign gives the planner less time, and that no longer raises the estimate for later runs.

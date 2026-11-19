@@ -33,6 +33,11 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     final Runnable analysis;
     boolean failed;
     ButtonAPI apply, storageBox, storedBox, legalBox, blackBox, smodsBox, changeBox, officersBox, augmentsBox;
+    /** 0.5.73: s-mods by ship type (frigates, destroyers, cruisers, capitals, civilian). */
+    ButtonAPI[] typeBoxes;
+    static final String[] TYPE_IDS = {"smodsF", "smodsD", "smodsC", "smodsK", "smodsV"};
+    static final String[] TYPE_KEYS = {JAOFleetOptions.SMODS_FRIGATES, JAOFleetOptions.SMODS_DESTROYERS, JAOFleetOptions.SMODS_CRUISERS,
+            JAOFleetOptions.SMODS_CAPITALS, JAOFleetOptions.SMODS_CIVILIAN};
     TooltipMakerAPI status;
 
     JAOFleetPanel(java.util.function.Supplier<JAOFleetApply> starter, Object refit, Runnable close, Runnable analysis, boolean overlay) {
@@ -177,6 +182,28 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         smodsBox = box(t, "Build in s-mods with story points", "smods", JAOFleetOptions.smods());
         t.addPara(esc("You've got " + sp + " story points and it always keeps " + JAOSettings.smodReserve + " of them (Story points to keep in the settings). Frigates get at most "
                 + JAOSettings.smodMaxFrigate + " s-mods and destroyers " + JAOSettings.smodMaxDestroyer + (JAOSettings.smodBySize ? ", and smaller ships need a bigger gain before they get one" : "") + "."), 0f, g);
+        // 0.5.73 (user 11/19: "Add a toggle in here", "For each type"): which ship types get s-mods, one box each in a row
+        // of their own (like Less and More, so the text after them isn't pushed right)
+        t.addPara("These ship types get s-mods:", 4f, g);
+        String[] names = {"Frigates", "Destroyers", "Cruisers", "Capitals", "Civilian"};
+        boolean[] on = {JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE), JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.DESTROYER),
+                JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.CRUISER), JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP),
+                JAOFleetOptions.smodsCivilian()};
+        float bw = 112f, rowW = bw * names.length;
+        com.fs.starfarer.api.ui.CustomPanelAPI types = Global.getSettings().createCustom(rowW, 22f, new com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object id) { JAOFleetPanel.this.buttonPressed(id); }
+        });
+        TooltipMakerAPI tb = types.createUIElement(rowW, 22f, false);
+        typeBoxes = new ButtonAPI[names.length];
+        for (int i = 0; i < names.length; i++) {
+            typeBoxes[i] = tb.addCheckbox(bw - 6f, 22f, names[i], TYPE_IDS[i], ButtonAPI.UICheckboxSize.SMALL, 0f);
+            typeBoxes[i].setChecked(on[i]);
+            if (i == 0) typeBoxes[i].getPosition().inTL(0f, 0f);
+            else typeBoxes[i].getPosition().rightOfTop(typeBoxes[i - 1], 6f);
+        }
+        types.addUIElement(tb).inTL(0f, 0f);
+        t.addCustom(types, 2f);
+        t.addPara("This goes for Optimal on the refit screen too. Civilian means the fleet-wide hullmods on the civilian ships you're keeping.", 2f, g);
         boolean here = JAOFleetOptions.changeSmodsHere(market, mode);
         changeBox = box(t, "Change s-mods with credits", "change", JAOFleetOptions.changeSmods());
         t.addPara(esc(here ? "This uses the game's own Change s-mods at your colony, which runs " + Misc.getDGSCredits(JAOFleetOptions.changePrice(com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE))
@@ -255,7 +282,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if (dmodShips > 0) notes.append(dmodShips).append(dmodShips == 1 ? " ship has" : " ships have")
                 .append(" d-mods, so each one gets fitted around its own armor, flux, speed, max CR, flight deck and turrets. ");
         if (job.civilian > 0) notes.append(job.civilian).append(" civilian ships get the logistics fit (campaign hullmods, no weapons, vents and capacitors only with OP left over")
-                .append(job.smods && JAOSettings.civilianSmods ? "; cruisers, capitals and salvage rigs build in fleet-wide ones). " : "). ");
+                .append(job.smods && JAOFleetOptions.smodsCivilian() ? "; cruisers, capitals and salvage rigs build in fleet-wide ones). " : "). ");
         if (job.fleet.locked > 0) notes.append(job.fleet.locked).append(job.fleet.locked == 1
                 ? " locked ship stays as it is, and what it carries doesn't get used on other ships"
                 : " locked ships stay as they are, and what they carry doesn't get used on other ships").append(" (you can lock or unlock on the refit screen). ");
@@ -393,6 +420,10 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             else if ("black".equals(id) && blackBox != null) JAOFleetOptions.set(JAOFleetOptions.BUY_BLACK, blackBox.isChecked());
             else if ("smods".equals(id) && smodsBox != null) JAOFleetOptions.set(JAOFleetOptions.SMODS, smodsBox.isChecked());
             else if ("change".equals(id) && changeBox != null) JAOFleetOptions.set(JAOFleetOptions.CHANGE_SMODS, changeBox.isChecked());
+            else if (typeBoxes != null && java.util.Arrays.asList(TYPE_IDS).contains(id)) {
+                int i = java.util.Arrays.asList(TYPE_IDS).indexOf(id);
+                JAOFleetOptions.set(TYPE_KEYS[i], typeBoxes[i].isChecked());
+            }
             else if ("officers".equals(id) && officersBox != null) JAOFleetApply.setPlaceOfficers(officersBox.isChecked());
             else if ("augments".equals(id) && augmentsBox != null) JAOAugments.setPlace(augmentsBox.isChecked());
         } else if ("settings".equals(id)) {

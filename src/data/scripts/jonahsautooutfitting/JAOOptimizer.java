@@ -94,6 +94,7 @@ class JAOOptimizer {
         ShipHullSpecAPI hull = current.getHullSpec();
         current.setMayAutoAssignWeapons(false);
         if (!module && (logistics || (!planning && JAOSettings.civilianLogistics && civilian(hull)))) {
+            civilianFit = true;
             runLogistics(hull, t0);
             return;
         }
@@ -188,7 +189,8 @@ class JAOOptimizer {
             FleetMemberAPI member = delegate.getFleetMember();
             String memberId = member == null ? null : member.getId();
             if (limit <= 0) {
-                smodNote = why[0] <= 0 && sizeCapped ? hull.getHullSize().name().toLowerCase(java.util.Locale.ROOT) + "s take at most " + sizeCap(hull.getHullSize()) + " s-mods (setting)"
+                smodNote = !JAOFleetOptions.smodsOn(hull.getHullSize()) ? "s-mods on " + hull.getHullSize().name().toLowerCase(java.util.Locale.ROOT).replace("capital_ship", "capital") + "s are off (Optimize fleet, S-mods)"
+                        : why[0] <= 0 && sizeCapped ? hull.getHullSize().name().toLowerCase(java.util.Locale.ROOT) + "s take at most " + sizeCap(hull.getHullSize()) + " s-mods (setting)"
                         : why[0] <= 0 ? "already has " + why[3] + " of " + (why[3] + Math.max(0, why[0])) + " s-mods"
                         : why[1] <= 0 && fleetCapUsed() ? "Story points per Optimize fleet (" + JAOSettings.smodFleetMax + ") used up by bigger ships"
                         : why[1] <= 0 ? "no story points" + (JAOSettings.smodReserve > 0 ? " above the " + JAOSettings.smodReserve + " kept in reserve" : "")
@@ -425,7 +427,7 @@ class JAOOptimizer {
 
     /** S-mods this fit may build in: the ship's limit left, story points above the reserve, the per-ship setting. */
     private int smodLimit(int[] why) {
-        int max = Misc.getMaxPermanentMods(delegate.getFleetMember(), plugin.stats()), cap = sizeCap(current.getHullSpec().getHullSize());
+        int max = Misc.getMaxPermanentMods(delegate.getFleetMember(), plugin.stats()), cap = civilianFit ? 99 : sizeCap(current.getHullSpec().getHullSize());
         sizeCapped = cap < max;
         int room = Math.min(max, cap) - current.getSMods().size();
         int sp = (storyPoints >= 0 ? storyPoints : Global.getSector().getPlayerStats().getStoryPoints()) - JAOSettings.smodReserve;
@@ -434,11 +436,16 @@ class JAOOptimizer {
         return smodLimit(room, sp + JAOSettings.smodReserve, JAOSettings.smodReserve, JAOSettings.smodCount);
     }
 
+    /** 0.5.73: the civilian logistics fit (its s-mods follow the Civilian box, not the warship sizes). */
+    private boolean civilianFit;
+
     /** The size cap (frigates, destroyers) is below the game's s-mod limit for this ship. */
     private boolean sizeCapped;
 
     /** Most s-mods Auto Outfitting builds into this hull size (jao_smodMaxFrigate / jao_smodMaxDestroyer; others: no cap). */
     static int sizeCap(HullSize size) {
+        // 0.5.73: s-mods by class (warships; the civilian logistics fit uses its own setting, civilianFit)
+        if (!JAOFleetOptions.smodsOn(size)) return 0;
         if (size == HullSize.FRIGATE) return JAOSettings.smodMaxFrigate;
         if (size == HullSize.DESTROYER) return JAOSettings.smodMaxDestroyer;
         return 99;
@@ -485,6 +492,8 @@ class JAOOptimizer {
      */
     private void planSmodChanges(ShipHullSpecAPI hull, Supplier<List<JAOSearch.Slot>> slotsOf, Map<String, Integer> stock) {
         if (changePrice <= 0f) return;
+        // 0.5.73: no s-mod changes on a class with s-mods turned off
+        if (!JAOFleetOptions.smodsOn(hull.getHullSize())) return;
         FleetMemberAPI member = delegate.getFleetMember();
         // only ships with no free s-mod slot (game limit and size cap): a free slot takes a new s-mod with a story point,
         // which keeps the s-mod already there
@@ -982,7 +991,7 @@ class JAOOptimizer {
         int limit = JAOShip.maxLogistics(delegate.getFleetMember());
         // s-mods (user 11/06): with "Build in s-mods" ticked and the civilian s-mods setting on, keepers build in the
         // fleet-wide hullmods, in a single refit and in Optimize fleet alike (story points only on Confirm)
-        boolean smodsOn = JAOSettings.civilianSmods && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS));
+        boolean smodsOn = JAOFleetOptions.smodsCivilian() && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS));
         int smodRoom = smodsOn && keeper(hull) ? smodLimit(new int[4]) : 0;
         Set<String> mods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
         Set<String> smods = new LinkedHashSet<>();

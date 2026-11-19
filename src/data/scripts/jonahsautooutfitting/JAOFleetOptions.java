@@ -16,6 +16,9 @@ import com.fs.starfarer.api.util.Misc;
 final class JAOFleetOptions {
     static final String USE_STORAGE = "jao_ofUseStorage", BUY_LEGAL = "jao_ofBuyLegal", BUY_BLACK = "jao_ofBuyBlack",
             BUDGET = "jao_ofBudget", SMODS = "jao_ofSmods", CHANGE_SMODS = "jao_ofChangeSmods";
+    /** S-mods by ship type (0.5.73, user 11/19: "Add a toggle in here", "For each type"): per save, Optimal and Optimize fleet. */
+    static final String SMODS_FRIGATES = "jao_ofSmodsFrigates", SMODS_DESTROYERS = "jao_ofSmodsDestroyers", SMODS_CRUISERS = "jao_ofSmodsCruisers",
+            SMODS_CAPITALS = "jao_ofSmodsCapitals", SMODS_CIVILIAN = "jao_ofSmodsCivilian";
     /** Credit limit steps: share of the player's credits one Optimize fleet may spend on shops and s-mod changes. */
     static final float[] BUDGETS = {0.1f, 0.25f, 0.5f, 0.75f, 1f};
     static final float DEFAULT_BUDGET = 0.25f;
@@ -46,6 +49,27 @@ final class JAOFleetOptions {
         Object o = get(SMODS);
         return o instanceof Boolean ? (Boolean) o : JAOGoals.optionChecked(JAOAutofitPlugin.SMODS);
     }
+
+    /** The per-save switch for warships of this size (all on until the player turns one off). */
+    static String smodsKey(HullSize size) {
+        if (size == null) return null;
+        switch (size) {
+            case FRIGATE: return SMODS_FRIGATES;
+            case DESTROYER: return SMODS_DESTROYERS;
+            case CRUISER: return SMODS_CRUISERS;
+            case CAPITAL_SHIP: return SMODS_CAPITALS;
+            default: return null;
+        }
+    }
+
+    /** Whether s-mods get built into warships of this size (Optimal, Optimize fleet and its s-mod changes). */
+    static boolean smodsOn(HullSize size) {
+        String k = smodsKey(size);
+        return k == null || flag(k, true);
+    }
+
+    /** Whether civilian ships build in fleet-wide hullmods: until set in this save, the LunaLib setting (jao_civilianSmods). */
+    static boolean smodsCivilian() { return flag(SMODS_CIVILIAN, JAOSettings.civilianSmods); }
 
     static float budget() {
         Object o = get(BUDGET);
