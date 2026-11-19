@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.70 - 2026-11-18
+
+- Stations: Optimal fits on stations (STATION hint) and their modules give speed and handling no value and no evasion, and score against every target size alike.
+- Stations: Station cores and modules are fitted as Anchors (carriers stay carriers).
+- Auto Colonies: Station fits through the autofit plugin with "jao_optimal_any_goal" ticked. No story points are spent and no cargo is touched on that path.
+
 ## 0.5.69 - 2026-11-18
 
 - Place officers: Every officer gets a ship while ships that can take one are free. An officer whose ships all score no gain keeps their own ship, or takes the free ship where they lose least.

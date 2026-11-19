@@ -663,6 +663,8 @@ final class JAOModel {
         float wS = 1f, wA = 1f, wH = 1f, offenseW = 0.6f, mobilityW, pdMult = 1f, wingMult = 1f;
         /** Survival from outrunning the targets (role's evasion, 0.5.59). */
         float evasionW;
+        /** 0.5.70: a station or one of its modules: no mobility or evasion value, fights every size (stationParams). */
+        boolean station;
         /** The player's flagship (0.5.59, flagship()). */
         boolean flagship;
         /** An AI carrier (0.5.59): guns other than point defense and missiles count CARRIER_GUN. */
@@ -1354,6 +1356,8 @@ final class JAOModel {
         float turnNeed = (s.baseTurn > 0f ? clamp(TURN_REF / s.baseTurn, 0.3f, 1f) : 1f) * (0.6f + 0.2f * (gunW > 0f ? hpW / gunW : 0f));
         float mobility = (s.baseSpeed > 0f ? (float) Math.pow(clamp(s.speed / s.baseSpeed, 0.2f, SPEED_CAP), mw) : 1f)
                 * (float) Math.pow(clamp(s.maneuver, 0.2f, MANEUVER_CAP), (0.5f * mw + 0.04f) * turnNeed);
+        // 0.5.70: a station holds its orbit; speed and handling are worth nothing to it (Auto Colonies' station fits)
+        if (p.station) mobility = 1f;
         // combat readiness the ship starts its fights at: its own max CR (skills, hullmods, d-mods) less what Seeker's
         // nano-plague takes (3/6/12 points per plague weapon or LPC on a hull it harms, Coda Launcher 3), through the
         // game's CR rules (crStart); a d-mod ship near 50% pays more for the same plague weapon than a healthy one

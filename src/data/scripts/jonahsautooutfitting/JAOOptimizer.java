@@ -165,7 +165,7 @@ class JAOOptimizer {
         // 4. search (s-mods first: they change how much OP everything else gets)
         int hullOp = hull.getOrdnancePoints(plugin.stats());
         int budget = hullOp - current.computeOPCost(plugin.stats());
-        JAORole role = JAOSettings.roles ? roleOf(hull) : null;
+        JAORole role = roleFor(hull);
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = paramsFor(hull, role, st);
         // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
@@ -330,6 +330,12 @@ class JAOOptimizer {
      */
     private JAOModel.Params paramsFor(ShipHullSpecAPI hull, JAORole role, JAOStyle st) {
         JAOModel.Params p = params(st, Math.max(0, JAORatings.sizeIndex(hull.getHullSize())), role, flagshipFit());
+        // 0.5.70 (Auto Colonies fits player stations): a station and its modules hold their orbit and face every size
+        if (stationFit()) {
+            p.station = true;
+            p.evasionW = 0f;
+            p.targets = JAORatings.targets(STATION_MIX, st);
+        }
         if (!module && JAOSettings.fleetBalance) {
             try {
                 JAOFleetMix others = fleetMix != null ? fleetMix : JAOFleetContext.of(delegate.getFleetMember()).mix;
@@ -361,7 +367,7 @@ class JAOOptimizer {
         int budget = hull.getOrdnancePoints(plugin.stats()) - current.computeOPCost(plugin.stats());
         current.setNumFluxVents(vents);
         current.setNumFluxCapacitors(caps);
-        JAORole role = JAOSettings.roles ? roleOf(hull) : null;
+        JAORole role = roleFor(hull);
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = paramsFor(hull, role, st);
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
@@ -485,7 +491,7 @@ class JAOOptimizer {
         int full = Math.min(Misc.getMaxPermanentMods(member, plugin.stats()), sizeCap(hull.getHullSize()));
         float weight = sizeWeight(member, hull);
         float need = JAOSettings.smodChangeMinGain * weight;
-        JAORole role = JAOSettings.roles ? roleOf(hull) : null;
+        JAORole role = roleFor(hull);
         JAOStyle st = role != null ? style : resolve(style, hull);
         JAOModel.Params p = paramsFor(hull, role, st);
         p.creditCost = buying ? JAOSettings.buyGain / 10000f : 0f;
@@ -795,6 +801,7 @@ class JAOOptimizer {
             index++;
             JAOOptimizer mo = new JAOOptimizer(plugin, m, delegate, style, true, planning);
             mo.buying = buying;
+            mo.stationParent = stationFit();
             mo.run();
             // planning fits a copy of the ship, so its module copies go into that copy (the plan carries them)
             current.setModuleVariant(slotId, m);
@@ -1139,6 +1146,29 @@ class JAOOptimizer {
     }
 
     /** The hull's fleet role: jao_rules override, else its designation and numbers (JAORole.detect). */
+    /** 0.5.70: fitted as a module of a station (set by the station's fit). */
+    boolean stationParent;
+
+    /** Target sizes a station faces: every size alike (fleets that raid a colony bring frigates to capitals). */
+    static final float[] STATION_MIX = {0.25f, 0.25f, 0.25f, 0.25f};
+
+    /** A station (STATION hint) or a module of one. */
+    boolean stationFit() {
+        return stationParent || station(current.getHullSpec());
+    }
+
+    static boolean station(ShipHullSpecAPI hull) {
+        return hull != null && hull.getHints().contains(com.fs.starfarer.api.combat.ShipHullSpecAPI.ShipTypeHints.STATION);
+    }
+
+    /** The role setting's role; a station and its modules are Anchors (carriers stay carriers). */
+    JAORole roleFor(ShipHullSpecAPI hull) {
+        if (!JAOSettings.roles) return null;
+        JAORole r = roleOf(hull);
+        if (stationFit() && r != JAORole.CARRIER && r != JAORole.BATTLE_CARRIER) r = JAORole.ANCHOR;
+        return r;
+    }
+
     static JAORole roleOf(ShipHullSpecAPI hull) {
         JAORole o = JAORatings.roleOverride(hull.getHullId(), hull.getBaseHullId());
         if (o != null) return o;
