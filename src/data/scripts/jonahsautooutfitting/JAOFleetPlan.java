@@ -67,14 +67,13 @@ final class JAOFleetPlan {
         double buyCost, changeCost;
         /** 0.5.57: s-mods the plan takes off and builds in with credits (the game's Change s-mods), and the lines saying so. */
         final List<String> smodsRemoved = new ArrayList<>(), smodsBought = new ArrayList<>(), changeNotes = new ArrayList<>();
-        /** 0.5.66: planning time (JAOPlanTimes): choosable slots, every pass and the last one, passes run. */
-        final int slots;
-        long allNanos, lastPassNanos;
+        /** 0.5.72: planning time (JAOPlanTimes): the ship's work before kinds (hull and modules), passes run. */
+        final float work;
         int passesRun;
 
         ShipPlan(FleetMemberAPI member) {
             this.member = member;
-            this.slots = JAOPlanTimes.slots(member);
+            this.work = JAOPlanTimes.shipWork(member);
             this.name = member.getShipName() == null || member.getShipName().isEmpty() ? member.getHullSpec().getHullName() : member.getShipName();
         }
     }
@@ -120,57 +119,63 @@ final class JAOFleetPlan {
     static boolean timed(ShipPlan s) { return !s.locked && !s.keep && !s.civilian; }
 
     /**
-     * Seconds one pass of a ship takes: its own last pass once it ran; before that JAOPlanTimes' estimate, scaled by how
-     * the ships planned so far compared with theirs (0.5.68: the time left no longer grows as big ships come in slower).
+     * 0.5.72: work of the warship passes done so far (ship work x kinds^0.9), the wall clock at the first step, the
+     * planner's estimate at the start (its own seconds), and the time left as shown (JAOPlanTimes.smooth).
      */
-    float passSeconds(ShipPlan s) {
-        if (s.passesRun > 0) return s.lastPassNanos / 1e9f;
-        float measured = 0f, estimated = 0f;
-        for (ShipPlan o : ships) {
-            if (o.passesRun <= 0 || !timed(o)) continue;
-            measured += o.allNanos / 1e9f;
-            estimated += JAOPlanTimes.passSeconds(o.slots, kinds) * o.passesRun;
-        }
-        return JAOPlanTimes.corrected(JAOPlanTimes.passSeconds(s.slots, kinds), measured, estimated);
+    private volatile float workDone;
+    private long wallStart, shownAt;
+    private float startCpu = -1f, startWall = -1f, shown = -1f;
+
+    /** One pass of every warship, in work units. */
+    float passWork() {
+        float w = 0f;
+        for (ShipPlan s : ships) if (timed(s)) w += s.work;
+        return w * JAOPlanTimes.kindsFactor(kinds);
     }
 
-    /** Seconds left: this pass's remaining ships, then the passes still expected (learned, 1-3). */
+    /**
+     * Seconds left: the work still to do (this pass's remaining warships, then the passes still expected) at the rate the
+     * ships done so far show, over the planner's share of the time so far.
+     */
     float secondsLeft() {
         if (done) return 0f;
-        float rest = 0f, all = 0f;
+        float k = JAOPlanTimes.kindsFactor(kinds), rest = 0f, all = 0f;
         for (int i = 0; i < ships.size(); i++) {
             ShipPlan s = ships.get(i);
             if (!timed(s)) continue;
-            float p = passSeconds(s);
-            all += p;
-            if (i >= index) rest += p;
+            all += s.work * k;
+            if (i >= index) rest += s.work * k;
         }
         JAOPlanTimes.load();
-        return rest + Math.max(0f, JAOPlanTimes.passes - pass - 1) * all;
+        float left = rest + Math.max(0f, JAOPlanTimes.passes - pass - 1) * all;
+        float cpu = nanos / 1e9f, wall = wallStart == 0L ? 0f : (System.nanoTime() - wallStart) / 1e9f;
+        float rate = JAOPlanTimes.liveRate(cpu, workDone, Math.max(0.5f, startCpu / 3f));
+        return left * rate / JAOPlanTimes.liveDuty(cpu, wall);
     }
 
-    /** Seconds the whole plan was expected to take when it started (for the log). */
-    private float startEstimate = -1f;
+    /** The time left as shown: counting down with the clock, no fast drops (JAOPlanTimes.smooth). */
+    String timeLeft() {
+        long now = System.nanoTime();
+        float dt = shownAt == 0L ? 0f : (now - shownAt) / 1e9f;
+        shownAt = now;
+        shown = JAOPlanTimes.smooth(shown, secondsLeft(), dt);
+        return JAOPlanTimes.text(shown);
+    }
 
-    /** The measured times into JAOPlanTimes once the plan is done (once): one rate for the whole run. */
+    /** The measured times into JAOPlanTimes once the plan is done (once, on the game's thread): one rate for the whole run. */
     private void recordTimes() {
         if (timesRecorded) return;
         timesRecorded = true;
         try {
-            float seconds = 0f, work = 0f;
+            float cpu = nanos / 1e9f, wall = wallStart == 0L ? cpu : (System.nanoTime() - wallStart) / 1e9f;
             int n = 0;
-            for (ShipPlan s : ships) {
-                if (s.passesRun <= 0 || !timed(s)) continue;
-                seconds += s.allNanos / 1e9f;
-                work += JAOPlanTimes.work(s.slots, kinds) * s.passesRun;
-                n++;
-            }
-            float before = JAOPlanTimes.rate;
-            JAOPlanTimes.recordRun(seconds, work, pass);
+            for (ShipPlan s : ships) if (s.passesRun > 0 && timed(s)) n++;
+            float before = JAOPlanTimes.rate, dutyBefore = JAOPlanTimes.duty;
+            JAOPlanTimes.recordRun(cpu, wall, workDone, pass);
             JAOPlanTimes.save();
-            Global.getLogger(JAOFleetPlan.class).info("Auto Outfitting: planning took " + Math.round(seconds) + " s for " + n + " warships, "
-                    + pass + " passes, " + kinds + " kinds of weapons and LPCs (estimated " + Math.round(startEstimate) + " s at the start); rate "
-                    + before + " -> " + JAOPlanTimes.rate);
+            Global.getLogger(JAOFleetPlan.class).info("Auto Outfitting: planning took " + Math.round(wall) + " s (planner " + Math.round(cpu) + " s) for " + n
+                    + " warships, " + pass + " passes, " + kinds + " kinds of weapons and LPCs (estimated " + Math.round(startWall) + " s, planner "
+                    + Math.round(startCpu) + " s at the start); rate " + before + " -> " + JAOPlanTimes.rate + ", share " + dutyBefore + " -> " + JAOPlanTimes.duty);
         } catch (Throwable t) {
             Global.getLogger(JAOFleetPlan.class).warn("Auto Outfitting: couldn't record the planning times", t);
         }
@@ -275,6 +280,12 @@ final class JAOFleetPlan {
     boolean step(long budgetMs) {
         if (!lockedReady) readyLocked();
         long t0 = System.nanoTime(), end = t0 + budgetMs * 1_000_000L;
+        if (wallStart == 0L) {
+            wallStart = t0;
+            JAOPlanTimes.load();
+            startCpu = passWork() * JAOPlanTimes.rate * JAOPlanTimes.passes;
+            startWall = startCpu / JAOPlanTimes.duty;
+        }
         // 0.5.40: on a worker thread in turns with the game's (JAOCoop), so a ship whose fit takes seconds doesn't
         // freeze the screen; the progress line updates between slices
         if (JAOCoop.enabled && !done && coop == null && !coopStarted) {
@@ -290,6 +301,7 @@ final class JAOFleetPlan {
         if (coop != null && !done) {
             coop.run(budgetMs);
             nanos += System.nanoTime() - t0;
+            if (done) recordTimes();
             if (coop.error != null) {
                 Throwable e = coop.error;
                 coop = null;
@@ -307,31 +319,21 @@ final class JAOFleetPlan {
         if (coopStarted && coop == null && JAOCoop.enabled && !done) throw new IllegalStateException("planning stopped before it finished");
         while (!done && System.nanoTime() < end) advance();
         nanos += System.nanoTime() - t0;
+        if (done) recordTimes();
         return done;
     }
 
     /** One ship planned, then the next (and the next pass after the last). */
     private void advance() {
-        if (startEstimate < 0f) {
-            float pass1 = 0f;
-            for (ShipPlan o : ships) if (timed(o)) pass1 += JAOPlanTimes.passSeconds(o.slots, kinds);
-            JAOPlanTimes.load();
-            startEstimate = pass1 * JAOPlanTimes.passes;
-        }
         ShipPlan s = ships.get(index);
-        long t = System.nanoTime();
         planOne(s);
-        // 0.5.66: wall time on the worker, waits for its turns included (what the player waits)
-        long dt = System.nanoTime() - t;
-        s.lastPassNanos = dt;
-        s.allNanos += dt;
-        s.passesRun++;
+        // 0.5.72: work done for the time left and the learned rate (JAOPlanTimes)
+        if (timed(s)) { s.passesRun++; workDone += s.work * JAOPlanTimes.kindsFactor(kinds); }
         if (++index >= ships.size()) {
             index = 0;
             pass++;
             if (pass >= PASSES || (pass > 1 && changedThisPass == 0)) done = true;
             changedThisPass = 0;
-            if (done) recordTimes();
         }
     }
 
@@ -346,7 +348,7 @@ final class JAOFleetPlan {
     String progress() {
         if (done) return "Planned " + ships.size() + " ships";
         return "Planning " + ships.get(index).name + " (" + (index + 1) + " of " + ships.size() + ", pass " + (pass + 1) + " of " + PASSES + "), "
-                + JAOPlanTimes.text(secondsLeft()) + " left";
+                + timeLeft() + " left";
     }
 
     private void planOne(ShipPlan s) {

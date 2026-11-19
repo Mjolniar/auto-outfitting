@@ -107,13 +107,13 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             for (com.fs.starfarer.api.fleet.FleetMemberAPI m : ships) {
                 if (JAOLocks.locked(m) || m.getVariant() == null) continue;
                 planned++;
-                pass += JAOPlanTimes.passSeconds(JAOPlanTimes.slots(m), kinds);
+                pass += JAOPlanTimes.shipWork(m);
             }
             int civilians = JAOSettings.civilianLogistics ? JAOFleetPlan.civilianShips(members).size() : 0;
             int cells = JAOFleetApply.placeOfficers() ? planned * (pf.getFleetData().getOfficersCopy().size() + 1) : 0;
-            float total = JAOPlanTimes.estimate(pass, civilians, cells);
+            float total = JAOPlanTimes.estimate(pass * JAOPlanTimes.kindsFactor(kinds), civilians, cells);
             Global.getLogger(JAOFleetPanel.class).info("Auto Outfitting: planning estimate " + Math.round(total) + " s (" + planned + " warships, " + kinds
-                    + " kinds of weapons and LPCs, " + civilians + " civilian, " + cells + " officer and ship pairs, rate " + JAOPlanTimes.rate + ", passes " + JAOPlanTimes.passes + ")");
+                    + " kinds of weapons and LPCs, " + civilians + " civilian, " + cells + " officer and ship pairs, planner rate " + JAOPlanTimes.rate + ", share " + JAOPlanTimes.duty + ", passes " + JAOPlanTimes.passes + ")");
             return JAOPlanTimes.text(total);
         } catch (Throwable t) {
             Global.getLogger(JAOFleetPanel.class).warn("Auto Outfitting: couldn't estimate the planning time", t);

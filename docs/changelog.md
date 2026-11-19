@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.72 - 2026-11-19
+
+- Optimize fleet: The planning estimate splits the planner's own time from its share of each frame. A laggy campaign gives the planner less time, and that no longer raises the estimate for later runs.
+- Optimize fleet: Ships with modules count the modules' slots.
+- Optimize fleet: One run moves the learned speed at most 3 times either way.
+- Optimize fleet: The time left counts down with the clock and drops at most 1.5 times faster. Fixed the estimate falling fast once the first ships were done.
+- Optimize fleet: The ships done so far correct the estimate gradually.
+
 ## 0.5.71 - 2026-11-18
 
 - Auto Colonies: Added a public no-argument constructor to JAOAutofitPlugin, so other mods can create it with getInstanceOfScript. Without a fleet commander the vent and capacitor limits are the base ones.
