@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.74 - 2026-11-19
+
+- Compatibility: Updated for Starsector 0.98.5a-RC8.
+
 ## 0.5.73 - 2026-11-19
 
 - Optimize fleet: Added boxes in the S-mods section for which ship types get s-mods: frigates, destroyers, cruisers, capitals and civilian ships. They are saved per save and also apply to Optimal on the refit screen.
