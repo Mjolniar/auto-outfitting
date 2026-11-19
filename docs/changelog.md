@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.69 - 2026-11-18
+
+- Place officers: Every officer gets a ship while ships that can take one are free. An officer whose ships all score no gain keeps their own ship, or takes the free ship where they lose least.
+- Place officers: Fixed ships of officers dropped from the plan staying marked as taken.
+- Place officers: Officers left without a ship are written to starsector.log with the number of ships that can take one.
+
 ## 0.5.68 - 2026-11-18
 
 - Optimize fleet: Fixed the time left growing while it plans. Ships not planned yet are scaled by how the ships already planned compared with their estimate.

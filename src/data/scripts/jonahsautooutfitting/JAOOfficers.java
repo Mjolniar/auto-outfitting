@@ -162,12 +162,17 @@ final class JAOOfficers {
         }
         fleet.captains.putAll(captains);
         if (!moves.isEmpty()) Global.getLogger(JAOOfficers.class).info("Auto Outfitting: officer placement: " + String.join("; ", moves));
+        // 0.5.69: an officer left without a ship means every ship that can take one has one
+        List<String> idle = new ArrayList<>();
+        for (int o = 0; o < officers.size(); o++) if (placed[o] < 0 && from.get(o) == null) idle.add(name(officers.get(o)));
+        if (!idle.isEmpty()) Global.getLogger(JAOOfficers.class).info("Auto Outfitting: officers without a ship: " + String.join(", ", idle) + " ("
+                + ships.size() + " ships can take an officer; the flagship, automated, mothballed, civilian and locked ships can't)");
     }
 
     /**
      * The officers' ships for the best total value: value[o][s] is officer o on ship s, now[o] where they are (-1: no
      * ship). Greedy best pair first, then swaps between two officers and moves to a free ship while they gain. Staying
-     * put counts STAY more. Officers with no ship worth anything get -1.
+     * put counts STAY more. Officers whose ships gain nothing still get a free ship (0.5.69); -1 only when none is left.
      */
     static int[] assign(float[][] value, int[] now, float stay) {
         int officers = value.length, ships = officers == 0 ? 0 : value[0].length;
@@ -208,6 +213,30 @@ final class JAOOfficers {
             if (!better) break;
         }
         for (int o = 0; o < officers; o++) if (at[o] >= 0 && v[o][at[o]] <= 0f) at[o] = -1;
+        // 0.5.69 (user 11/18: "always leaving leftover officers"): every officer gets a ship while free ones are left. An
+        // officer whose ships all score no gain (a weak officer next to Support Doctrine, which gives ships without one
+        // part of the same skills) keeps their own ship if it's free, else takes the free ship where they lose least; an
+        // officer only earns experience on a ship. The ships a dropped officer held are free again.
+        java.util.Arrays.fill(taken, false);
+        for (int o = 0; o < officers; o++) if (at[o] >= 0) taken[at[o]] = true;
+        for (int o = 0; o < officers; o++) {
+            if (at[o] < 0 && now[o] >= 0 && now[o] < ships && !taken[now[o]]) { at[o] = now[o]; taken[now[o]] = true; }
+        }
+        for (int round = 0; round < officers; round++) {
+            int bo = -1, bs = -1;
+            float best = -Float.MAX_VALUE;
+            for (int o = 0; o < officers; o++) {
+                if (at[o] >= 0) continue;
+                for (int s = 0; s < ships; s++) {
+                    if (taken[s]) continue;
+                    float x = Float.isNaN(value[o][s]) ? -Float.MAX_VALUE / 2f : value[o][s];
+                    if (x > best) { best = x; bo = o; bs = s; }
+                }
+            }
+            if (bo < 0) break;
+            at[bo] = bs;
+            taken[bs] = true;
+        }
         return at;
     }
 
