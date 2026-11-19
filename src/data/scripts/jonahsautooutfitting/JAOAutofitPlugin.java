@@ -28,6 +28,15 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
                         + "Limits, minimum gain, waiting for better hullmods and the story point reserve are all in the mod's settings."));
     }
 
+    /**
+     * 0.5.71: for Auto Colonies' station fits (Global.getSettings().getInstanceOfScript; the game has no public plugin
+     * picker). No fleet commander: vent and capacitor limits are the base ones, OP costs carry no skill bonuses, and
+     * s-mods stay off unless jao_build_smods is ticked.
+     */
+    public JAOAutofitPlugin() {
+        this(null);
+    }
+
     static final String SMODS = "jao_build_smods";
 
     @Override

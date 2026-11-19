@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.71 - 2026-11-18
+
+- Auto Colonies: Added a public no-argument constructor to JAOAutofitPlugin, so other mods can create it with getInstanceOfScript. Without a fleet commander the vent and capacitor limits are the base ones.
+
 ## 0.5.70 - 2026-11-18
 
 - Stations: Optimal fits on stations (STATION hint) and their modules give speed and handling no value and no evasion, and score against every target size alike.
