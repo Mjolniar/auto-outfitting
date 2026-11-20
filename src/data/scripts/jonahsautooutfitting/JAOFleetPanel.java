@@ -204,8 +204,9 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         // 0.5.75 (user 11/20): d-mod repairs, after everything else, with their own box and one per ship type
         t.addSectionHeading("D-mods", Alignment.MID, 10f);
         repairBox = box(t, "Remove d-mods", "repair", JAOFleetOptions.repair());
-        t.addPara("Once the weapons, hullmods and s-mods are all planned, whatever's left of the credit limit goes to removing d-mods, and so do the Domain-grade Parts in your cargo and storage here. "
-                + "Each ship gets whichever is cheaper: parts, or a full restoration for credits (that one needs a spaceport). Ships with the most d-mods for their size and the cost go first.", 0f, g);
+        t.addPara("Once the weapons, hullmods and s-mods are all planned, the Domain-grade Parts in your cargo and storage here and whatever's left of the credit limit go to d-mods. "
+                + "Parts take them off one at a time, starting with whichever d-mod hurts its ship the most (bigger ships count for more, and your flagship double). "
+                + "A restoration for credits clears a whole ship at once, so it only gets picked when that's the better deal, and it needs a spaceport.", 0f, g);
         com.fs.starfarer.api.combat.ShipAPI.HullSize[] sizes = {com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE, com.fs.starfarer.api.combat.ShipAPI.HullSize.DESTROYER,
                 com.fs.starfarer.api.combat.ShipAPI.HullSize.CRUISER, com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP};
         boolean[] ron = new boolean[5];
@@ -322,9 +323,11 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         if (notes.length() > 0) list.addPara(esc(notes.toString().trim()), 2f, g);
         if (job.repairOn) {
             if (job.repairs.isEmpty()) list.addPara("D-mods: nothing gets repaired this time (no parts or credits left for it, or no ticked ship type has d-mods).", 2f, g);
-            else list.addPara(esc("D-mods: " + job.repairs.size() + " ship" + (job.repairs.size() > 1 ? "s" : "") + " get their d-mods removed ("
-                    + (job.repairParts > 0 ? job.repairParts + " Domain-grade Parts" : "") + (job.repairParts > 0 && job.repairCredits > 0 ? " and " : "")
-                    + (job.repairCredits > 0 ? Misc.getDGSCredits(job.repairCredits) : "") + ")."), 2f, h);
+            else {
+                list.addPara(esc("D-mods: " + (job.repairParts > 0 ? job.repairParts + " Domain-grade Parts" : "") + (job.repairParts > 0 && job.repairCredits > 0 ? " and " : "")
+                        + (job.repairCredits > 0 ? Misc.getDGSCredits(job.repairCredits) : "") + " go to these:"), 2f, h);
+                for (JAODmods.Repair r : job.repairs) list.addPara(esc("    " + r.ship.name + ": " + r.describe()), 0f, g);
+            }
         }
         if (job.officers != null) {
             int moves = job.officerMoves();

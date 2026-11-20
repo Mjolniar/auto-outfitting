@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.76 - 2026-11-20
+
+- D-mods: Domain-grade Parts remove d-mods one at a time. The d-mod that hurts its ship's score the most, times the ship's deployment points, goes first; the flagship counts double.
+- D-mods: A restoration for credits clears a whole ship and is picked only when it is the better deal, on a ship that took no parts.
+- Optimize fleet: The plan lists each ship's repair: the d-mods its parts remove, or its restoration price.
+
 ## 0.5.75 - 2026-11-20
 
 - Optimize fleet: Added "Remove d-mods" with a box per ship type (frigates, destroyers, cruisers, capitals, civilian), per save and off by default.

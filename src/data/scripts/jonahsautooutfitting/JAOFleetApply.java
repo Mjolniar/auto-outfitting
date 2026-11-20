@@ -404,7 +404,8 @@ final class JAOFleetApply {
         if (repairOn) {
             try {
                 double left = fleet.creditsLeft == Double.MAX_VALUE ? creditLimit : Math.min(creditLimit, fleet.creditsLeft);
-                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), s -> shown(s.member));
+                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), s -> shown(s.member),
+                        (s, v) -> fleet.scoreVariant(s.member, v));
                 for (JAODmods.Repair r : repairs) {
                     if (r.how == JAODmods.WITH_PARTS) repairParts += r.parts; else repairCredits += r.credits;
                 }

@@ -15,14 +15,18 @@ import java.util.List;
 /**
  * D-mod repairs for Optimize fleet (0.5.75, user 11/20: "use either money or domain-grade parts, depending on what the
  * player has access to ... and what is cheaper, and include that in the budget"; "weapons should always come first";
- * a box per ship type; its own on/off). After the plan (weapons, hullmods, s-mods, s-mod changes), what's left of the
- * credit limit and the Domain-grade Parts in fleet cargo and storage here repair the planned ships, one ship whole at a
- * time, the most d-mods times deployment points per credit first.
+ * a box per ship type; its own on/off). 0.5.76 (user: "Why not ... 1 D mod removed off of a flagship, like one at a
+ * time? ... I'm only going to have the parts for one capital ship removal"): parts go one d-mod at a time.
+ *  - Value of a d-mod: how much the ship's build score rises without it (JAOFleetPlan.scoreVariant), as a share, times
+ *    the ship's deployment points, x2 on the flagship; a d-mod the score doesn't see (Increased Maintenance and the
+ *    like) is worth a little, so it goes last.
  *  - Parts: the game's refit repair (ModPickerDialogV3, 0.98.5a-RC8): hull.getPartsPerDmod() per d-mod, taken from fleet
- *    cargo, then from storage at the docked market; works anywhere. Counted at the parts' base price to compare.
+ *    cargo, then from storage at the docked market; works anywhere. Compared at the parts' base price.
  *  - Credits: the game's restoration (FleetMember.getRestorationCost): the higher base value of the D-hull and its base
- *    hull x baseRestoreCostMult (1.2) x baseRestoreCostMultPerDMod (1.2) per d-mod; only docked at a market with a
- *    spaceport. Counts against the credit limit.
+ *    hull x baseRestoreCostMult (1.2) x baseRestoreCostMultPerDMod (1.2) per d-mod left; it clears the whole ship, only
+ *    docked at a market with a spaceport, and counts against what's left of the credit limit.
+ *  - allocate(): the best value per cost first, a d-mod with parts or a whole ship with credits (only a ship that took
+ *    no parts), while parts and credits last.
  *  - Removing the d-mods and turning the D-hull back into its hull is done the way the refit screen's repair does it.
  */
 final class JAODmods {
@@ -37,6 +41,14 @@ final class JAODmods {
         final List<String> dmods;
         int how, parts, credits;
         Repair(JAOFleetPlan.ShipPlan ship, List<String> dmods) { this.ship = ship; this.dmods = dmods; }
+
+        /** "Degraded Engines and Faulty Power Grid with 6 Domain-grade Parts" / "a restoration for 172,800 credits (3 d-mods)". */
+        String describe() {
+            if (how == WITH_CREDITS) return "a restoration for " + com.fs.starfarer.api.util.Misc.getDGSCredits(credits) + " (" + dmods.size() + " d-mod" + (dmods.size() > 1 ? "s" : "") + ")";
+            List<String> names = new ArrayList<>();
+            for (String id : dmods) names.add(JAOSMods.name(id));
+            return com.fs.starfarer.api.util.Misc.getAndJoined(names) + " with " + parts + " Domain-grade Parts";
+        }
     }
 
     static int partsPerDmod(ShipHullSpecAPI hull) {
@@ -52,10 +64,7 @@ final class JAODmods {
         if (hull == null || dmods <= 0) return 0;
         float mult = 1.2f, per = 1.2f;
         try { mult = Global.getSettings().getFloat("baseRestoreCostMult"); per = Global.getSettings().getFloat("baseRestoreCostMultPerDMod"); } catch (Throwable ignored) { }
-        ShipHullSpecAPI base = null;
-        try { base = Global.getSettings().getHullSpec(hull.getBaseHullId()); } catch (Throwable ignored) { }
-        float v = Math.max(hull.getBaseValue(), base == null ? 0f : base.getBaseValue());
-        return restoreCost(v, dmods, mult, per);
+        return restoreCost(baseValue(hull), dmods, mult, per);
     }
 
     static int restoreCost(float baseValue, int dmods, float mult, float perDmod) {
@@ -75,9 +84,158 @@ final class JAODmods {
         return parts ? WITH_PARTS : cash ? WITH_CREDITS : NONE;
     }
 
-    /** Ship order: most d-mods times deployment points per credit (parts at their price) first. */
-    static float priority(int dmods, float dp, float cost) {
-        return dmods * Math.max(1f, dp) / Math.max(1f, cost);
+    /** Value of a d-mod the score doesn't see, per deployment point (so it goes after every d-mod that matters). */
+    static final float MIN_GAIN = 0.002f;
+    /** The flagship's d-mods count double. */
+    static final float FLAGSHIP_WEIGHT = 2f;
+
+    /** A d-mod's value: the score's rise without it as a share, times deployment points (flagship x2); at least MIN_GAIN x DP. */
+    static float value(float scoreWith, float scoreWithout, float dp, boolean flagship) {
+        float d = Math.max(1f, dp);
+        float rise = scoreWith > 0f && scoreWithout > scoreWith ? (scoreWithout - scoreWith) / scoreWith : 0f;
+        return Math.max(MIN_GAIN, rise) * d * (flagship ? FLAGSHIP_WEIGHT : 1f);
+    }
+
+    /** What allocate() takes: per ship, which d-mods come off with parts, and whether it's restored for credits instead. */
+    static final class Allocation {
+        boolean[][] parts;
+        boolean[] restored;
+        int partsUsed;
+        double creditsUsed;
+    }
+
+    /**
+     * Best value per cost first: one d-mod with parts (ppd[i] parts at partPrice each) or a whole ship with credits (the
+     * restoration price for the d-mods it still has), while parts and credits last. gain[i][k]: d-mod k of ship i.
+     */
+    static Allocation allocate(float[][] gain, int[] ppd, float[] baseValue, int partsHave, float partPrice, double credits, boolean restoreHere,
+                               float mult, float perDmod) {
+        int n = gain.length;
+        Allocation a = new Allocation();
+        a.parts = new boolean[n][];
+        a.restored = new boolean[n];
+        for (int i = 0; i < n; i++) a.parts[i] = new boolean[gain[i].length];
+        int partsLeft = partsHave;
+        double left = credits;
+        while (true) {
+            int bi = -1, bk = -1;
+            float best = 0f;
+            for (int i = 0; i < n; i++) {
+                if (a.restored[i]) continue;
+                int remaining = 0;
+                float restGain = 0f;
+                for (int k = 0; k < gain[i].length; k++) {
+                    if (a.parts[i][k]) continue;
+                    remaining++;
+                    restGain += gain[i][k];
+                    if (ppd[i] <= partsLeft) {
+                        float r = gain[i][k] / Math.max(1f, ppd[i] * Math.max(0.01f, partPrice));
+                        if (r > best) { best = r; bi = i; bk = k; }
+                    }
+                }
+                // a restoration clears the whole ship: only for a ship that took no parts
+                if (restoreHere && remaining > 0 && remaining == gain[i].length) {
+                    int cost = restoreCost(baseValue[i], remaining, mult, perDmod);
+                    if (cost > 0 && cost <= left) {
+                        float r = restGain / cost;
+                        if (r > best) { best = r; bi = i; bk = -1; }
+                    }
+                }
+            }
+            if (bi < 0) break;
+            if (bk >= 0) {
+                a.parts[bi][bk] = true;
+                partsLeft -= ppd[bi];
+                a.partsUsed += ppd[bi];
+            } else {
+                int remaining = 0;
+                for (boolean x : a.parts[bi]) if (!x) remaining++;
+                int cost = restoreCost(baseValue[bi], remaining, mult, perDmod);
+                a.restored[bi] = true;
+                left -= cost;
+                a.creditsUsed += cost;
+            }
+        }
+        return a;
+    }
+
+    /** Scores a variant of a ship (JAOFleetPlan.scoreVariant). */
+    interface Scorer { float score(JAOFleetPlan.ShipPlan s, ShipVariantAPI v); }
+
+    /**
+     * The repairs that fit: the planned ships of the ticked types with removable d-mods, each d-mod valued by the score
+     * without it, then allocate(). One Repair per ship: the d-mods its parts remove, or its restoration.
+     */
+    static List<Repair> plan(List<JAOFleetPlan.ShipPlan> ships, int partsHave, double creditsLeft, boolean restoreHere,
+                             java.util.function.Predicate<JAOFleetPlan.ShipPlan> skip, Scorer scorer) {
+        List<JAOFleetPlan.ShipPlan> cand = new ArrayList<>();
+        List<List<String>> dm = new ArrayList<>();
+        for (JAOFleetPlan.ShipPlan s : ships) {
+            if (s.plan == null || s.locked || s.keep || (skip != null && skip.test(s))) continue;
+            if (!JAOFleetOptions.repairType(s.member.getHullSpec().getHullSize(), s.civilian)) continue;
+            List<String> d = JAOOptimizer.removableDmods(s.plan);
+            if (d.isEmpty()) continue;
+            cand.add(s);
+            dm.add(d);
+        }
+        int n = cand.size();
+        float[][] gain = new float[n][];
+        int[] ppd = new int[n];
+        float[] base = new float[n];
+        for (int i = 0; i < n; i++) {
+            JAOFleetPlan.ShipPlan s = cand.get(i);
+            List<String> d = dm.get(i);
+            ppd[i] = partsPerDmod(s.member.getHullSpec());
+            base[i] = baseValue(s.member.getHullSpec());
+            gain[i] = new float[d.size()];
+            float with = 0f;
+            try { with = scorer == null ? 0f : scorer.score(s, s.plan); } catch (Throwable ignored) { }
+            boolean flag = false;
+            try { flag = s.member.isFlagship(); } catch (Throwable ignored) { }
+            for (int k = 0; k < d.size(); k++) {
+                float without = with;
+                try {
+                    if (scorer != null && with > 0f) {
+                        ShipVariantAPI v = s.plan.clone();
+                        DModManager.removeDMod(v, d.get(k));
+                        without = scorer.score(s, v);
+                    }
+                } catch (Throwable ignored) { }
+                gain[i][k] = value(with, without, dp(s.member), flag);
+            }
+        }
+        float mult = 1.2f, per = 1.2f;
+        try { mult = Global.getSettings().getFloat("baseRestoreCostMult"); per = Global.getSettings().getFloat("baseRestoreCostMultPerDMod"); } catch (Throwable ignored) { }
+        Allocation a = allocate(gain, ppd, base, partsHave, partsPrice(), creditsLeft, restoreHere, mult, per);
+        List<Repair> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            List<String> d = dm.get(i);
+            if (a.restored[i]) {
+                Repair r = new Repair(cand.get(i), d);
+                r.how = WITH_CREDITS;
+                int remaining = 0;
+                for (boolean x : a.parts[i]) if (!x) remaining++;
+                r.credits = restoreCost(base[i], remaining, mult, per);
+                out.add(r);
+                continue;
+            }
+            List<String> take = new ArrayList<>();
+            for (int k = 0; k < d.size(); k++) if (a.parts[i][k]) take.add(d.get(k));
+            if (take.isEmpty()) continue;
+            Repair r = new Repair(cand.get(i), take);
+            r.how = WITH_PARTS;
+            r.parts = take.size() * ppd[i];
+            out.add(r);
+        }
+        out.sort(Comparator.comparingDouble((Repair r) -> -dp(r.ship.member)));
+        return out;
+    }
+
+    /** The higher base value of a hull and its base hull (what the restoration price starts from). */
+    static float baseValue(ShipHullSpecAPI hull) {
+        ShipHullSpecAPI base = null;
+        try { base = Global.getSettings().getHullSpec(hull.getBaseHullId()); } catch (Throwable ignored) { }
+        return Math.max(hull.getBaseValue(), base == null ? 0f : base.getBaseValue());
     }
 
     /** Domain-grade Parts in fleet cargo and storage at the docked market (the refit screen's own sources). */
@@ -94,35 +252,6 @@ final class JAODmods {
     /** Restoration with credits: docked at a market with a spaceport. */
     static boolean restoreHere(MarketAPI market) {
         try { return market != null && market.hasSpaceport(); } catch (Throwable t) { return false; }
-    }
-
-    /** The repairs that fit: the planned ships of the ticked types with removable d-mods, best value per cost first. */
-    static List<Repair> plan(List<JAOFleetPlan.ShipPlan> ships, int partsHave, double creditsLeft, boolean restoreHere, java.util.function.Predicate<JAOFleetPlan.ShipPlan> skip) {
-        List<Repair> all = new ArrayList<>();
-        float price = partsPrice();
-        for (JAOFleetPlan.ShipPlan s : ships) {
-            if (s.plan == null || s.locked || s.keep || (skip != null && skip.test(s))) continue;
-            if (!JAOFleetOptions.repairType(s.member.getHullSpec().getHullSize(), s.civilian)) continue;
-            List<String> d = JAOOptimizer.removableDmods(s.plan);
-            if (d.isEmpty()) continue;
-            Repair r = new Repair(s, d);
-            r.parts = d.size() * partsPerDmod(s.member.getHullSpec());
-            r.credits = restoreCost(s.member.getHullSpec(), d.size());
-            all.add(r);
-        }
-        all.sort(Comparator.comparingDouble((Repair r) -> -priority(r.dmods.size(), dp(r.ship.member),
-                Math.min(r.parts * price > 0f ? r.parts * price : Float.MAX_VALUE, r.credits > 0 ? r.credits : Float.MAX_VALUE))));
-        List<Repair> out = new ArrayList<>();
-        int partsLeft = partsHave;
-        double left = creditsLeft;
-        for (Repair r : all) {
-            r.how = choose(r.parts, partsLeft, price, r.credits, left, restoreHere);
-            if (r.how == WITH_PARTS) partsLeft -= r.parts;
-            else if (r.how == WITH_CREDITS) left -= r.credits;
-            else continue;
-            out.add(r);
-        }
-        return out;
     }
 
     static float dp(FleetMemberAPI m) {

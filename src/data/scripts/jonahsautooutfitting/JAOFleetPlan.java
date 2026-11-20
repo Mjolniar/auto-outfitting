@@ -653,6 +653,11 @@ final class JAOFleetPlan {
         return new JAOOptimizer(plugin, variantOf.apply(m).clone(), d, JAOSettings.style, false, true).scoreAsIs();
     }
 
+    /** The build score of a given variant of this ship (0.5.76: d-mod repairs score each d-mod's removal). */
+    float scoreVariant(FleetMemberAPI m, ShipVariantAPI v) {
+        return new JAOOptimizer(plugin, v.clone(), delegate(m, new ArrayList<>()), JAOSettings.style, false, true).scoreAsIs();
+    }
+
     /** The ship's build score as it is now under this captain (null: none), for officer placement (0.5.39). */
     float scoreWithCaptain(FleetMemberAPI m, com.fs.starfarer.api.characters.PersonAPI c) {
         PlanDelegate d = delegate(m, new ArrayList<>());
