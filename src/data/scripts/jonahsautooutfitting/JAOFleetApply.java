@@ -207,7 +207,11 @@ final class JAOFleetApply {
         changeHere = JAOFleetOptions.changeSmodsHere(market, mode);
         float credits = 0f;
         try { credits = cargo.getCredits().get(); } catch (Throwable ignored) { }
-        repairOn = JAOFleetOptions.repair();
+        // 0.5.78: ticking ships for d-mod repairs turns repairs on too (the user picked a capital and nothing happened)
+        boolean picked = false;
+        java.util.Set<String> picks = JAOFleetOptions.repairPicks();
+        for (FleetMemberAPI m : planned) if (picks.contains(m.getId())) picked = true;
+        repairOn = JAOFleetOptions.repair() || picked;
         creditLimit = buying || (changeOn && changeHere) || repairOn ? (float) Math.floor(credits * JAOFleetOptions.budget()) : 0f;
         fieldRefit = fieldRefit(refit, market);
         fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
@@ -399,16 +403,21 @@ final class JAOFleetApply {
                 shopUnits.merge(key, 1, Integer::sum);
             }
         }
-        // 0.5.75: d-mod repairs come last, from what the plan left of the credit limit (the ship on the refit screen is left out:
-        // the screen saves its own copy of it)
+        // 0.5.75: d-mod repairs come last, from what the plan left of the credit limit. 0.5.78: the ship on the refit screen is
+        // repaired too, on the screen's own copy (as the screen's repair does), which the screen saves at the end of Apply
         if (repairOn) {
             try {
                 double left = fleet.creditsLeft == Double.MAX_VALUE ? creditLimit : Math.min(creditLimit, fleet.creditsLeft);
-                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), s -> shown(s.member),
+                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), null,
                         (s, v) -> fleet.scoreVariant(s.member, v));
                 for (JAODmods.Repair r : repairs) {
                     if (r.how == JAODmods.WITH_PARTS) repairParts += r.parts; else repairCredits += r.credits;
                 }
+                List<String> lines = new ArrayList<>();
+                for (JAODmods.Repair r : repairs) lines.add(r.ship.name + ": " + r.describe());
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: d-mod repairs planned (" + JAODmods.partsHave(cargo, market) + " parts here, "
+                        + Math.round(left) + " credits left, restoration " + (JAODmods.restoreHere(market) ? "open" : "closed") + ", picked ships " + picks().size() + "): "
+                        + (lines.isEmpty() ? "none" : String.join("; ", lines)));
             } catch (Throwable t) {
                 Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: couldn't plan the d-mod repairs", t);
                 repairs = new ArrayList<>();
@@ -445,6 +454,9 @@ final class JAOFleetApply {
      * The variant to change for this ship: the refit screen's own copy when it's the ship shown there, otherwise the
      * ship's; a shared stock variant is copied first (make), so no other ship's goal or stock fit changes with it.
      */
+    /** Ships picked for d-mod repairs (member ids). */
+    private static java.util.Set<String> picks() { return JAOFleetOptions.repairPicks(); }
+
     ShipVariantAPI live(FleetMemberAPI m, boolean make) {
         if (refit != null && JAORefl.call(refit, "getMember") == m) {
             Object v = JAORefl.call(JAORefl.call(refit, "getShipDisplay"), "getCurrentVariant");
@@ -613,7 +625,8 @@ final class JAOFleetApply {
         for (JAODmods.Repair r : repairs) {
             try {
                 FleetMemberAPI m = r.ship.member;
-                ShipVariantAPI v = m.getVariant();
+                boolean onScreen = shown(m);
+                ShipVariantAPI v = live(m, false);
                 if (v == null) continue;
                 List<String> d = new ArrayList<>(r.dmods);
                 d.retainAll(JAOOptimizer.removableDmods(v));
@@ -623,7 +636,7 @@ final class JAOFleetApply {
                     if (JAODmods.partsHave(cargo, market) < need) continue;
                     JAODmods.takeParts(cargo, market, need);
                     JAODmods.repair(v, d);
-                    m.setVariant(v, false, true);
+                    if (!onScreen) m.setVariant(v, false, true);
                     com.fs.starfarer.api.campaign.listeners.ListenerUtil.reportDModsRepaired(m, v, need);
                     partsUsed += need;
                 } else {
@@ -631,7 +644,7 @@ final class JAOFleetApply {
                     if (cargo.getCredits().get() < cost) continue;
                     cargo.getCredits().subtract(cost);
                     JAODmods.repair(v, d);
-                    m.setVariant(v, false, true);
+                    if (!onScreen) m.setVariant(v, false, true);
                     repairSpent += cost;
                 }
                 repaired++;

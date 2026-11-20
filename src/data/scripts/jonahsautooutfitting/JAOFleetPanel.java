@@ -224,7 +224,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             }
         } catch (Throwable ignored) { }
         if (!dmodShips.isEmpty()) {
-            t.addPara("Or pick the ships yourself. With any ship ticked here, only the ticked ones get repaired and the types above don't matter:", 4f, g);
+            t.addPara("Or pick the ships yourself. Ticking a ship turns repairs on, and then only the ticked ships get repaired (the types above don't matter, and the ship you're looking at counts too):", 4f, g);
             java.util.Set<String> picks = JAOFleetOptions.repairPicks();
             for (com.fs.starfarer.api.fleet.FleetMemberAPI m : dmodShips) {
                 int n = JAOOptimizer.removableDmods(m.getVariant()).size();

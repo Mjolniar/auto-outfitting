@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.78 - 2026-11-20
+
+- D-mods: Fixed the ship shown on the refit screen never getting repaired. It is repaired on the screen's own copy, which the screen saves.
+- D-mods: Ticking a ship for repairs turns repairs on without the Remove d-mods box.
+- D-mods: The planned repairs, the parts and credits there were, and the ships picked go to starsector.log.
+
 ## 0.5.77 - 2026-11-20
 
 - D-mods: The D-mods section lists every ship in the fleet with d-mods, each with a box. With any ship ticked, only the ticked ships get repaired and the ship type boxes don't apply. The picks are saved per save.
