@@ -170,9 +170,13 @@ final class JAODmods {
                              java.util.function.Predicate<JAOFleetPlan.ShipPlan> skip, Scorer scorer) {
         List<JAOFleetPlan.ShipPlan> cand = new ArrayList<>();
         List<List<String>> dm = new ArrayList<>();
+        // 0.5.77: ships picked in the panel are the only ones repaired (the type boxes then don't matter); none picked: the types
+        java.util.Set<String> picks = JAOFleetOptions.repairPicks();
+        boolean only = false;
+        for (JAOFleetPlan.ShipPlan s : ships) if (picks.contains(s.member.getId())) { only = true; break; }
         for (JAOFleetPlan.ShipPlan s : ships) {
             if (s.plan == null || s.locked || s.keep || (skip != null && skip.test(s))) continue;
-            if (!JAOFleetOptions.repairType(s.member.getHullSpec().getHullSize(), s.civilian)) continue;
+            if (only ? !picks.contains(s.member.getId()) : !JAOFleetOptions.repairType(s.member.getHullSpec().getHullSize(), s.civilian)) continue;
             List<String> d = JAOOptimizer.removableDmods(s.plan);
             if (d.isEmpty()) continue;
             cand.add(s);

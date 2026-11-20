@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.77 - 2026-11-20
+
+- D-mods: The D-mods section lists every ship in the fleet with d-mods, each with a box. With any ship ticked, only the ticked ships get repaired and the ship type boxes don't apply. The picks are saved per save.
+
 ## 0.5.76 - 2026-11-20
 
 - D-mods: Domain-grade Parts remove d-mods one at a time. The d-mod that hurts its ship's score the most, times the ship's deployment points, goes first; the flagship counts double.

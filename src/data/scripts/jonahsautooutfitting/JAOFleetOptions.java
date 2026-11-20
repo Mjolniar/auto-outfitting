@@ -74,6 +74,22 @@ final class JAOFleetOptions {
 
     static boolean repair() { return flag(REPAIR, false); }
 
+    /** 0.5.77 (user 11/20: "I only want this ship and that ship"): fleet member ids picked for d-mod repairs, per save. */
+    static final String REPAIR_PICKS = "jao_ofRepairPicks";
+
+    static java.util.Set<String> repairPicks() {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        Object o = get(REPAIR_PICKS);
+        if (o instanceof java.util.Collection) for (Object x : (java.util.Collection<?>) o) if (x instanceof String) out.add((String) x);
+        return out;
+    }
+
+    static void setRepairPick(String memberId, boolean on) {
+        java.util.Set<String> s = repairPicks();
+        if (on) s.add(memberId); else s.remove(memberId);
+        set(REPAIR_PICKS, new java.util.ArrayList<>(s));
+    }
+
     /** Whether ships of this type get their d-mods removed (civilian ships by the Civilian box). */
     static boolean repairType(HullSize size, boolean civilian) {
         if (civilian) return flag(REPAIR_CIVILIAN, true);

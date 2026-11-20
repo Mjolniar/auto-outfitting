@@ -36,6 +36,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     /** 0.5.73: s-mods by ship type (frigates, destroyers, cruisers, capitals, civilian). */
     ButtonAPI[] typeBoxes, repairBoxes;
     ButtonAPI repairBox;
+    /** 0.5.77: "pick:<member id>" -> its box (ships picked for d-mod repairs). */
+    final java.util.Map<String, ButtonAPI> pickBoxes = new java.util.LinkedHashMap<>();
     static final String[] REPAIR_IDS = {"repairF", "repairD", "repairC", "repairK", "repairV"};
     static final String[] REPAIR_KEYS = {JAOFleetOptions.REPAIR_FRIGATES, JAOFleetOptions.REPAIR_DESTROYERS, JAOFleetOptions.REPAIR_CRUISERS,
             JAOFleetOptions.REPAIR_CAPITALS, JAOFleetOptions.REPAIR_CIVILIAN};
@@ -213,6 +215,24 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         for (int i = 0; i < 4; i++) ron[i] = JAOFleetOptions.repairType(sizes[i], false);
         ron[4] = JAOFleetOptions.repairType(null, true);
         repairBoxes = typeRow(t, REPAIR_IDS, ron);
+        // 0.5.77 (user 11/20: "I only want this ship and that ship"): pick ships; with any picked, only those get repaired
+        pickBoxes.clear();
+        List<com.fs.starfarer.api.fleet.FleetMemberAPI> dmodShips = new ArrayList<>();
+        try {
+            for (com.fs.starfarer.api.fleet.FleetMemberAPI m : Global.getSector().getPlayerFleet().getFleetData().getMembersListCopy()) {
+                if (m.getVariant() != null && !JAOOptimizer.removableDmods(m.getVariant()).isEmpty()) dmodShips.add(m);
+            }
+        } catch (Throwable ignored) { }
+        if (!dmodShips.isEmpty()) {
+            t.addPara("Or pick the ships yourself. With any ship ticked here, only the ticked ones get repaired and the types above don't matter:", 4f, g);
+            java.util.Set<String> picks = JAOFleetOptions.repairPicks();
+            for (com.fs.starfarer.api.fleet.FleetMemberAPI m : dmodShips) {
+                int n = JAOOptimizer.removableDmods(m.getVariant()).size();
+                String name = (m.getShipName() == null || m.getShipName().isEmpty() ? m.getHullSpec().getHullName() : m.getShipName())
+                        + " (" + m.getHullSpec().getHullName() + ", " + n + " d-mod" + (n > 1 ? "s" : "") + (m.isFlagship() ? ", flagship" : "") + ")";
+                pickBoxes.put("pick:" + m.getId(), box(t, name, "pick:" + m.getId(), picks.contains(m.getId())));
+            }
+        }
 
         t.addSectionHeading("Officers and augments", Alignment.MID, 10f);
         officersBox = box(t, "Place officers", "officers", JAOFleetApply.placeOfficers());
@@ -452,6 +472,8 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             else if ("smods".equals(id) && smodsBox != null) JAOFleetOptions.set(JAOFleetOptions.SMODS, smodsBox.isChecked());
             else if ("change".equals(id) && changeBox != null) JAOFleetOptions.set(JAOFleetOptions.CHANGE_SMODS, changeBox.isChecked());
             else if ("repair".equals(id) && repairBox != null) JAOFleetOptions.set(JAOFleetOptions.REPAIR, repairBox.isChecked());
+            else if (id instanceof String && ((String) id).startsWith("pick:") && pickBoxes.containsKey(id))
+                JAOFleetOptions.setRepairPick(((String) id).substring(5), pickBoxes.get(id).isChecked());
             else if (repairBoxes != null && java.util.Arrays.asList(REPAIR_IDS).contains(id)) {
                 int i = java.util.Arrays.asList(REPAIR_IDS).indexOf(id);
                 JAOFleetOptions.set(REPAIR_KEYS[i], repairBoxes[i].isChecked());
