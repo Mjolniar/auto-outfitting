@@ -74,6 +74,10 @@ final class JAOFleetApply {
     /** Planned purchases: items, their cost, s-mod changes and their cost. */
     int buyItems, smodChanges;
     double buyTotal, changeTotal;
+    /** 0.5.75: d-mod repairs (JAODmods), after everything else in the plan, from what's left of the credit limit and the parts here. */
+    final boolean repairOn;
+    List<JAODmods.Repair> repairs = new ArrayList<>();
+    int repairParts, repairCredits;
     /** Refitting here costs CR (no market to refit at: in space, or at a planet with no colony). */
     final boolean fieldRefit;
     /** Officer placement (0.5.39), when "Place officers" is ticked in the Optimize fleet panel; else null. */
@@ -203,7 +207,8 @@ final class JAOFleetApply {
         changeHere = JAOFleetOptions.changeSmodsHere(market, mode);
         float credits = 0f;
         try { credits = cargo.getCredits().get(); } catch (Throwable ignored) { }
-        creditLimit = buying || (changeOn && changeHere) ? (float) Math.floor(credits * JAOFleetOptions.budget()) : 0f;
+        repairOn = JAOFleetOptions.repair();
+        creditLimit = buying || (changeOn && changeHere) || repairOn ? (float) Math.floor(credits * JAOFleetOptions.budget()) : 0f;
         fieldRefit = fieldRefit(refit, market);
         fleet = new JAOFleetPlan(planned, weapons, fighters, true, smods, market, mode);
         fleet.buying = buying;
@@ -392,6 +397,20 @@ final class JAOFleetApply {
                 if (JAOShops.shopOf(o) == null) continue;
                 String key = (o instanceof AvailableFighter ? "f:" : "w:") + (o instanceof AvailableFighter ? ((AvailableFighter) o).getId() : ((AvailableWeapon) o).getId());
                 shopUnits.merge(key, 1, Integer::sum);
+            }
+        }
+        // 0.5.75: d-mod repairs come last, from what the plan left of the credit limit (the ship on the refit screen is left out:
+        // the screen saves its own copy of it)
+        if (repairOn) {
+            try {
+                double left = fleet.creditsLeft == Double.MAX_VALUE ? creditLimit : Math.min(creditLimit, fleet.creditsLeft);
+                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), s -> shown(s.member));
+                for (JAODmods.Repair r : repairs) {
+                    if (r.how == JAODmods.WITH_PARTS) repairParts += r.parts; else repairCredits += r.credits;
+                }
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: couldn't plan the d-mod repairs", t);
+                repairs = new ArrayList<>();
             }
         }
         // what has to come out of storage: the plan's items beyond what the ships and cargo already hold
@@ -588,6 +607,39 @@ final class JAOFleetApply {
         if (augments != null) {
             try { augmentsPlaced = augments.apply(); } catch (Throwable t) { Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't move the augments", t); }
         }
+        // 2c. d-mod repairs (0.5.75): parts first from cargo then storage here, or credits for a restoration
+        int repaired = 0, partsUsed = 0, repairSpent = 0;
+        for (JAODmods.Repair r : repairs) {
+            try {
+                FleetMemberAPI m = r.ship.member;
+                ShipVariantAPI v = m.getVariant();
+                if (v == null) continue;
+                List<String> d = new ArrayList<>(r.dmods);
+                d.retainAll(JAOOptimizer.removableDmods(v));
+                if (d.isEmpty()) continue;
+                if (r.how == JAODmods.WITH_PARTS) {
+                    int need = d.size() * JAODmods.partsPerDmod(v.getHullSpec());
+                    if (JAODmods.partsHave(cargo, market) < need) continue;
+                    JAODmods.takeParts(cargo, market, need);
+                    JAODmods.repair(v, d);
+                    m.setVariant(v, false, true);
+                    com.fs.starfarer.api.campaign.listeners.ListenerUtil.reportDModsRepaired(m, v, need);
+                    partsUsed += need;
+                } else {
+                    int cost = JAODmods.restoreCost(v.getHullSpec(), d.size());
+                    if (cargo.getCredits().get() < cost) continue;
+                    cargo.getCredits().subtract(cost);
+                    JAODmods.repair(v, d);
+                    m.setVariant(v, false, true);
+                    repairSpent += cost;
+                }
+                repaired++;
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: removed " + d + " from " + r.ship.name
+                        + (r.how == JAODmods.WITH_PARTS ? " with Domain-grade Parts" : " with a restoration for credits"));
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't remove the d-mods on " + r.ship.name, t);
+            }
+        }
         // 3. what came off and wasn't used again goes to storage
         int stored = 0;
         if (storage != null) {
@@ -628,6 +680,8 @@ final class JAOFleetApply {
                 + (changedSmods > 0 ? ", changed " + changedSmods + " s-mod" + (changedSmods > 1 ? "s" : "") + " for " + Misc.getDGSCredits(changeSpent) : "")
                 + (moved > 0 ? ", moved " + moved + " officer" + (moved > 1 ? "s" : "") : "")
                 + (augmentsPlaced > 0 ? ", installed " + augmentsPlaced + " augment" + (augmentsPlaced > 1 ? "s" : "") : "")
+                + (repaired > 0 ? ", removed the d-mods on " + repaired + " ship" + (repaired > 1 ? "s" : "") + " (" + (partsUsed > 0 ? partsUsed + " Domain-grade Parts" : "")
+                        + (partsUsed > 0 && repairSpent > 0 ? ", " : "") + (repairSpent > 0 ? Misc.getDGSCredits(repairSpent) : "") + ")" : "")
                 + (strippedStored > 0 ? ", stripped " + strippedStored + " stored ship" + (strippedStored > 1 ? "s" : "") : "")
                 + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")

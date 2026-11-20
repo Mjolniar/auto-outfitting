@@ -34,7 +34,11 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     boolean failed;
     ButtonAPI apply, storageBox, storedBox, legalBox, blackBox, smodsBox, changeBox, officersBox, augmentsBox;
     /** 0.5.73: s-mods by ship type (frigates, destroyers, cruisers, capitals, civilian). */
-    ButtonAPI[] typeBoxes;
+    ButtonAPI[] typeBoxes, repairBoxes;
+    ButtonAPI repairBox;
+    static final String[] REPAIR_IDS = {"repairF", "repairD", "repairC", "repairK", "repairV"};
+    static final String[] REPAIR_KEYS = {JAOFleetOptions.REPAIR_FRIGATES, JAOFleetOptions.REPAIR_DESTROYERS, JAOFleetOptions.REPAIR_CRUISERS,
+            JAOFleetOptions.REPAIR_CAPITALS, JAOFleetOptions.REPAIR_CIVILIAN};
     static final String[] TYPE_IDS = {"smodsF", "smodsD", "smodsC", "smodsK", "smodsV"};
     static final String[] TYPE_KEYS = {JAOFleetOptions.SMODS_FRIGATES, JAOFleetOptions.SMODS_DESTROYERS, JAOFleetOptions.SMODS_CRUISERS,
             JAOFleetOptions.SMODS_CAPITALS, JAOFleetOptions.SMODS_CIVILIAN};
@@ -185,24 +189,10 @@ final class JAOFleetPanel extends JAOOverlayPanel {
         // 0.5.73 (user 11/19: "Add a toggle in here", "For each type"): which ship types get s-mods, one box each in a row
         // of their own (like Less and More, so the text after them isn't pushed right)
         t.addPara("These ship types get s-mods:", 4f, g);
-        String[] names = {"Frigates", "Destroyers", "Cruisers", "Capitals", "Civilian"};
         boolean[] on = {JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE), JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.DESTROYER),
                 JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.CRUISER), JAOFleetOptions.smodsOn(com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP),
                 JAOFleetOptions.smodsCivilian()};
-        float bw = 112f, rowW = bw * names.length;
-        com.fs.starfarer.api.ui.CustomPanelAPI types = Global.getSettings().createCustom(rowW, 22f, new com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin() {
-            @Override public void buttonPressed(Object id) { JAOFleetPanel.this.buttonPressed(id); }
-        });
-        TooltipMakerAPI tb = types.createUIElement(rowW, 22f, false);
-        typeBoxes = new ButtonAPI[names.length];
-        for (int i = 0; i < names.length; i++) {
-            typeBoxes[i] = tb.addCheckbox(bw - 6f, 22f, names[i], TYPE_IDS[i], ButtonAPI.UICheckboxSize.SMALL, 0f);
-            typeBoxes[i].setChecked(on[i]);
-            if (i == 0) typeBoxes[i].getPosition().inTL(0f, 0f);
-            else typeBoxes[i].getPosition().rightOfTop(typeBoxes[i - 1], 6f);
-        }
-        types.addUIElement(tb).inTL(0f, 0f);
-        t.addCustom(types, 2f);
+        typeBoxes = typeRow(t, TYPE_IDS, on);
         t.addPara("This goes for Optimal on the refit screen too. Civilian means the fleet-wide hullmods on the civilian ships you're keeping.", 2f, g);
         boolean here = JAOFleetOptions.changeSmodsHere(market, mode);
         changeBox = box(t, "Change s-mods with credits", "change", JAOFleetOptions.changeSmods());
@@ -210,6 +200,18 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 + " to " + Misc.getDGSCredits(JAOFleetOptions.changePrice(com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP))
                 + " per s-mod removed or added depending on hull size. A change has to make the ship at least " + JAOSMods.pct(JAOSettings.smodChangeMinGain) + " stronger (more on small ships), so it gets used pretty sparingly."
                 : "This only works at your own colony with heavy industry."), 0f, g);
+
+        // 0.5.75 (user 11/20): d-mod repairs, after everything else, with their own box and one per ship type
+        t.addSectionHeading("D-mods", Alignment.MID, 10f);
+        repairBox = box(t, "Remove d-mods", "repair", JAOFleetOptions.repair());
+        t.addPara("Once the weapons, hullmods and s-mods are all planned, whatever's left of the credit limit goes to removing d-mods, and so do the Domain-grade Parts in your cargo and storage here. "
+                + "Each ship gets whichever is cheaper: parts, or a full restoration for credits (that one needs a spaceport). Ships with the most d-mods for their size and the cost go first.", 0f, g);
+        com.fs.starfarer.api.combat.ShipAPI.HullSize[] sizes = {com.fs.starfarer.api.combat.ShipAPI.HullSize.FRIGATE, com.fs.starfarer.api.combat.ShipAPI.HullSize.DESTROYER,
+                com.fs.starfarer.api.combat.ShipAPI.HullSize.CRUISER, com.fs.starfarer.api.combat.ShipAPI.HullSize.CAPITAL_SHIP};
+        boolean[] ron = new boolean[5];
+        for (int i = 0; i < 4; i++) ron[i] = JAOFleetOptions.repairType(sizes[i], false);
+        ron[4] = JAOFleetOptions.repairType(null, true);
+        repairBoxes = typeRow(t, REPAIR_IDS, ron);
 
         t.addSectionHeading("Officers and augments", Alignment.MID, 10f);
         officersBox = box(t, "Place officers", "officers", JAOFleetApply.placeOfficers());
@@ -229,6 +231,26 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             ButtonAPI a = buttons.addButton("Fleet analysis", "analysis", 160f, 30f, 0f);
             a.getPosition().rightOfTop(c, 10f);
         }
+    }
+
+    /** 0.5.73 / 0.5.75: one box per ship type in a row of their own (like Less and More, so the text after them isn't pushed right). */
+    private ButtonAPI[] typeRow(TooltipMakerAPI t, String[] ids, boolean[] on) {
+        String[] names = {"Frigates", "Destroyers", "Cruisers", "Capitals", "Civilian"};
+        float bw = 112f, rowW = bw * names.length;
+        com.fs.starfarer.api.ui.CustomPanelAPI types = Global.getSettings().createCustom(rowW, 22f, new com.fs.starfarer.api.campaign.BaseCustomUIPanelPlugin() {
+            @Override public void buttonPressed(Object id) { JAOFleetPanel.this.buttonPressed(id); }
+        });
+        TooltipMakerAPI tb = types.createUIElement(rowW, 22f, false);
+        ButtonAPI[] out = new ButtonAPI[names.length];
+        for (int i = 0; i < names.length; i++) {
+            out[i] = tb.addCheckbox(bw - 6f, 22f, names[i], ids[i], ButtonAPI.UICheckboxSize.SMALL, 0f);
+            out[i].setChecked(on[i]);
+            if (i == 0) out[i].getPosition().inTL(0f, 0f);
+            else out[i].getPosition().rightOfTop(out[i - 1], 6f);
+        }
+        types.addUIElement(tb).inTL(0f, 0f);
+        t.addCustom(types, 2f);
+        return out;
     }
 
     private static ButtonAPI box(TooltipMakerAPI t, String label, String id, boolean on) {
@@ -298,6 +320,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 .append(job.crShips == 1 ? " ship loses " : " ships lose ").append("up to ").append(Math.round(job.crMax * 100f))
                 .append("% (shown per ship). Refits at a market don't cost CR. ");
         if (notes.length() > 0) list.addPara(esc(notes.toString().trim()), 2f, g);
+        if (job.repairOn) {
+            if (job.repairs.isEmpty()) list.addPara("D-mods: nothing gets repaired this time (no parts or credits left for it, or no ticked ship type has d-mods).", 2f, g);
+            else list.addPara(esc("D-mods: " + job.repairs.size() + " ship" + (job.repairs.size() > 1 ? "s" : "") + " get their d-mods removed ("
+                    + (job.repairParts > 0 ? job.repairParts + " Domain-grade Parts" : "") + (job.repairParts > 0 && job.repairCredits > 0 ? " and " : "")
+                    + (job.repairCredits > 0 ? Misc.getDGSCredits(job.repairCredits) : "") + ")."), 2f, h);
+        }
         if (job.officers != null) {
             int moves = job.officerMoves();
             if (moves > 0) list.addPara("Officers: %s move to wherever they help the fleet the most. You and any AI cores stay put.", 2f, h, "" + moves);
@@ -420,6 +448,11 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             else if ("black".equals(id) && blackBox != null) JAOFleetOptions.set(JAOFleetOptions.BUY_BLACK, blackBox.isChecked());
             else if ("smods".equals(id) && smodsBox != null) JAOFleetOptions.set(JAOFleetOptions.SMODS, smodsBox.isChecked());
             else if ("change".equals(id) && changeBox != null) JAOFleetOptions.set(JAOFleetOptions.CHANGE_SMODS, changeBox.isChecked());
+            else if ("repair".equals(id) && repairBox != null) JAOFleetOptions.set(JAOFleetOptions.REPAIR, repairBox.isChecked());
+            else if (repairBoxes != null && java.util.Arrays.asList(REPAIR_IDS).contains(id)) {
+                int i = java.util.Arrays.asList(REPAIR_IDS).indexOf(id);
+                JAOFleetOptions.set(REPAIR_KEYS[i], repairBoxes[i].isChecked());
+            }
             else if (typeBoxes != null && java.util.Arrays.asList(TYPE_IDS).contains(id)) {
                 int i = java.util.Arrays.asList(TYPE_IDS).indexOf(id);
                 JAOFleetOptions.set(TYPE_KEYS[i], typeBoxes[i].isChecked());

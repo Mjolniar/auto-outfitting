@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.75 - 2026-11-20
+
+- Optimize fleet: Added "Remove d-mods" with a box per ship type (frigates, destroyers, cruisers, capitals, civilian), per save and off by default.
+- D-mods: Repairs come after the weapons, hullmods, s-mods and s-mod changes, from what's left of the credit limit and the Domain-grade Parts in fleet cargo and storage at the docked market.
+- D-mods: Each ship is repaired with whichever is cheaper: parts (the hull's parts per d-mod, at their base price) or a restoration for credits (needs a spaceport).
+- D-mods: Ships with the most d-mods times deployment points per cost go first. The ship shown on the refit screen is left out.
+
 ## 0.5.74 - 2026-11-19
 
 - Compatibility: Updated for Starsector 0.98.5a-RC8.

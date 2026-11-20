@@ -68,6 +68,25 @@ final class JAOFleetOptions {
         return k == null || flag(k, true);
     }
 
+    /** D-mod repairs (0.5.75): on/off (off by default) and one box per ship type (all on), per save. */
+    static final String REPAIR = "jao_ofRepair", REPAIR_FRIGATES = "jao_ofRepairFrigates", REPAIR_DESTROYERS = "jao_ofRepairDestroyers",
+            REPAIR_CRUISERS = "jao_ofRepairCruisers", REPAIR_CAPITALS = "jao_ofRepairCapitals", REPAIR_CIVILIAN = "jao_ofRepairCivilian";
+
+    static boolean repair() { return flag(REPAIR, false); }
+
+    /** Whether ships of this type get their d-mods removed (civilian ships by the Civilian box). */
+    static boolean repairType(HullSize size, boolean civilian) {
+        if (civilian) return flag(REPAIR_CIVILIAN, true);
+        if (size == null) return true;
+        switch (size) {
+            case FRIGATE: return flag(REPAIR_FRIGATES, true);
+            case DESTROYER: return flag(REPAIR_DESTROYERS, true);
+            case CRUISER: return flag(REPAIR_CRUISERS, true);
+            case CAPITAL_SHIP: return flag(REPAIR_CAPITALS, true);
+            default: return true;
+        }
+    }
+
     /** Whether civilian ships build in fleet-wide hullmods: until set in this save, the LunaLib setting (jao_civilianSmods). */
     static boolean smodsCivilian() { return flag(SMODS_CIVILIAN, JAOSettings.civilianSmods); }
 
