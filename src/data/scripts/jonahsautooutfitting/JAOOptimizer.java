@@ -801,8 +801,13 @@ class JAOOptimizer {
         for (String slotId : new ArrayList<>(current.getStationModules().keySet())) {
             ShipVariantAPI m = current.getModuleVariant(slotId);
             if (m == null) continue;
+            // 0.5.79: a module the ship doesn't hold a copy of is the game's own stock variant, one object shared by every
+            // ship and station with that module. Fitting it in place changed it for all of them, and the game's fleet
+            // inflater then stripped it (user 11/23: star fortress modules had no weapons in battle). It gets a copy.
+            boolean shared = sharedStock(m);
+            if (shared) restoreStock(m);
             // planning always works on copies: the real ship's modules must never be touched
-            if (m.isStockVariant() || planning) {
+            if (m.isStockVariant() || planning || shared) {
                 m = m.clone();
                 m.setSource(VariantSource.REFIT);
                 m.setHullVariantId(m.getHullVariantId() + "_" + index);
@@ -815,6 +820,43 @@ class JAOOptimizer {
             // planning fits a copy of the ship, so its module copies go into that copy (the plan carries them)
             current.setModuleVariant(slotId, m);
         }
+    }
+
+    /**
+     * 0.5.79: the game's own copy of a stock variant (SettingsAPI.getVariant and getModuleVariant hand out the same
+     * object). Changing it changes that module on every ship and station that uses it.
+     */
+    static boolean sharedStock(ShipVariantAPI v) {
+        if (v == null || v.getHullVariantId() == null) return false;
+        try {
+            return Global.getSettings().doesVariantExist(v.getHullVariantId()) && Global.getSettings().getVariant(v.getHullVariantId()) == v;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** 0.5.79: restoreStock on each module of the variant. */
+    static void restoreModules(ShipVariantAPI v) {
+        try {
+            if (v == null) return;
+            for (String slotId : new ArrayList<>(v.getStationModules().keySet())) restoreStock(v.getModuleVariant(slotId));
+        } catch (Throwable t) {
+            Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: couldn't check the module variants of " + v.getHullVariantId(), t);
+        }
+    }
+
+    private static final Set<String> restoredStock = new java.util.HashSet<>();
+
+    /**
+     * 0.5.79: a shared stock variant marked as a refit goes back to stock. The game's fleet inflater copies only stock
+     * module variants before it fits a station; a shared one marked as a refit is stripped and fitted from itself, which
+     * leaves that module empty on every station that uses it (Auto Colonies 0.3.15.4 marks them before its station fits).
+     */
+    static void restoreStock(ShipVariantAPI v) {
+        if (!sharedStock(v) || v.getSource() != VariantSource.REFIT) return;
+        v.setSource(VariantSource.STOCK);
+        if (restoredStock.add(v.getHullVariantId())) Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: "
+                + v.getHullVariantId() + " is the game's shared stock variant and was marked as a refit; set back to stock");
     }
 
     /** jao_rules never_use rows and the "Never use these weapons" setting. */

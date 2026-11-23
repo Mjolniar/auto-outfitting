@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.79 - 2026-11-23
+
+- Stations: Fixed station modules having no weapons in battle after a station fit for Auto Colonies.
+- Modules: Ship and station modules are fitted on their own copy. The game's shared stock module variants are not changed.
+- Modules: A shared stock module variant that another mod marked as a refit is set back to stock before any fit, and a line goes to starsector.log.
+
 ## 0.5.78 - 2026-11-20
 
 - D-mods: Fixed the ship shown on the refit screen never getting repaired. It is repaired on the screen's own copy, which the screen saves.

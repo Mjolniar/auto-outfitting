@@ -41,6 +41,8 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
 
     @Override
     public void doFit(ShipVariantAPI current, ShipVariantAPI target, int maxSMods, AutofitPluginDelegate delegate) {
+        // 0.5.79: the game's own fit (below) also fits a shared module variant in place once it is marked as a refit
+        JAOOptimizer.restoreModules(current);
         JAOStyle style = null;
         if (JAOSettings.enabled) {
             style = JAOGoals.styleOf(target);

@@ -727,7 +727,10 @@ final class JAOFleetApply {
     private static ShipVariantAPI module(ShipVariantAPI v, String slot) {
         ShipVariantAPI mv = v.getModuleVariant(slot);
         if (mv == null) return null;
-        if (mv.isStockVariant() || mv.getSource() != VariantSource.REFIT) {
+        // 0.5.79: also the game's shared stock variant when another mod marked it as a refit
+        boolean shared = JAOOptimizer.sharedStock(mv);
+        if (shared) JAOOptimizer.restoreStock(mv);
+        if (mv.isStockVariant() || mv.getSource() != VariantSource.REFIT || shared) {
             mv = mv.clone();
             mv.setSource(VariantSource.REFIT);
             mv.setHullVariantId(mv.getHullVariantId() + "_" + slot.replace(' ', '_'));
