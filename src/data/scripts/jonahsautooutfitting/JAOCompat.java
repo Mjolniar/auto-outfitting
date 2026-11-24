@@ -435,8 +435,9 @@ final class JAOCompat {
 
     /**
      * Custom AI goes on this hull (0.5.64, user 11/17: "a definite improvement for any ship cruiser size and up"): the
-     * setting is on, AI Tweaks is enabled, the player knows the hullmod, and the hull is a cruiser or bigger. Frigates
-     * and destroyers keep whatever they have (never_remove keeps it on any ship that has it).
+     * setting is on, AI Tweaks is enabled, the player knows the hullmod, and the hull is a capital. 0.5.80 (user 11/23:
+     * cruisers "Kamikaze into enemy battle lines"): Custom AI puts a ship on Search and Destroy, so cruisers left the
+     * line. Frigates and destroyers keep whatever they have (never_remove keeps it on any ship that has it).
      */
     static boolean customAiWanted(ShipAPI.HullSize size, java.util.Collection<String> known) {
         boolean on;
@@ -445,8 +446,25 @@ final class JAOCompat {
     }
 
     static boolean customAiWanted(boolean setting, boolean aiTweaks, ShipAPI.HullSize size, java.util.Collection<String> known) {
-        return setting && aiTweaks && size != null && size.ordinal() >= ShipAPI.HullSize.CRUISER.ordinal()
+        return setting && aiTweaks && size == ShipAPI.HullSize.CAPITAL_SHIP
                 && known != null && known.contains(CUSTOM_AI);
+    }
+
+    /** 0.5.80: Custom AI comes off cruisers (0.5.64 to 0.5.79 put it there) while the setting is on and AI Tweaks is enabled. */
+    static boolean customAiDrop(ShipAPI.HullSize size) {
+        boolean on;
+        try { on = Global.getSettings().getModManager().isModEnabled("aitweaks"); } catch (Throwable t) { on = false; }
+        return customAiDrop(JAOSettings.customAi, on, size);
+    }
+
+    static boolean customAiDrop(boolean setting, boolean aiTweaks, ShipAPI.HullSize size) {
+        return setting && aiTweaks && size == ShipAPI.HullSize.CRUISER;
+    }
+
+    /** never_remove keeps the hullmod on this hull (0.5.80: except Custom AI on a cruiser, customAiDrop). */
+    static boolean neverRemove(String id, ShipAPI.HullSize size) {
+        if (CUSTOM_AI.equals(id) && customAiDrop(size)) return false;
+        return JAORatings.ruleMatches("never_remove", id);
     }
 
     // ------------------------------------------------------------------ s-mod sets (Navarchy of Tania's Ancient Frame)

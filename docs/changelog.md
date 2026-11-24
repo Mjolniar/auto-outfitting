@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.80 - 2026-11-23
+
+- AI Tweaks: Custom AI goes on capitals only. Ships with Custom AI default to Search and Destroy.
+- AI Tweaks: Custom AI comes off cruisers when they are refitted while the Custom AI setting is on.
+
 ## 0.5.79 - 2026-11-23
 
 - Stations: Fixed station modules having no weapons in battle after a station fit for Auto Colonies.

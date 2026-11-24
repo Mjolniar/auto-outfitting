@@ -121,7 +121,7 @@ class JAOOptimizer {
             if (!module && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)
+                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())
                         || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
                     if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                     current.removeMod(id);
@@ -172,12 +172,13 @@ class JAOOptimizer {
         // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
         p.creditCost = planning && !buying ? 0f : JAOSettings.buyGain / 10000f;
         JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
-        // 0.5.64: AI Tweaks' Custom AI on cruisers and capitals; it costs no OP, so it's kept like a hullmod the ship has
+        // 0.5.64: AI Tweaks' Custom AI on capitals (0.5.80: not cruisers); it costs no OP, so it's kept like a hullmod the ship has
         if (!module && JAOCompat.customAiWanted(hull.getHullSize(), delegate.getAvailableHullmods())
                 && !current.hasHullMod(JAOCompat.CUSTOM_AI) && world.canAdd(JAOCompat.CUSTOM_AI, keepMods)) {
             current.addMod(JAOCompat.CUSTOM_AI);
             keepMods.add(JAOCompat.CUSTOM_AI);
         }
+        if (!module && dropCustomAi(hull)) keepMods.remove(JAOCompat.CUSTOM_AI);
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
         if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
@@ -466,6 +467,15 @@ class JAOOptimizer {
     static float sizeWeight(float dp) { return dp <= 0f ? 1f : Math.max(0.5f, Math.min(4f, 20f / dp)); }
 
     /** Hullmods the s-mod search may build in: buildable candidates and kept hullmods, and those worth something only as s-mods. */
+    /** 0.5.80: Custom AI off a cruiser (JAOCompat.customAiDrop), where the refit screen allows the change. */
+    private boolean dropCustomAi(ShipHullSpecAPI hull) {
+        if (!JAOCompat.customAiDrop(hull.getHullSize()) || !current.getNonBuiltInHullmods().contains(JAOCompat.CUSTOM_AI)) return false;
+        if (current.getPermaMods().contains(JAOCompat.CUSTOM_AI)) return false;
+        if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(JAOCompat.CUSTOM_AI)) return false;
+        current.removeMod(JAOCompat.CUSTOM_AI);
+        return true;
+    }
+
     private List<String> smodCandidates(List<String> modCands, Set<String> keepMods, ShipHullSpecAPI hull) {
         List<String> available = new ArrayList<>();
         for (String id : modCands) if (JAOSMods.buildable(id)) available.add(id);
@@ -1008,7 +1018,7 @@ class JAOOptimizer {
         if (strip) {
             for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)
+                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())
                         || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
                 if (current.getPermaMods().contains(id)) continue; // s-mods stay
                 if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
@@ -1035,6 +1045,7 @@ class JAOOptimizer {
         // fleet-wide hullmods, in a single refit and in Optimize fleet alike (story points only on Confirm)
         boolean smodsOn = JAOFleetOptions.smodsCivilian() && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS));
         int smodRoom = smodsOn && keeper(hull) ? smodLimit(new int[4]) : 0;
+        dropCustomAi(hull);
         Set<String> mods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
         Set<String> smods = new LinkedHashSet<>();
         List<String> skipped = new ArrayList<>(), enough = new ArrayList<>();
@@ -1080,7 +1091,7 @@ class JAOOptimizer {
             if (!fleetNeeds(world, mods, smods, id, false, others, enough)) continue;
             mods.add(id);
         }
-        // 0.5.64: AI Tweaks' Custom AI on civilian cruisers and capitals too (0 OP, not a logistics hullmod)
+        // 0.5.64: AI Tweaks' Custom AI on civilian capitals too (0 OP, not a logistics hullmod)
         if (JAOCompat.customAiWanted(hull.getHullSize(), available) && !mods.contains(JAOCompat.CUSTOM_AI)
                 && world.canAdd(JAOCompat.CUSTOM_AI, mods)) mods.add(JAOCompat.CUSTOM_AI);
         for (String m : mods) if (!smods.contains(m) && !current.hasHullMod(m)) current.addMod(m);

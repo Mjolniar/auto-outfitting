@@ -854,7 +854,7 @@ final class JAOFleetApply {
             if (v.getPermaMods().contains(id) || plan.getNonBuiltInHullmods().contains(id)) continue;
             // hidden hullmods and never_remove rules stay, as in the single fit's strip (AI Tweaks' AI hullmods)
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAORatings.ruleMatches("never_remove", id)
+            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, v.getHullSpec().getHullSize())
                         || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
             v.removeMod(id);
         }

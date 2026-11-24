@@ -132,7 +132,7 @@ public class JAOSettings {
                 + ", s-mods up to " + smodCount + " per fit, " + (smodFleetMax > 0 ? smodFleetMax + " SP per Optimize fleet" : "no SP limit per Optimize fleet") + " (min gain " + smodMinGain + (smodWait ? ", wait " + smodWaitMargin + " up to " + smodWaitDays + " days" : "") + ", keep " + smodReserve + " SP"
                 + (smodBySize ? ", gain by ship size" : "") + ", at most " + smodMaxFrigate + " on frigates, " + smodMaxDestroyer + " on destroyers, change gain " + smodChangeMinGain
                 + ")"
-                + (customAi ? ", Custom AI on cruisers and capitals" : "")
+                + (customAi ? ", Custom AI on capitals" : "")
                 + (debug ? ", debug log" : "");
     }
 }
