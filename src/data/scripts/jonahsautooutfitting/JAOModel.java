@@ -511,6 +511,11 @@ final class JAOModel {
         /** EMP damage taken and flux dissipation while venting (Resistant Flux Conduits 0.5 / x1.25). */
         float empTaken = 1f, ventRate = 1f;
         /**
+         * 0.5.88 (user 11/24, Extra System Reloaded upgrades; small weights by the user's word): projectile speed, missile
+         * reload rate, overload duration, weapon durability and the flat autofire aim bonus.
+         */
+        float projSpeedMult = 1f, regenMis = 1f, overloadMult = 1f, weaponHealth = 1f, aimBonus;
+        /**
          * Captain skills (0.5.29, JAOShip.applyCaptain). Flux dissipation and capacity per OP spent on weapons and wings
          * (Ordnance Expertise 1.5 / elite 20; ordnance() adds them for the fit's OP).
          */
@@ -580,6 +585,7 @@ final class JAOModel {
             s.malfAt = malfAt; s.critAt = critAt; s.degradeAt = degradeAt;
             s.turnMult = turnMult; s.beamTurnMult = beamTurnMult; s.recoilMult = recoilMult; s.malfunction = malfunction;
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
+            s.projSpeedMult = projSpeedMult; s.regenMis = regenMis; s.overloadMult = overloadMult; s.weaponHealth = weaponHealth; s.aimBonus = aimBonus;
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
             s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
@@ -1187,7 +1193,7 @@ final class JAOModel {
             eff[i] = d;
             effB[i] = db;
             if (w.pd || w.pdOnly || w.interceptor) {
-                float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread * s.recoilMult));
+                float hitf = w.beam || w.wing ? 1f : Math.min(1f, w.projSpeed * s.projSpeedMult / 900f) * Math.min(1f, 10f / Math.max(1f, w.spread * s.recoilMult));
                 // turrets track missiles and fighters at the ship's turn rate (Damaged Weapon Mounts slow them, Advanced
                 // Turret Gyros speed them up)
                 if (!w.wing && !fits.get(i).hardpoint) hitf *= pdTrack(w.beam ? s.beamTurnMult : s.turnMult);
@@ -1373,6 +1379,10 @@ final class JAOModel {
         // game against Remnant, Threat and Omega EMP, research builds_update_1106 4.2): small, larger on big hulls
         // (faster venting counts through duty())
         float resist = 1f + EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - s.empTaken, 0f, 1f);
+        // 0.5.88: tougher weapons and engines (EMP knocks them out less) at half the EMP weight; a shorter overload on a
+        // shielded ship, OVERLOAD_W per share of the overload removed
+        resist *= 1f + 0.5f * EMP_W[Math.max(0, Math.min(3, s.size))] * clamp(1f - 1f / Math.max(0.1f, s.weaponHealth), 0f, 1f);
+        if (s.shield) resist *= 1f + OVERLOAD_W * clamp(1f - s.overloadMult, -1f, 1f);
         float stay = duty(s, diss);
         float score = (float) (Math.pow(offense, p.offenseW) * Math.pow(ehp * outrange, 1f - p.offenseW)) * cr * pdFactor * fluxFactor * groupFactor * capPenalty * mobility * cover * startCr * malf * resist * stay * carrierPen * (1f + s.extra);
         if (out != null) {
@@ -1420,7 +1430,7 @@ final class JAOModel {
         float[] eff = new float[n], effB = new float[n];
         for (int i = 0; i < n; i++) {
             Fit fit = fits.get(i);
-            float acc = (ship != null && ship.guidance && fit.w.cls == MIS && fit.w.guidedPoor ? 1f : accuracy(fit.w, t.size, spreadMult)) * (ship == null ? 1f : track(fit, ship, ts));
+            float acc = (ship != null && ship.guidance && fit.w.cls == MIS && fit.w.guidedPoor ? 1f : accuracy(fit.w, t.size, spreadMult, ship == null ? 1f : ship.projSpeedMult)) * (ship == null ? 1f : track(fit, ship, ts));
             eff[i] = effAll[i] * acc;
             effB[i] = effBurst[i] * acc;
         }
@@ -1553,6 +1563,8 @@ final class JAOModel {
 
     /** Score per point of EMP damage avoided, by hull size; per point of extra vent rate. */
     static final float[] EMP_W = {0f, 0.01f, 0.025f, 0.05f};
+    /** 0.5.88: score per share of overload time removed on a shielded ship (Overload Damper's x0.5: +1.5%). */
+    static final float OVERLOAD_W = 0.03f;
     /** Times a gun's charges refill and empty again in a fight (lulls between engagements, overload windows). */
     static final float MAG_REFILLS = 3f;
     /** Share of a fight a phase-cloak ship spends phased (estimate, 0.5.50). */
@@ -1567,7 +1579,7 @@ final class JAOModel {
     static float chargedDps(W w, Ship s, float fight) {
         if (w.regen <= 0f || w.burstDps <= w.dps * 1.05f || w.ammoMax <= 0f) return w.dps;
         float ammo = w.fixedAmmo ? 1f : w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
-        float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : 1f;
+        float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : w.cls == MIS ? s.regenMis : 1f;
         // faster reload while phased (0.5.50: RAT's Hyperspatial Javelin and Dart): the script adds the weapon's own base
         // reload once more while phased, not scaled by the ship's regen bonus, on phase-cloak ships for the share of the fight
         // they spend phased
@@ -1812,14 +1824,17 @@ final class JAOModel {
     static float accuracy(W w, int targetSize) { return accuracy(w, targetSize, 1f); }
 
     /** spreadMult: the ship's recoil (Damaged Weapon Mounts x1.3, Ill-Advised Modifications x2 widen every gun's spread). */
-    static float accuracy(W w, int targetSize, float spreadMult) {
+    static float accuracy(W w, int targetSize, float spreadMult) { return accuracy(w, targetSize, spreadMult, 1f); }
+
+    /** speedMult: the ship's projectile speed (0.5.88: Extra System Reloaded's upgrades). */
+    static float accuracy(W w, int targetSize, float spreadMult, float speedMult) {
         if (w.wing || w.beam || w.homing) return 1f;
         int ts = Math.max(0, Math.min(3, targetSize));
         float sz = SIZE_HIT[ts];
         // semi-guided missiles (GUIDED_POOR: Sabot, Atropos) home on the target: about 0.85 against frigates
         if (w.cls == MIS) return w.guided ? 1f : w.guidedPoor ? 1f - 0.27f * (1f - sz) : sz;
         float spread = w.spread * Math.max(0.1f, spreadMult);
-        float q = 0.5f * Math.min(1f, w.projSpeed / 1000f) + 0.5f / (1f + spread / 5f);
+        float q = 0.5f * Math.min(1f, w.projSpeed * Math.max(0.1f, speedMult) / 1000f) + 0.5f / (1f + spread / 5f);
         float acc = 1f - (1f - sz) * (1f - clamp(q, 0f, 1f));
         // wide-spread guns (flak, shotguns: Devastator 30 degrees) miss even big ships at range: the share of the
         // cone the target covers at 80% of the weapon's range
@@ -1863,9 +1878,13 @@ final class JAOModel {
      * 10% / 7.5%) and critically below crit (20%). The thresholds are the ship's own (JAOShip reads them from the game).
      * The user 11/06: the Coda Launcher (Seeker) takes max CR off its ship; so do d-mods.
      */
-    static float crEffect(float c, float malf, float crit, float degrade) {
+    static float crEffect(float c, float malf, float crit, float degrade) { return crEffect(c, malf, crit, degrade, 0f); }
+
+    /** aimBonus: the ship's flat autofire aim accuracy bonus (0.5.88), on top of CR's aim. */
+    static float crEffect(float c, float malf, float crit, float degrade, float aimBonus) {
         c = clamp(c, 0f, 1f);
-        float aim = clamp(1.5f * c - 0.5f, 0f, 1f);
+        // half weight on the flat autofire bonus (the user: these upgrade effects count only a little)
+        float aim = clamp(1.5f * c - 0.5f + 0.5f * aimBonus, 0f, 1f);
         float e = (1f - CR_AIM + CR_AIM * aim) / (1f - CR_AIM + CR_AIM * 0.55f);
         if (c > CR_IMPROVE) e *= 1f + 0.12f * (c - CR_IMPROVE) / (1f - CR_IMPROVE);
         else if (degrade > 0f && c < degrade) e *= 1f - 0.12f * (degrade - c) / degrade;
@@ -1902,8 +1921,8 @@ final class JAOModel {
      * cost little on a healthy 70% ship and a lot on one already near the 50% and 40% lines.
      */
     static float crStart(Ship s, float maxCr) {
-        if (s.deployCr <= 0f) return crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt);
-        return 0.5f * (crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt) + crEffect(maxCr - s.deployCr, s.malfAt, s.critAt, s.degradeAt));
+        if (s.deployCr <= 0f) return crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt, s.aimBonus);
+        return 0.5f * (crEffect(maxCr, s.malfAt, s.critAt, s.degradeAt, s.aimBonus) + crEffect(maxCr - s.deployCr, s.malfAt, s.critAt, s.degradeAt, s.aimBonus));
     }
 
     /**

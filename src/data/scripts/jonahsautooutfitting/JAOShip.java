@@ -465,12 +465,21 @@ final class JAOShip implements JAOSearch.World {
         // +35% range, missile forges, fighter feeds and the mod copies); applied at the end, once the stats are read
         s.turnMult = mult(st.getWeaponTurnRateBonus().computeEffective(1f));
         s.beamTurnMult = mult(st.getBeamWeaponTurnRateBonus().computeEffective(1f));
-        s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue());
+        // 0.5.88: recoil per shot (how fast the spread builds) at half the weight of the maximum spread
+        s.recoilMult = mult(st.getMaxRecoilMult().getModifiedValue()) * (0.5f + 0.5f * mult(st.getRecoilPerShotMult().getModifiedValue()));
         s.malfunction = Math.max(0f, st.getWeaponMalfunctionChance().getModifiedValue());
         s.ammoBal = mult(st.getBallisticAmmoBonus().computeEffective(10f) / 10f);
         s.ammoEn = mult(st.getEnergyAmmoBonus().computeEffective(10f) / 10f);
         s.regenBal = mult(st.getBallisticAmmoRegenMult().getModifiedValue());
         s.regenEn = mult(st.getEnergyAmmoRegenMult().getModifiedValue());
+        // 0.5.88 (Extra System Reloaded's Targeting, Magazines, Flux Grid, Durability upgrades and the like)
+        try {
+            s.projSpeedMult = mult(st.getProjectileSpeedMult().getModifiedValue());
+            s.regenMis = mult(st.getMissileAmmoRegenMult().getModifiedValue());
+            s.overloadMult = Math.max(0f, st.getOverloadTimeMod().computeEffective(1f));
+            s.weaponHealth = mult(st.getWeaponHealthBonus().computeEffective(1f));
+            s.aimBonus = JAOModel.clamp(st.getAutofireAimAccuracy().getModifiedValue(), 0f, 1f);
+        } catch (Throwable ignored) { }
         s.empTaken = Math.max(0f, st.getEmpDamageTakenMult().getModifiedValue());
         s.ventRate = Math.max(0f, st.getVentRateMult().getModifiedValue());
         skillStats(st, s);

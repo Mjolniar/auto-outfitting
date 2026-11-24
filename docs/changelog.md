@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.88 - 2026-11-24
+
+- Ship stats: Projectile speed, recoil per shot, missile reload rate, overload duration, weapon and engine durability and autofire aim now count, each with a small weight. Extra System Reloaded's upgrades change these.
+- Extra System Reloaded: Overload Damper's shorter overload counts through the ship's stats. Its own bonus is halved so it isn't counted twice.
+
 ## 0.5.87 - 2026-11-23
 
 - Stations: Guns on stations and station modules count by the share of attackers they reach. Each enemy class fights from its own weapon range (660 for frigates to 1250 for capitals) and closes in part of the time. A 500-range gun reaches 48% of attackers, a 700-range gun 74%, a 1000-range gun 94%.

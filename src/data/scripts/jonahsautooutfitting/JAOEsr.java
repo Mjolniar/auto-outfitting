@@ -37,8 +37,11 @@ final class JAOEsr {
     static final String[] IDS = {OVERLOAD, NANOLATTICE, CRYO, TEMPORAL, PHASE, PD, HANGAR, MISSILE, VENT, RANGE};
     /** Modifier id prefix for the planned-set stat changes. */
     static final String MOD_PREFIX = "jao_esr_";
-    /** Overload Damper on a shielded ship (overload time x0.5, one overload in 30 s cancelled): a score bonus (estimate). */
-    static final float OVERLOAD_VALUE = 0.03f;
+    /**
+     * Overload Damper on a shielded ship: the one overload in 30 s it cancels (estimate). 0.5.88: its x0.5 overload time
+     * counts through the stats now (JAOModel.OVERLOAD_W), so this is half of the old 0.03.
+     */
+    static final float OVERLOAD_VALUE = 0.015f;
 
     private static boolean tried, ok;
     private static MethodHandle shipGet, shipGetOrCreate, getAugments, addAugment, removeAugment, fixQuality, byId, augId,
