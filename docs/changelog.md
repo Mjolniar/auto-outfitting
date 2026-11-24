@@ -2,7 +2,7 @@
 
 ## 0.5.83 - 2026-11-23
 
-- Weapon ratings: Guns with both PD hints that fire more than 4 seconds apart count less. Their share of damage against ships falls from 0.6 to 0.25 at an 8 second cycle, and their point defense scales with fire rate. Reported by Mjolniar.
+- Weapon ratings: Guns with both PD hints that fire more than 4 seconds apart count less. Their share of damage against ships falls from 0.6 to 0.25 at an 8 second cycle, and their point defense scales with fire rate.
 - Navarchy of Tania: The Nidhogg (one volley every 8 seconds) is rated as a point defense gun. On a line cruiser with two Heavy Autocannons it now scores under the Mark IX, Gauss Cannon and Storm Needler, and well under the Hellbore, Hephaestus and Devastator. The Devastator (3.1 second cycle) is unchanged.
 
 ## 0.5.82 - 2026-11-23
