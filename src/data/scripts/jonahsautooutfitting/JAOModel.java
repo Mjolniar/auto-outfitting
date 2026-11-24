@@ -375,6 +375,8 @@ final class JAOModel {
         /** Sustained damage/s, flux/s, damage per hit, base range; pool = total damage of finite ammo (0 = unlimited). */
         float dps, flux, hit, range, pool, burst, emp;
         float projSpeed = 1000f, spread;
+        /** 0.5.83: seconds from one volley to the next (charge-up + refire + burst), 0 when unknown. */
+        float cycle;
         /** Turret turn rate, degrees per second (0 = unknown: no tracking limit). */
         float turnRate;
         /** Scripted extras (jao_weapon_effects.csv). */
@@ -1178,7 +1180,7 @@ final class JAOModel {
             float db = w.wing ? d : x.dps * (BURST_SHARE * burstUp + (1f - BURST_SHARE) * uptime) * inRange * reach * bear;
             // PD weapons engage missiles and fighters first: plain PD hits ships a quarter of the time, dual-role guns
             // (PD_ALSO) most of it (research weapon_eval f.7)
-            float pdShare = w.pdOnly ? 0f : !w.pd ? 1f : w.pdAlso ? 0.6f : 0.25f;
+            float pdShare = w.pdOnly ? 0f : !w.pd ? 1f : w.pdAlso ? pdAlsoShare(w) : 0.25f;
             d *= pdShare;
             db *= pdShare;
             if (p.carrierGuns && !w.wing && !w.hullmod && !w.pd && !w.pdOnly && w.cls != MIS) { d *= CARRIER_GUN; db *= CARRIER_GUN; }
@@ -1190,7 +1192,7 @@ final class JAOModel {
                 // Turret Gyros speed them up)
                 if (!w.wing && !fits.get(i).hardpoint) hitf *= pdTrack(w.beam ? s.beamTurnMult : s.turnMult);
                 float reachPd = clamp(x.range / 500f, 0.5f, 1.2f);
-                pd += x.dps * pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f) * (w.wing ? 1f : pdKill(x.dps * pdDmg, x.range));
+                pd += x.dps * pdDmg * hitf * fits.get(i).cover * reachPd * (w.wing && w.interceptor ? escort : 1f) * (w.wing ? 1f : pdKill(x.dps * pdDmg, x.range)) * slowPd(w);
             } else if (w.wing && w.wingPd > 0f) {
                 // multi-role fighters screen against missiles and fighters with their PD-capable guns, at half weight
                 pd += 0.5f * w.wingPd * x.dps * pdDmg;
@@ -1601,6 +1603,28 @@ final class JAOModel {
      * 400-speed missile spends per 400 units of its range. Burst PD 0.9, Vulcan and Flak about 1, LR PD and PD lasers
      * a third: the community's 2-3 Burst PD per cruiser, where the model had filled small mounts with LR PD lasers.
      */
+    /**
+     * 0.5.83 (user 11/23: the Nidhogg is "just a gigantic point-defense weapon"): a gun with both PD and PD_ALSO whose
+     * volleys come more than SLOW_PD_CYCLE seconds apart (Navarchy of Tania's Nidhogg: one 30-pellet volley every 8 s;
+     * the Devastator, 3.1 s, stays as it was). The AI fires PD guns at missiles and fighters first, and each such volley
+     * costs a whole cycle of fire at ships; one volley per cycle also covers few missiles. Its PD scales by
+     * SLOW_PD_CYCLE / cycle, and its share against ships falls from 0.6 at 4 s to a plain PD gun's 0.25 at 8 s. Cycles over
+     * SLOW_PD_MAX_CYCLE are scripted guns (spin-up miniguns list charge-ups in the thousands) and stay as they were.
+     */
+    static final float SLOW_PD_CYCLE = 4f, SLOW_PD_MAX_CYCLE = 30f;
+
+    static float slowPd(W w) {
+        if (w == null || !w.pd || !w.pdAlso || w.pdOnly || w.cls == MIS || w.beam || w.wing) return 1f;
+        if (w.cycle <= SLOW_PD_CYCLE || w.cycle > SLOW_PD_MAX_CYCLE) return 1f;
+        return SLOW_PD_CYCLE / w.cycle;
+    }
+
+    /** Share of a PD + PD_ALSO gun's damage that goes at ships: 0.6 (Devastator), down to 0.25 for an 8 s cycle (slowPd). */
+    static float pdAlsoShare(W w) {
+        float slow = slowPd(w);
+        return slow >= 1f ? 0.6f : 0.25f + 0.35f * clamp((slow - 0.5f) / 0.5f, 0f, 1f);
+    }
+
     static float pdKill(float dps, float range) {
         return clamp(dps * Math.max(0.5f, range / 400f) / 300f, 0.2f, 1f);
     }

@@ -107,6 +107,13 @@ public class JAORatings {
         w.fireWhenInefficient = spec.getAIHints().contains(AIHints.FIRE_WHEN_INEFFICIENT);
         w.spread = spec.getMaxSpread();
         w.turnRate = spec.getTurnRate();
+        // 0.5.83: seconds per volley (JAOModel.slowPd)
+        if (spec instanceof com.fs.starfarer.api.loading.ProjectileWeaponSpecAPI && !w.beam) {
+            try {
+                com.fs.starfarer.api.loading.ProjectileWeaponSpecAPI ps = (com.fs.starfarer.api.loading.ProjectileWeaponSpecAPI) spec;
+                w.cycle = Math.max(0f, ps.getChargeTime()) + Math.max(0f, ps.getRefireDelay()) + Math.max(0, ps.getBurstSize() - 1) * Math.max(0f, ps.getBurstDelay());
+            } catch (Throwable ignored) { }
+        }
         Object proj = spec.getProjectileSpec();
         if (proj instanceof ProjectileSpecAPI) {
             try { w.projSpeed = ((ProjectileSpecAPI) proj).getMoveSpeed(null, null); } catch (Throwable ignored) { }
