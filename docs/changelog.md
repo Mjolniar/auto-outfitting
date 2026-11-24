@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.86 - 2026-11-23
+
+- Flux: Ships may carry more guns than their dissipation sustains. The extra score penalty starts at 2x the flux budget (was 1.4x) and the cut at 3x (was 1.75x). Uptime and burst windows still limit what the guns deal.
+- Flux: On the offline benchmark the average weapon flux went from 1.21x to 1.39x dissipation.
+- Search: Weapons worth least per OP can be traded for a hullmod that doesn't fit, or for vents and capacitors, several at once.
+
 ## 0.5.85 - 2026-11-23
 
 - S-mods: Ship modules get s-mods. They are planned after their ship's own s-mods, from the same story points, and follow their ship's type box and s-mod cap. Station modules get none.

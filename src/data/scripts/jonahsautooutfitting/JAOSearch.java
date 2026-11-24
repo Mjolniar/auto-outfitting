@@ -341,6 +341,12 @@ final class JAOSearch {
             addMods();
             removeMods();
         }
+        // 3b2. a hullmod the weapons leave no OP for (0.5.86): weapons that add least per OP come off for it
+        for (int round = 0; round < 2 && TRADE && learnAnd() && tradeForMods(); round++) {
+            for (Slot s : order) if (s.fixed == null) pickBest(s, true);
+            addMods();
+            removeMods();
+        }
         // 3c. two big mounts at once (0.5.13)
         for (int round = 0; round < 2 && learnAnd() && pairSwap(order); round++) {
             for (Slot s : order) if (s.fixed == null) pickBest(s, true);
@@ -690,6 +696,81 @@ final class JAOSearch {
         if (bestOut == null) return false;
         mods.remove(bestOut);
         mods.add(bestIn);
+        return true;
+    }
+
+    /**
+     * 0.5.86: with flux pressure starting later, greedy weapon fills can take every OP before the hullmods are looked at
+     * (an Overslaught Mk.I filled all 36 mounts and lost Heavy Armor and its flux hullmods), and no single swap can trade
+     * several weapons for one hullmod. Each fitted weapon's score per OP is measured once; for each hullmod that doesn't
+     * fit, the weapons worth least per OP come off until it does. The best trade that beats the current fit is taken
+     * (the mounts it emptied are refilled by the passes after it). Returns true if it changed anything.
+     */
+    /** Offline comparisons: false skips tradeForMods. */
+    static boolean TRADE = true;
+    /** Most weapons one trade takes off at once. */
+    static int TRADE_MAX = 12;
+
+    boolean tradeForMods() {
+        float base = objective();
+        if (base <= 0f) return false;
+        List<Slot> fitted = new ArrayList<>();
+        Map<Slot, Float> perOp = new HashMap<>();
+        for (Slot s : slots) {
+            if (s.fixed != null || s.pick == null) continue;
+            Cand c = s.pick;
+            float op = world.op(c, mods);
+            if (op <= 0f) continue;
+            give(c);
+            s.pick = null;
+            float v = objective();
+            if (take(c)) s.pick = c;
+            fitted.add(s);
+            perOp.put(s, (base - v) / op);
+        }
+        if (fitted.isEmpty()) return false;
+        fitted.sort(Comparator.comparingDouble((Slot s) -> perOp.get(s)).thenComparing(s -> s.id));
+        String bestMod = null;
+        int bestK = 0;
+        float bestV = gain(base, 0.002f);
+        for (String m : modCands) {
+            if (mods.contains(m) || world.filler(m) || !world.canAdd(m, mods)) continue;
+            int over = opUsed() + world.modOp(m) - world.hullOp();
+            if (over <= 0) continue;   // fits already: addMods judges it
+            mods.add(m);
+            List<Cand> off = new ArrayList<>();
+            int k = 0;
+            while (k < fitted.size() && world.hullOp() - opUsed() < 0) {
+                Slot s = fitted.get(k++);
+                off.add(s.pick);
+                give(s.pick);
+                s.pick = null;
+            }
+            float v = world.hullOp() - opUsed() >= 0 ? objective() : -1f;
+            for (int i = 0; i < off.size(); i++) {
+                Slot s = fitted.get(i);
+                if (take(off.get(i))) s.pick = off.get(i);
+            }
+            mods.remove(m);
+            if (v > bestV) { bestV = v; bestMod = m; bestK = k; }
+        }
+        // the same without a hullmod: the k weapons worth least per OP off at once, their OP to vents and capacitors (one
+        // at a time, pickBest's empty mount, can lose to the empty-mount cost while several together win)
+        boolean pure = false;
+        for (int k = 2; k <= Math.min(TRADE_MAX, fitted.size()); k++) {
+            List<Cand> off = new ArrayList<>();
+            for (int i = 0; i < k; i++) { Slot s = fitted.get(i); off.add(s.pick); give(s.pick); s.pick = null; }
+            float v = objective();
+            for (int i = 0; i < k; i++) { Slot s = fitted.get(i); if (take(off.get(i))) s.pick = off.get(i); }
+            if (v > bestV) { bestV = v; bestMod = null; bestK = k; pure = true; }
+        }
+        if (bestMod == null && !pure) return false;
+        if (bestMod != null) mods.add(bestMod);
+        for (int i = 0; i < bestK; i++) {
+            Slot s = fitted.get(i);
+            give(s.pick);
+            s.pick = null;
+        }
         return true;
     }
 

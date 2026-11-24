@@ -188,7 +188,7 @@ final class JAOModel {
     }
     /** Ship systems the AI fires whenever their weapons are in range: Accelerated Ammo Feeder, High Energy Focus (SYS-2/3). */
     static final float AMMO_FEED = 1.29f, ENERGY_FOCUS = 1.075f;
-    static final float BURST_SHARE = 0.5f, BURST_CAP = 0.4f, BURST_SECONDS = 10f, FLUX_LIMIT = 1.75f, FLUX_SOFT = 1.4f, FLUX_SOFT_EXP = 0.3f;
+    static final float BURST_SHARE = 0.5f, BURST_CAP = 0.4f, BURST_SECONDS = 10f, FLUX_LIMIT = 3.0f, FLUX_SOFT = 2.0f, FLUX_SOFT_EXP = 0.3f;
     /** Fighter wing roles. */
     static final int W_FIGHTER = 0, W_BOMBER = 1, W_INTERCEPTOR = 2, W_SUPPORT = 3;
     /**
@@ -1279,10 +1279,10 @@ final class JAOModel {
         // tournaments_1106 rule 1): frigates too
         if (pd <= 0f && need > 0f) pdFactor *= 0.95f;
 
-        // far over budget the AI keeps groups switched off even in burst windows (mechanics 3.4: f up to 2;
-        // research meta R91: 2x is the workable limit), so guns past that waste OP
-        // gentle pressure from 1.25x (community target about 1x for AI ships, 1.5x hard cap), so a ship only goes past
-        // it for a gun clearly worth it; past FLUX_LIMIT the extra guns sit switched off
+        // 0.5.86 (user 11/23: "Why are we kneecapping firepower ... that's what capacitors are for"): uptime and burstUp
+        // already hold the guns to what dissipation and capacity pay for, with the AI firing in bursts and backing off to
+        // vent. This extra pressure starts at 2x the budget (was 1.4x) and the cut at 3x (was 1.75x), where whole groups
+        // stay switched off (mechanics 3.4)
         float fluxFactor = overflux <= s.fluxSoft ? 1f : (float) Math.pow(s.fluxSoft / Math.min(overflux, s.fluxLimit), FLUX_SOFT_EXP);
         if (overflux > s.fluxLimit) fluxFactor *= s.fluxLimit / overflux;
 
