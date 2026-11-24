@@ -1159,7 +1159,7 @@ final class JAOModel {
             // in range at the main distance, and when the AI closes in
             float atFar = x.range >= reng ? 1f : (x.range / reng) * (x.range / reng);
             float atNear = x.range >= rclose ? 1f : (x.range / rclose) * (x.range / rclose);
-            float inRange = w.wing ? 1f : (1f - close) * atFar + close * atNear;
+            float inRange = w.wing ? 1f : p.station && !STATION_OLD ? stationInRange(x.range, p.targets) : (1f - close) * atFar + close * atNear;
             // off-axis mounts reach the main target only part of the time
             float bear = w.wing ? 1f : fits.get(i).bear;
             // wings: worth less in a role the fleet already has plenty of, and a little less per copy of the same wing
@@ -1624,6 +1624,30 @@ final class JAOModel {
         float slow = slowPd(w);
         return slow >= 1f ? 0.6f : 0.25f + 0.35f * clamp((slow - 0.5f) / 0.5f, 0f, 1f);
     }
+
+    /**
+     * 0.5.87 (user 11/23: stations with "a bunch of 500 range high damage weapons"): a station can't close in or pick
+     * its distance. Each enemy class fights it from its own weapons' range (Target.threat: 660 frigates to 1250
+     * capitals) and closes in STATION_CLOSE of the time, to STATION_NEAR of that range. A gun counts by the share of
+     * attackers it reaches, (range / distance)^2 short of it, as for ships. A 500-range gun reaches 48% of
+     * them, a 1000-range gun 94%.
+     */
+    static float stationInRange(float range, Target[] targets) {
+        if (targets == null || targets.length == 0) return 1f;
+        float sum = 0f, wsum = 0f;
+        for (Target t : targets) {
+            float d = Math.max(100f, t.threat);
+            sum += t.weight * ((1f - STATION_CLOSE) * reachShare(range, d) + STATION_CLOSE * reachShare(range, STATION_NEAR * d));
+            wsum += t.weight;
+        }
+        return wsum > 0f ? sum / wsum : 1f;
+    }
+
+    static float reachShare(float range, float distance) { return range >= distance ? 1f : (range / distance) * (range / distance); }
+
+    static final float STATION_CLOSE = 0.3f, STATION_NEAR = 0.6f;
+    /** Offline comparisons: true scores stations by their own main battery's range (before 0.5.87). */
+    static boolean STATION_OLD = false;
 
     static float pdKill(float dps, float range) {
         return clamp(dps * Math.max(0.5f, range / 400f) / 300f, 0.2f, 1f);

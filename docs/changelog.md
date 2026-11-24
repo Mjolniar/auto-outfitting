@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.87 - 2026-11-23
+
+- Stations: Guns on stations and station modules count by the share of attackers they reach. Each enemy class fights from its own weapon range (660 for frigates to 1250 for capitals) and closes in part of the time. A 500-range gun reaches 48% of attackers, a 700-range gun 74%, a 1000-range gun 94%.
+- Stations: On a midline broadside station module the average range of the non-PD guns went from 933 to 1119. Short-range point defense guns stay.
+
 ## 0.5.86 - 2026-11-23
 
 - Flux: Ships may carry more guns than their dissipation sustains. The extra score penalty starts at 2x the flux budget (was 1.4x) and the cut at 3x (was 1.75x). Uptime and burst windows still limit what the guns deal.
