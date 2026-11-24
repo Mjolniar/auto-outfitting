@@ -108,6 +108,13 @@ final class JAOFleetApply {
         try { Global.getSector().getPersistentData().put(STRIP_STORED, on); } catch (Throwable ignored) { }
     }
 
+    /**
+     * 0.5.81: Reverse Engineered Private Arsenal (JAOReverse): the Reverse Engineering Storage here (null: none, or the box
+     * is off) and the weapons and wings set aside for it, one each.
+     */
+    final com.fs.starfarer.api.campaign.econ.SubmarketAPI reverseHere;
+    List<String> reverseW = new ArrayList<>(), reverseF = new ArrayList<>();
+
     /** Ships in this market's storage whose weapons and LPCs join the stock and come off on Apply ("Strip stored ships"). */
     final List<FleetMemberAPI> stored = new ArrayList<>();
     /** Weapons and LPCs on those ships. */
@@ -186,6 +193,32 @@ final class JAOFleetApply {
             }
         }
         for (FleetMemberAPI m : planned) JAOFleetPlan.addMountedWithModules(live(m, false), w, f);
+        // 0.5.81 (user 11/23): one of every weapon (and wing, from Hub II) the Reverse Engineering Hub here hasn't done is set
+        // aside for its storage before the plan; locked ships and the refit screen's stock-variant ship keep theirs
+        reverseHere = JAOReverse.present() && JAOFleetOptions.reverse() ? JAOReverse.storage(market) : null;
+        if (reverseHere != null) {
+            try {
+                Map<String, Integer> kw = new TreeMap<>(), kf = new TreeMap<>();
+                for (FleetMemberAPI m : planned) {
+                    boolean keep = JAOLocks.locked(m);
+                    if (!keep) try { keep = shown(m) && live(m, false).isStockVariant(); } catch (Throwable ignored) { }
+                    if (keep) JAOFleetPlan.addMountedWithModules(live(m, false), kw, kf);
+                }
+                CargoAPI re = reverseHere.getCargo();
+                java.util.Set<String> dw = JAOReverse.done(false), df = JAOReverse.done(true);
+                reverseW = JAOReverse.pick(JAOReverse.movable(w, kw), dw, JAOReverse.held(re, false), JAOReverse.pending(false, dw), JAOReverse::weaponOk);
+                if (JAOReverse.tier(market) >= 2)
+                    reverseF = JAOReverse.pick(JAOReverse.movable(f, kf), df, JAOReverse.held(re, true), JAOReverse.pending(true, df), JAOReverse::wingOk);
+                for (String id : reverseW) w.merge(id, -1, Integer::sum);
+                for (String id : reverseF) f.merge(id, -1, Integer::sum);
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: reverse engineering at " + market.getName() + " (hub tier " + JAOReverse.tier(market)
+                        + ", " + dw.size() + " weapons and " + df.size() + " wings done): sending " + reverseW + " " + reverseF);
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: couldn't pick items for reverse engineering", t);
+                reverseW = new ArrayList<>();
+                reverseF = new ArrayList<>();
+            }
+        }
         List<AvailableWeapon> weapons = new ArrayList<>();
         List<AvailableFighter> fighters = new ArrayList<>();
         JAOFleetPlan.owned(w, f, weapons, fighters);
@@ -202,6 +235,8 @@ final class JAOFleetApply {
         buyBlack = JAOFleetOptions.buyBlack();
         int owned = weapons.size() + fighters.size();
         if (buyLegal || buyBlack) JAOShops.stock(shops, buyLegal, buyBlack, weapons, fighters);
+        // 0.5.81: a free Private Arsenal here gives its stock away, so it's used without the legal box too
+        if (!buyLegal) JAOShops.stockFree(shops, weapons, fighters);
         boolean buying = weapons.size() + fighters.size() > owned;
         changeOn = JAOFleetOptions.changeSmods();
         changeHere = JAOFleetOptions.changeSmodsHere(market, mode);
@@ -668,6 +703,22 @@ final class JAOFleetApply {
                 stored += spare;
             }
         }
+        // 4. reverse engineering (0.5.81): one of each set-aside item into the Reverse Engineering Storage, from storage here
+        // then cargo; items in it the hub has already done (never picked again) come back
+        int sentRe = 0, tookBack = 0;
+        if (reverseHere != null) {
+            try {
+                CargoAPI re = reverseHere.getCargo();
+                List<String> missed = new ArrayList<>();
+                for (String id : reverseW) { if (JAOReverse.send(id, false, storage, cargo, re)) sentRe++; else missed.add(id); }
+                for (String id : reverseF) { if (JAOReverse.send(id, true, storage, cargo, re)) sentRe++; else missed.add(id); }
+                tookBack = JAOReverse.takeBack(re, storage != null ? storage : cargo);
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + sentRe + " items to the Reverse Engineering Storage"
+                        + (missed.isEmpty() ? "" : ", not found in cargo or storage: " + missed) + (tookBack > 0 ? ", " + tookBack + " already done taken back" : ""));
+            } catch (Throwable t) {
+                Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: Optimize fleet couldn't fill the Reverse Engineering Storage", t);
+            }
+        }
         try { Global.getSector().getPlayerFleet().getFleetData().setSyncNeeded(); } catch (Throwable ignored) { }
         try { Global.getSector().getPlayerFleet().getFleetData().syncIfNeeded(); } catch (Throwable ignored) { }
         if (refit != null) {
@@ -697,6 +748,8 @@ final class JAOFleetApply {
                 + (repaired > 0 ? ", removed the d-mods on " + repaired + " ship" + (repaired > 1 ? "s" : "") + " (" + (partsUsed > 0 ? partsUsed + " Domain-grade Parts" : "")
                         + (partsUsed > 0 && repairSpent > 0 ? ", " : "") + (repairSpent > 0 ? Misc.getDGSCredits(repairSpent) : "") + ")" : "")
                 + (strippedStored > 0 ? ", stripped " + strippedStored + " stored ship" + (strippedStored > 1 ? "s" : "") : "")
+                + (sentRe > 0 ? ", put " + sentRe + " item" + (sentRe > 1 ? "s" : "") + " in the Reverse Engineering Storage" : "")
+                + (tookBack > 0 ? ", took " + tookBack + " already reverse-engineered item" + (tookBack > 1 ? "s" : "") + " out of it" : "")
                 + (crCharged > 0 ? "; " + crCharged + " lost CR to the in-space refit (up to " + Math.round(crTaken * 100f) + "%)" : "")
                 + (stored > 0 ? "; " + stored + " weapons and LPCs that came off went to storage at " + market.getName() : "")
                 + (missing > 0 ? "; " + missing + " items weren't there any more, so those mounts are empty" : "");

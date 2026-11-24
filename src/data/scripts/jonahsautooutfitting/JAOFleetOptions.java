@@ -103,6 +103,11 @@ final class JAOFleetOptions {
         }
     }
 
+    /** 0.5.81: "Send new items to reverse engineering" (Reverse Engineered Private Arsenal), per save, on by default. */
+    static final String REVERSE = "jao_ofReverse";
+
+    static boolean reverse() { return flag(REVERSE, true); }
+
     /** Whether civilian ships build in fleet-wide hullmods: until set in this save, the LunaLib setting (jao_civilianSmods). */
     static boolean smodsCivilian() { return flag(SMODS_CIVILIAN, JAOSettings.civilianSmods); }
 

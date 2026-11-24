@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.81 - 2026-11-23
+
+- Reverse Engineered Private Arsenal: Added "Send new items to reverse engineering" to Optimize fleet, on by default. At a colony with a Reverse Engineering Hub, one of every weapon the hub has not done goes into the Reverse Engineering Storage. Fighter wings go in from Hub II.
+- Reverse Engineered Private Arsenal: Spares in cargo and storage go first. A ship's only copy comes off that ship. Locked ships keep theirs.
+- Reverse Engineered Private Arsenal: Items in the Reverse Engineering Storage that the hub has already done go back to storage.
+- Reverse Engineered Private Arsenal: A free Private Arsenal (Omega core) is used by Optimize fleet without Buy from legal shops.
+
 ## 0.5.80 - 2026-11-23
 
 - AI Tweaks: Custom AI goes on capitals only. Ships with Custom AI default to Search and Destroy.

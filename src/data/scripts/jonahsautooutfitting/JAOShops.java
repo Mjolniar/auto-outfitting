@@ -141,6 +141,24 @@ final class JAOShops {
         }
     }
 
+    /**
+     * 0.5.81: a free Private Arsenal here (Omega core: tariff -1, price 0) is stock like storage, with or without Buy from
+     * legal shops. Its stock is refreshed first (the shop list is read without a refresh when no buy box is ticked).
+     */
+    static void stockFree(List<Shop> shops, List<AvailableWeapon> weapons, List<AvailableFighter> fighters) {
+        List<Shop> free = new ArrayList<>();
+        for (Shop s : shops) {
+            try {
+                if (!JAOCompat.REPA_ARSENAL.equals(s.sub.getSpecId()) || s.sub.getPlugin() == null || s.sub.getPlugin().getTariff() > -1f) continue;
+                s.sub.getPlugin().updateCargoPrePlayerInteraction();
+                free.add(s);
+            } catch (Throwable t) {
+                Global.getLogger(JAOShops.class).warn("Auto Outfitting: couldn't read the Private Arsenal", t);
+            }
+        }
+        if (!free.isEmpty()) stock(free, true, false, weapons, fighters);
+    }
+
     static float buyMult() {
         try { return Global.getSettings().getFloat("shipWeaponBuyPriceMult"); } catch (Throwable t) { return 1f; }
     }

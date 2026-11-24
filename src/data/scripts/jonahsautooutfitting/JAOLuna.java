@@ -16,6 +16,8 @@ public class JAOLuna implements LunaSettingsListener {
     static Integer integer(String id) { return LunaSettings.getInt(JAOSettings.MOD, id); }
     static Double dbl(String id) { return LunaSettings.getDouble(JAOSettings.MOD, id); }
     static String string(String id) { return LunaSettings.getString(JAOSettings.MOD, id); }
+    /** Another mod's LunaLib value (0.5.81: Reverse Engineered Private Arsenal's research days). */
+    static Integer otherInt(String mod, String id) { return LunaSettings.getInt(mod, id); }
 
     /** Saving in LunaLib's menu applies the new values at once (the next autofit uses them). */
     @Override

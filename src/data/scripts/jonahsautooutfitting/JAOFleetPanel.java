@@ -35,7 +35,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
     ButtonAPI apply, storageBox, storedBox, legalBox, blackBox, smodsBox, changeBox, officersBox, augmentsBox;
     /** 0.5.73: s-mods by ship type (frigates, destroyers, cruisers, capitals, civilian). */
     ButtonAPI[] typeBoxes, repairBoxes;
-    ButtonAPI repairBox;
+    ButtonAPI repairBox, reverseBox;
     /** 0.5.77: "pick:<member id>" -> its box (ships picked for d-mod repairs). */
     final java.util.Map<String, ButtonAPI> pickBoxes = new java.util.LinkedHashMap<>();
     static final String[] REPAIR_IDS = {"repairF", "repairD", "repairC", "repairK", "repairV"};
@@ -242,6 +242,17 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             augmentsBox = box(t, "Place augments", "augments", JAOAugments.place());
             t.addPara("Extra Systems augments go to whichever ship they help the most. This only works at a friendly market with a spaceport.", 0f, g);
         }
+        // 0.5.81 (user 11/23): Reverse Engineered Private Arsenal
+        reverseBox = null;
+        if (JAOReverse.present()) {
+            t.addSectionHeading("Reverse engineering", Alignment.MID, 10f);
+            reverseBox = box(t, "Send new items to reverse engineering", "reverse", JAOFleetOptions.reverse());
+            int tier = JAOReverse.tier(market);
+            t.addPara(esc("At a colony with a Reverse Engineering Hub, one of every weapon the hub hasn't done yet goes into its Reverse Engineering Storage, and fighter wings too from Hub II. "
+                    + "Spares in cargo and storage go first. If a ship has the only one, it comes off that ship. "
+                    + "When the hub's done, the Private Arsenal sells them, and Buy from legal shops uses it. A free arsenal (Omega core) gets used either way. "
+                    + (JAOReverse.storage(market) != null ? "Here: Reverse Engineering Hub " + (tier == 3 ? "III" : tier == 2 ? "II" : "I") + "." : "There's no Reverse Engineering Hub of yours here.")), 0f, g);
+        }
         place(t, 10f, 10f);
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);
@@ -348,6 +359,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                         + (job.repairCredits > 0 ? Misc.getDGSCredits(job.repairCredits) : "") + " go to these:"), 2f, h);
                 for (JAODmods.Repair r : job.repairs) list.addPara(esc("    " + r.ship.name + ": " + r.describe()), 0f, g);
             }
+        }
+        if (job.reverseHere != null) {
+            int n = job.reverseW.size() + job.reverseF.size();
+            if (n > 0) list.addPara(esc("Reverse engineering: " + n + (n == 1 ? " item goes" : " items go") + " into the Reverse Engineering Storage: "
+                    + JAOReverse.names(job.reverseW, job.reverseF, 12) + "."), 2f, h);
+            else list.addPara("Reverse engineering: the hub has done or is doing everything you've got.", 2f, g);
         }
         if (job.officers != null) {
             int moves = job.officerMoves();
@@ -484,6 +501,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             }
             else if ("officers".equals(id) && officersBox != null) JAOFleetApply.setPlaceOfficers(officersBox.isChecked());
             else if ("augments".equals(id) && augmentsBox != null) JAOAugments.setPlace(augmentsBox.isChecked());
+            else if ("reverse".equals(id) && reverseBox != null) JAOFleetOptions.set(JAOFleetOptions.REVERSE, reverseBox.isChecked());
         } else if ("settings".equals(id)) {
             // after Apply the plan is spent; either way the settings come back and Plan fleet starts over
             cancelJob();

@@ -518,7 +518,7 @@ final class JAOCompat {
      * Reverse Engineering Hub sells 50 of every item the hub reverse-engineered, at base value x 2.0 / 1.6 / 1.0 / 0.4 / 0
      * by the hub's core (none / gamma / beta / alpha / omega; PrivateArsenalSubmarketPlugin.getTariff = mult - 1, and
      * isFreeTransfer when the mult is 0). The Reverse Engineering Storage next to it holds what the hub is analysing
-     * (free transfer); AO never takes from it or puts anything in it (AO's storage is Misc.getStorageCargo only).
+     * (free transfer); 0.5.81: Optimize fleet puts one of each item the hub hasn't done in it (JAOReverse).
      */
     static final String REPA_ARSENAL = "RePA_PrivateArsenalSub";
 
