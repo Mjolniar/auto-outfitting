@@ -278,7 +278,7 @@ class JAOOptimizer {
         }
         // vents and capacitors from the OP really left now (not the plan's figure), the plan's split first and any
         // difference into vents, then capacitors, up to their maximums: no point is left unspent if one can be used
-        int[] vc = search.flux();
+        int[] vc = search.fluxBest();
         int maxV = plugin.getMaxVents(hull.getHullSize()), maxC = plugin.getMaxCaps(hull.getHullSize());
         int vents = Math.min(Math.min(vc[0], maxV), Math.max(0, left));
         int caps = Math.min(Math.min(vc[1], maxC), Math.max(0, left - vents));
@@ -1323,7 +1323,7 @@ class JAOOptimizer {
 
     private void log(JAOSearch s, JAOShip world, JAOModel.Params p, JAOStyle st, long ms) {
         Map<String, Float> b = new LinkedHashMap<>();
-        int[] vc = s.flux();
+        int[] vc = s.fluxBest();
         JAOModel.evaluate(JAOModel.withFlux(s.fitShip(), vc[0], vc[1]), s.fits(), p, b);
         StringBuilder sb = new StringBuilder("Auto Outfitting: ").append(current.getHullSpec().getHullId())
                 .append(module ? " (module)" : "").append(' ').append(p.role != null ? p.role.label + "/" : "").append(st.label).append(" in ").append(ms).append(" ms, ")

@@ -164,15 +164,49 @@ final class JAOSearch {
         return JAOModel.fluxFill(sh, fits(), Math.max(0, left));
     }
 
+    /** 0.5.84: the final split of the OP left between vents and capacitors, by the score (JAOModel.bestSplit). */
+    int[] fluxBest() {
+        JAOModel.Ship sh = fitShip();
+        int left = world.hullOp() - opUsed();
+        return JAOModel.bestSplit(sh, fits(), params, Math.max(0, left));
+    }
+
+    /**
+     * 0.5.84: capacity per point of dissipation the score wanted at the last learnSplit; NaN: fluxFill's split (it
+     * scored as well). Set only at the start of a step, so a step's base and its candidates use the same split rule.
+     */
+    float splitRatio = Float.NaN;
+    /** JAOProbe / offline comparisons: false keeps fluxFill's split during the search (the 0.5.83 search). */
+    static boolean LEARN_SPLIT = true;
+
+    /**
+     * 0.5.84: fluxFill fills capacitors to their maximum before vents past the load. On a ship with low dissipation
+     * (Hillock's Guillotine) that starved its vents: Hardened Shields scored +0.6% against the plain fit, and +5.2% with
+     * the split the score prefers. The best split here sets splitRatio for the steps that follow.
+     */
+    void learnSplit() {
+        if (!LEARN_SPLIT) return;
+        int left = world.hullOp() - opUsed();
+        if (left <= 0) { splitRatio = Float.NaN; return; }
+        JAOModel.Ship sh = fitShip();
+        List<JAOModel.Fit> f = fits();
+        int[] fill = JAOModel.fluxFill(sh, f, left), best = JAOModel.bestSplit(sh, f, params, left);
+        evaluations += 2;
+        splitRatio = best[0] == fill[0] && best[1] == fill[1] ? Float.NaN : (sh.cap + 200f * best[1]) / Math.max(1f, sh.diss + 10f * best[0]);
+    }
+
     /** The objective: build score with the left-over OP in vents/caps, minus nothing; -1 when over the OP limit. */
-    float objective() {
+    float objective() { return objective(false); }
+
+    /** exact: the vents/capacitors split by the score itself (bestSplit), for comparing results of separate steps. */
+    float objective(boolean exact) {
         JAOCoop.checkpoint();
         evaluations++;
         int left = world.hullOp() - opUsed();
         if (left < 0) return -1f;
         JAOModel.Ship sh = fitShip();
         List<JAOModel.Fit> f = fits();
-        int[] vc = JAOModel.fluxFill(sh, f, left);
+        int[] vc = exact ? JAOModel.bestSplit(sh, f, params, left) : JAOModel.ratioSplit(sh, f, left, splitRatio);
         float score = JAOModel.score(JAOModel.withFlux(sh, vc[0], vc[1]), f, params) * (1f - EMPTY_COST * emptyShare());
         if (params.rareBonus > 0f) {
             // Prefer rare weapons: bonus by the slot-size-weighted rarity of what's fitted
@@ -244,7 +278,7 @@ final class JAOSearch {
         // earlier fit); filling small mounts first leaves the big ones to choose within what's left
         Set<String> startMods = new LinkedHashSet<>(mods);
         improve(order);
-        float first = objective();
+        float first = objective(true);
         Map<Slot, Cand> firstPicks = new HashMap<>();
         for (Slot s : slots) firstPicks.put(s, s.pick);
         Set<String> firstMods = new LinkedHashSet<>(mods);
@@ -253,7 +287,7 @@ final class JAOSearch {
         small.sort(Comparator.comparingInt((Slot s) -> s.bay ? 1 : 0).thenComparing((Slot s) -> s.size)
                 .thenComparing(s -> s.front ? 0 : 1).thenComparing(s -> s.id));
         improve(small);
-        if (objective() < first) {
+        if (objective(true) < first) {
             clear(startMods);
             for (Slot s : slots) {
                 Cand c = firstPicks.get(s);
@@ -294,6 +328,7 @@ final class JAOSearch {
         params.coverage = cover;
         // 2. hullmods, 3. swaps, repeated while anything improves
         for (int round = 0; round < 4; round++) {
+            learnSplit();
             boolean changed = addMods();
             for (Slot s : order) if (s.fixed == null && pickBest(s, true)) changed = true;
             if (removeMods()) changed = true;
@@ -301,18 +336,21 @@ final class JAOSearch {
         }
         // 3b. hullmod trades the steps above can't see: a costly hullmod taken early (Heavy Armor on a Conquest) can
         // block a better one (Dedicated Targeting Core) when neither removing the first nor adding the second alone helps
-        for (int round = 0; round < 3 && swapMods(); round++) {
+        for (int round = 0; round < 3 && learnAnd() && swapMods(); round++) {
             for (Slot s : order) if (s.fixed == null) pickBest(s, true);
             addMods();
             removeMods();
         }
         // 3c. two big mounts at once (0.5.13)
-        for (int round = 0; round < 2 && pairSwap(order); round++) {
+        for (int round = 0; round < 2 && learnAnd() && pairSwap(order); round++) {
             for (Slot s : order) if (s.fixed == null) pickBest(s, true);
             addMods();
             removeMods();
         }
     }
+
+    /** learnSplit, for use in loop conditions. */
+    private boolean learnAnd() { learnSplit(); return true; }
 
     /** Third start on (0.5.59); JAOProbe -Ddiversify=false turns it off for comparisons. */
     static boolean DIVERSIFY = true;
@@ -338,7 +376,7 @@ final class JAOSearch {
         }
         if (top == null) return false;
         tried.add(top);
-        float before = objective();
+        float before = objective(true);
         Map<Slot, Cand> keep = new HashMap<>();
         for (Slot s : slots) keep.put(s, s.pick);
         Set<String> keepMods = new LinkedHashSet<>(mods);
@@ -355,13 +393,14 @@ final class JAOSearch {
         improve(order);
         for (Map.Entry<Slot, List<Cand>> e : all.entrySet()) { e.getKey().cands.clear(); e.getKey().cands.addAll(e.getValue()); }
         for (int round = 0; round < 2; round++) {
+            learnSplit();
             boolean changed = false;
             for (Slot s : order) if (s.fixed == null && pickBest(s, true)) changed = true;
             if (addMods()) changed = true;
             if (removeMods()) changed = true;
             if (!changed) break;
         }
-        if (objective() <= before) {
+        if (objective(true) <= before) {
             clear(startMods);
             for (Slot s : slots) {
                 Cand c = keep.get(s);
@@ -409,6 +448,7 @@ final class JAOSearch {
         for (int guard = 0; guard < 40; guard++) {
             int left = leftover();
             if (left <= 0) return;
+            learnSplit();
             float base = objective();
             float bestV = -1f;
             String bestMod = null;
@@ -527,6 +567,7 @@ final class JAOSearch {
      * Enforcer left a medium mount empty for hullmods).
      */
     void fillEmpty(List<Slot> order) {
+        learnSplit();
         for (Slot s : order) {
             if (s.fixed != null || s.bay || s.pick != null || s.cands.isEmpty()) continue;
             float base = objective(), floor = base * (1f - FILL_TOLERANCE), bestK = -1f;

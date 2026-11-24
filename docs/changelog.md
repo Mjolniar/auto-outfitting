@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.84 - 2026-11-23
+
+- Vents and capacitors: The OP left after weapons and hullmods is split between vents and capacitors by the ship's score. Capacitors no longer fill to their maximum first on ships that need dissipation more.
+- Hullmods: The search compares hullmods against that split. On a ship with low dissipation (Hillock's Guillotine) Hardened Shields went from +0.6% to +5.2% against spending its OP on flux.
+
 ## 0.5.83 - 2026-11-23
 
 - Weapon ratings: Guns with both PD hints that fire more than 4 seconds apart count less. Their share of damage against ships falls from 0.6 to 0.25 at an 8 second cycle, and their point defense scales with fire rate.

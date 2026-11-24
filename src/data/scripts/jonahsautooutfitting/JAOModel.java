@@ -1699,6 +1699,54 @@ final class JAOModel {
 
     /** Vents to cover the weapon load (+25%), then capacitors, then any OP left to vents. Returns {vents, caps}. */
     static int[] fluxFill(Ship s, List<Fit> fits, int opLeft) {
+        int v = fluxWant(s, fits, opLeft);
+        int c = Math.max(0, Math.min(s.maxCaps, opLeft - v));
+        int rest = opLeft - v - c;
+        if (rest > 0) v = Math.min(s.maxVents, v + rest);
+        return new int[]{v, c};
+    }
+
+    /**
+     * 0.5.84 (user 11/23: "Capacitors ranking higher? is that right?"): the final vents/capacitors split by the score.
+     * fluxFill puts capacitors in before any vents past the load, which the search uses for speed; on a ship whose own
+     * dissipation is low (Hillock's Guillotine: 300, shield efficiency 1.0) 10 more vents scored 3.5% and 10 more
+     * capacitors 1.8%. The same OP is tried at every split with at least fluxFill's vents for the load, and a split
+     * replaces fluxFill's only when it scores SPLIT_MIN_GAIN better.
+     */
+    static int[] bestSplit(Ship s, List<Fit> fits, Params p, int opLeft) {
+        int[] vc = fluxFill(s, fits, opLeft);
+        int total = vc[0] + vc[1], lo = Math.min(fluxWant(s, fits, opLeft), vc[0]);
+        float best = score(withFlux(s, vc[0], vc[1]), fits, p);
+        int[] out = vc;
+        for (int v = lo; v <= Math.min(s.maxVents, total); v++) {
+            int c = total - v;
+            if (v == vc[0] || c < 0 || c > s.maxCaps) continue;
+            float sc = score(withFlux(s, v, c), fits, p);
+            if (sc > best * (1f + SPLIT_MIN_GAIN)) { best = sc; out = new int[]{v, c}; }
+        }
+        return out;
+    }
+
+    static final float SPLIT_MIN_GAIN = 0.001f;
+
+    /**
+     * 0.5.84: fluxFill's OP split so that capacity per point of dissipation comes as close as it can to ratio (what the
+     * score wanted at the search's last bestSplit, JAOSearch.learnSplit), at least fluxFill's vents for the load. Free:
+     * no extra scoring, so the search can use it in every evaluation.
+     */
+    static int[] ratioSplit(Ship s, List<Fit> fits, int opLeft, float ratio) {
+        int[] vc = fluxFill(s, fits, opLeft);
+        if (Float.isNaN(ratio) || ratio <= 0f) return vc;
+        int total = vc[0] + vc[1], lo = Math.min(fluxWant(s, fits, opLeft), vc[0]), hi = Math.min(s.maxVents, total);
+        // (cap + 200 c) / (diss + 10 v) = ratio with c = total - v
+        float vf = (200f * total - ratio * s.diss + s.cap) / (200f + 10f * ratio);
+        int v = Math.max(lo, Math.min(hi, Math.round(vf)));
+        if (total - v > s.maxCaps) v = Math.min(hi, total - s.maxCaps);
+        return new int[]{v, Math.max(0, total - v)};
+    }
+
+    /** The vents fluxFill puts in before capacitors: dissipation past the weapons' load (and shield upkeep). */
+    static int fluxWant(Ship s, List<Fit> fits, int opLeft) {
         float load = 0f;
         for (Fit f : fits) {
             W w = f.w;
@@ -1711,10 +1759,7 @@ final class JAOModel {
         float want = load * VENT_TARGET + (s.shield ? SHIELD_UPTIME * s.upkeep : 0f) - (s.diss - interferenceLoss(s, fits));
         int v = Math.max(0, Math.min(Math.min(s.maxVents, opLeft), (int) Math.ceil(want / 10f)));
         if (s.phase) v = Math.min(v, Math.max(0, opLeft / 2)); // phase ships lean on capacitors
-        int c = Math.max(0, Math.min(s.maxCaps, opLeft - v));
-        int rest = opLeft - v - c;
-        if (rest > 0) v = Math.min(s.maxVents, v + rest);
-        return new int[]{v, c};
+        return v;
     }
 
     static Ship withFlux(Ship base, int vents, int caps) {
