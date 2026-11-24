@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.82 - 2026-11-23
+
+- D-mods: Fixed Remove d-mods doing nothing with no ship ticked. A ticked ship that had all its d-mods removed kept its tick, so only that ship counted as picked.
+- D-mods: Ticks of ships with no d-mods left, or no longer in the fleet, are dropped when the panel opens. With no ship ticked, every ship of the ticked types is repaired.
+
 ## 0.5.81 - 2026-11-23
 
 - Reverse Engineered Private Arsenal: Added "Send new items to reverse engineering" to Optimize fleet, on by default. At a colony with a Reverse Engineering Hub, one of every weapon the hub has not done goes into the Reverse Engineering Storage. Fighter wings go in from Hub II.

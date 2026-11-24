@@ -245,7 +245,7 @@ final class JAOFleetApply {
         // 0.5.78: ticking ships for d-mod repairs turns repairs on too (the user picked a capital and nothing happened)
         boolean picked = false;
         java.util.Set<String> picks = JAOFleetOptions.repairPicks();
-        for (FleetMemberAPI m : planned) if (picks.contains(m.getId())) picked = true;
+        for (FleetMemberAPI m : planned) if (JAODmods.picked(picks, m.getId(), live(m, false))) picked = true;
         repairOn = JAOFleetOptions.repair() || picked;
         creditLimit = buying || (changeOn && changeHere) || repairOn ? (float) Math.floor(credits * JAOFleetOptions.budget()) : 0f;
         fieldRefit = fieldRefit(refit, market);

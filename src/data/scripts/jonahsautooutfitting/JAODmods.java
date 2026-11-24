@@ -159,6 +159,14 @@ final class JAODmods {
         return a;
     }
 
+    /**
+     * 0.5.82 (user 11/23: with no ship ticked, nothing was repaired): a pick counts only while its ship still has d-mods to
+     * remove. A repaired ship's tick stayed saved with its box gone, so only that ship was "picked" and nothing else got done.
+     */
+    static boolean picked(java.util.Set<String> picks, String memberId, ShipVariantAPI v) {
+        return picks.contains(memberId) && v != null && !JAOOptimizer.removableDmods(v).isEmpty();
+    }
+
     /** Scores a variant of a ship (JAOFleetPlan.scoreVariant). */
     interface Scorer { float score(JAOFleetPlan.ShipPlan s, ShipVariantAPI v); }
 
@@ -173,7 +181,7 @@ final class JAODmods {
         // 0.5.77: ships picked in the panel are the only ones repaired (the type boxes then don't matter); none picked: the types
         java.util.Set<String> picks = JAOFleetOptions.repairPicks();
         boolean only = false;
-        for (JAOFleetPlan.ShipPlan s : ships) if (picks.contains(s.member.getId())) { only = true; break; }
+        for (JAOFleetPlan.ShipPlan s : ships) if (s.plan != null && picked(picks, s.member.getId(), s.plan)) { only = true; break; }
         for (JAOFleetPlan.ShipPlan s : ships) {
             if (s.plan == null || s.locked || s.keep || (skip != null && skip.test(s))) continue;
             if (only ? !picks.contains(s.member.getId()) : !JAOFleetOptions.repairType(s.member.getHullSpec().getHullSize(), s.civilian)) continue;

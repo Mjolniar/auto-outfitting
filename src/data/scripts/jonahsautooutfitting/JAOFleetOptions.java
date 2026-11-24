@@ -84,6 +84,12 @@ final class JAOFleetOptions {
         return out;
     }
 
+    /** 0.5.82: drops picks of ships that aren't in the list any more (repaired, or gone from the fleet). */
+    static void keepRepairPicks(java.util.Collection<String> memberIds) {
+        java.util.Set<String> s = repairPicks();
+        if (s.retainAll(memberIds)) set(REPAIR_PICKS, new java.util.ArrayList<>(s));
+    }
+
     static void setRepairPick(String memberId, boolean on) {
         java.util.Set<String> s = repairPicks();
         if (on) s.add(memberId); else s.remove(memberId);

@@ -223,8 +223,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
                 if (m.getVariant() != null && !JAOOptimizer.removableDmods(m.getVariant()).isEmpty()) dmodShips.add(m);
             }
         } catch (Throwable ignored) { }
+        // 0.5.82: ticks of ships that have no d-mods left (or left the fleet) are dropped, so none ticked means the types above
+        java.util.List<String> dmodIds = new ArrayList<>();
+        for (com.fs.starfarer.api.fleet.FleetMemberAPI m : dmodShips) dmodIds.add(m.getId());
+        JAOFleetOptions.keepRepairPicks(dmodIds);
         if (!dmodShips.isEmpty()) {
-            t.addPara("Or pick the ships yourself. Ticking a ship turns repairs on, and then only the ticked ships get repaired (the types above don't matter, and the ship you're looking at counts too):", 4f, g);
+            t.addPara("Or pick the ships yourself. Ticking a ship turns repairs on, and then only the ticked ships get repaired (the types above don't matter, and the ship you're looking at counts too). With none ticked, Remove d-mods does every ship of the ticked types:", 4f, g);
             java.util.Set<String> picks = JAOFleetOptions.repairPicks();
             for (com.fs.starfarer.api.fleet.FleetMemberAPI m : dmodShips) {
                 int n = JAOOptimizer.removableDmods(m.getVariant()).size();
