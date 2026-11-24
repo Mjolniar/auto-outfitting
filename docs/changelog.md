@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.85 - 2026-11-23
+
+- S-mods: Ship modules get s-mods. They are planned after their ship's own s-mods, from the same story points, and follow their ship's type box and s-mod cap. Station modules get none.
+- S-mods: An s-mod on a module must add its share of the ship: the minimum gain is multiplied by the ship's number of modules.
+- Optimize fleet: Module s-mods are listed with the ship's s-mods and built on Apply, one story point each.
+
 ## 0.5.84 - 2026-11-23
 
 - Vents and capacitors: The OP left after weapons and hullmods is split between vents and capacitors by the ship's score. Capacitors no longer fill to their maximum first on ships that need dissipation more.

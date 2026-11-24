@@ -351,6 +351,19 @@ final class JAOFleetPlan {
                 + timeLeft() + " left";
     }
 
+    /** 0.5.85: s-mods on the plan's modules that the ship's modules don't have yet. */
+    static int moduleNewSmods(ShipVariantAPI now, ShipVariantAPI plan) {
+        int n = 0;
+        try {
+            for (String slot : plan.getStationModules().keySet()) {
+                ShipVariantAPI mp = plan.getModuleVariant(slot), mn = now.getModuleVariant(slot);
+                if (mp == null) continue;
+                for (String id : mp.getSMods()) if (mn == null || !mn.getSMods().contains(id)) n++;
+            }
+        } catch (Throwable ignored) { }
+        return n;
+    }
+
     private void planOne(ShipPlan s) {
         // 0.5.60: a ship kept as it is, or one that failed with no plan (it keeps what it carries, once), isn't planned again
         if (s.locked || s.keep || (s.failed && s.plan == null)) return;
@@ -409,6 +422,8 @@ final class JAOFleetPlan {
                 newSmods = 0;
                 Set<String> had = variantOf.apply(s.member).getSMods();
                 for (String id : v.getSMods()) if (!had.contains(id) && !o.smodsBought.contains(id)) newSmods++;
+                // 0.5.85: the modules' new s-mods come out of the same story points
+                newSmods += moduleNewSmods(variantOf.apply(s.member), v);
             }
             s.plan = v;
             s.used.clear();

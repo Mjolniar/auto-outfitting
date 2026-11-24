@@ -409,6 +409,12 @@ final class JAOFleetApply {
             for (String id : b) if (!a.contains(id)) c.added.add(JAOSMods.name(id));
             for (String id : a) if (!b.contains(id) && !s.plan.getSMods().contains(id)) c.removed.add(JAOSMods.name(id));
             for (String id : s.plan.getSMods()) if (!now.getSMods().contains(id) && !s.smodsBought.contains(id)) c.smods.add(JAOSMods.name(id));
+            // 0.5.85: s-mods planned on its modules
+            for (String slot : s.plan.getStationModules().keySet()) {
+                ShipVariantAPI mp = s.plan.getModuleVariant(slot), mn = now.getModuleVariant(slot);
+                if (mp == null) continue;
+                for (String id : mp.getSMods()) if (mn == null || !mn.getSMods().contains(id)) c.smods.add(mp.getHullSpec().getHullName() + ": " + JAOSMods.name(id));
+            }
             for (String id : s.smodsBought) c.smodsBought.add(JAOSMods.name(id));
             for (String id : s.smodsRemoved) c.smodsRemoved.add(JAOSMods.name(id));
             c.bought = JAOShops.count(s.used);
@@ -596,6 +602,8 @@ final class JAOFleetApply {
                     ShipVariantAPI mv = module(v, slot), mp = s.plan.getModuleVariant(slot);
                     if (mv == null || mp == null) continue;
                     missing += fit(mv, mp, used, java.util.Collections.emptySet());
+                    // 0.5.85: the module's planned s-mods, one story point each
+                    built += moduleSmods(mv, mp, s, ps);
                     // 0.5.60: the module plan spends its flux OP on weapons too (vents and capacitors left as they were put it over its OP)
                     mv.setNumFluxVents(mp.getNumFluxVents());
                     mv.setNumFluxCapacitors(mp.getNumFluxCapacitors());
@@ -957,6 +965,48 @@ final class JAOFleetApply {
             rec.setSPSpent(1);
             PlaythroughLog.getInstance().getSModsInstalled().add(rec);
         }
+        return newS.size();
+    }
+
+    /**
+     * 0.5.85: a module's planned s-mods, built in the way the refit screen builds them into a module: one story point each,
+     * within the ship's s-mod limit and above the story point reserve. Returns how many were built in.
+     */
+    private int moduleSmods(ShipVariantAPI mv, ShipVariantAPI mp, JAOFleetPlan.ShipPlan s, MutableCharacterStatsAPI ps) {
+        List<String> newS = new ArrayList<>();
+        for (String id : mp.getSMods()) if (!mv.getSMods().contains(id) && !mv.getHullSpec().getBuiltInMods().contains(id)) newS.add(id);
+        if (newS.isEmpty()) return 0;
+        int room = Misc.getMaxPermanentMods(s.member, ps) - mv.getSMods().size();
+        while (newS.size() > Math.max(0, room)) newS.remove(newS.size() - 1);
+        int had = ps.getStoryPoints();
+        if (newS.isEmpty() || had - JAOSettings.smodReserve < newS.size()) {
+            if (!newS.isEmpty()) Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: not enough story points for the s-mods on " + s.name + "'s "
+                    + mv.getHullSpec().getHullName() + "; left off");
+            return 0;
+        }
+        ShipHullSpecAPI hull = mv.getHullSpec();
+        float xp = 0f;
+        List<String> names = new ArrayList<>();
+        for (String id : newS) {
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            xp += Misc.getBuildInBonusXP(spec, hull.getHullSize());
+            names.add(spec.getDisplayName());
+        }
+        ps.spendStoryPoints(newS.size(), true, null, true, xp / newS.size(), "Built " + Misc.getAndJoined(names) + " into " + s.name + "'s "
+                + hull.getHullName() + " (" + hull.getNameWithDesignationWithDashClass() + ")");
+        if (ps.getStoryPoints() > had - newS.size()) {
+            Global.getLogger(JAOFleetApply.class).error("Auto Outfitting: story points weren't spent for " + s.name + "'s " + hull.getHullName() + "; " + names + " left off");
+            return 0;
+        }
+        for (String id : newS) {
+            mv.addPermaMod(id, true);
+            SModRecord rec = new SModRecord(s.member);
+            rec.getSMods().add(id);
+            rec.setBonusXPFractionGained(Misc.getBuildInBonusXP(Global.getSettings().getHullModSpec(id), hull.getHullSize()));
+            rec.setSPSpent(1);
+            PlaythroughLog.getInstance().getSModsInstalled().add(rec);
+        }
+        Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: built " + newS + " into " + s.name + "'s " + hull.getHullName());
         return newS.size();
     }
 
