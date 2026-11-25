@@ -93,6 +93,8 @@ class JAOOptimizer {
         long t0 = System.nanoTime();
         ShipHullSpecAPI hull = current.getHullSpec();
         current.setMayAutoAssignWeapons(false);
+        // 0.5.90: Station Augments on this station, from Auto Colonies' tags (a module also gets its station's)
+        if (stationFit()) augments.addAll(augmentsOf(current));
         if (!module && (logistics || (!planning && JAOSettings.civilianLogistics && civilian(hull)))) {
             civilianFit = true;
             runLogistics(hull, t0);
@@ -118,7 +120,7 @@ class JAOOptimizer {
                 String w = current.getWingId(i);
                 if (w != null && !JAOCompat.boundWing(w)) plugin.clearFighterSlot(i, delegate, current);
             }
-            if (!module && (!planning || fullPlan)) {
+            if ((!module || stationFit()) && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
                     if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())
@@ -161,7 +163,8 @@ class JAOOptimizer {
             }
         }
         Set<String> keepMods = new LinkedHashSet<>(current.getNonBuiltInHullmods());
-        List<String> modCands = module || (planning && !fullPlan) ? new ArrayList<>() : hullmodCandidates(keepMods);
+        // 0.5.90: a station's modules get hullmods (their OP is effectively unlimited); a ship's modules don't
+        List<String> modCands = (module && !stationFit()) || (planning && !fullPlan) ? new ArrayList<>() : hullmodCandidates(keepMods);
 
         // 4. search (s-mods first: they change how much OP everything else gets)
         int hullOp = hull.getOrdnancePoints(plugin.stats());
@@ -171,7 +174,7 @@ class JAOOptimizer {
         JAOModel.Params p = paramsFor(hull, role, st);
         // bought weapons must earn their price (survival mode's x10 market prices); plans use owned stock or blueprints
         p.creditCost = planning && !buying ? 0f : JAOSettings.buyGain / 10000f;
-        JAOShip world = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+        JAOShip world = stationWorld(new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize())));
         // 0.5.64: AI Tweaks' Custom AI on capitals (0.5.80: not cruisers); it costs no OP, so it's kept like a hullmod the ship has
         if (!module && JAOCompat.customAiWanted(hull.getHullSize(), delegate.getAvailableHullmods())
                 && !current.hasHullMod(JAOCompat.CUSTOM_AI) && world.canAdd(JAOCompat.CUSTOM_AI, keepMods)) {
@@ -361,6 +364,10 @@ class JAOOptimizer {
             p.station = true;
             p.evasionW = 0f;
             p.targets = JAORatings.targets(STATION_MIX, st);
+            // 0.5.90: a station's carrier sections keep their guns (the carrier rule is for ships the AI would fly in to use
+            // them), and its fight lasts until the attackers leave: limited ammo is spread over STATION_FIGHT x the fight
+            p.carrierGuns = false;
+            p.fightSeconds *= STATION_FIGHT;
         }
         if (!module && JAOSettings.fleetBalance) {
             try {
@@ -894,7 +901,7 @@ class JAOOptimizer {
         for (int i = 0; i < ws.size(); i++) ws.get(i).bear = b[i];
     }
 
-    /** Each module's own slots with the same style; modules get no hullmods (the game's autofit does the same). */
+    /** Each module's own slots with the same style; a ship's modules get no hullmods (the game's autofit does the same), a station's do (0.5.90). */
     private void fitModules() {
         int index = 0;
         for (String slotId : new ArrayList<>(current.getStationModules().keySet())) {
@@ -915,6 +922,7 @@ class JAOOptimizer {
             JAOOptimizer mo = new JAOOptimizer(plugin, m, delegate, style, true, planning);
             mo.buying = buying;
             mo.stationParent = stationFit();
+            mo.augments.addAll(augments);
             mo.parentSize = current.getHullSpec().getHullSize();
             mo.moduleCount = current.getStationModules().size();
             mo.planSmods = planSmods;
@@ -982,8 +990,9 @@ class JAOOptimizer {
             if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id) || current.getPermaMods().contains(id)) continue;
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
-            if (JAOCompat.neverAdd(id) || JAOCompat.tooSmall(id, current.getHullSize()) || JAOCompat.notOnPhase(id, current.getHullSpec())
+            if (JAOCompat.neverAdd(id) || (!stationFit() && JAOCompat.tooSmall(id, current.getHullSize())) || JAOCompat.notOnPhase(id, current.getHullSpec())
                     || JAOCompat.removedByHull(id, current.getHullSpec())) continue;
+            if (stationFit() && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) continue;
             if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
             if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
                     || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) continue;
@@ -1306,6 +1315,39 @@ class JAOOptimizer {
 
     /** Target sizes a station faces: every size alike (fleets that raid a colony bring frigates to capitals). */
     static final float[] STATION_MIX = {0.25f, 0.25f, 0.25f, 0.25f};
+    /** 0.5.90: a station fights STATION_FIGHT times as long as a ship (the Fight length setting). */
+    static final float STATION_FIGHT = 2f;
+    /** 0.5.90: the size a station and every one of its modules is judged at (capital), whatever its hull size. */
+    static final int STATION_JUDGE_SIZE = 3;
+    /** 0.5.90: Station Augments ids come in as variant tags with this prefix (Auto Colonies' station fit sets them). */
+    static final String AUGMENT_TAG = "jao_augment:";
+    /** 0.5.90: the station's augments (from its tags), passed on to its modules. */
+    final Set<String> augments = new java.util.TreeSet<>();
+
+    static Set<String> augmentsOf(ShipVariantAPI v) {
+        Set<String> out = new java.util.TreeSet<>();
+        if (v == null || v.getTags() == null) return out;
+        for (String t : v.getTags()) if (t != null && t.startsWith(AUGMENT_TAG) && t.length() > AUGMENT_TAG.length()) out.add(t.substring(AUGMENT_TAG.length()));
+        return out;
+    }
+
+    /**
+     * 0.5.90: hullmods a station or station module may take. It never moves and has no campaign role, so engine and
+     * logistics hullmods do nothing for it. Safety Overrides pulls every gun's range down past 450, which the station
+     * needs most (Station Augments' Safety Shunt is left out by Auto Colonies for the same fight).
+     */
+    static boolean stationHullmod(String id, boolean logistics, boolean engines) {
+        return !logistics && !engines && !HullMods.SAFETYOVERRIDES.equals(id);
+    }
+
+    /** 0.5.90: the scratch world of a station fit: judged as a capital, mobility losses free, its augments counted. */
+    JAOShip stationWorld(JAOShip w) {
+        if (!stationFit()) return w;
+        w.station = true;
+        w.judgeSize = STATION_JUDGE_SIZE;
+        w.augments = new java.util.TreeSet<>(augments);
+        return w;
+    }
 
     /** A station (STATION hint) or a module of one. */
     boolean stationFit() {
@@ -1440,7 +1482,7 @@ class JAOOptimizer {
         boolean keep = false;
         try {
             int budget = hullOp - current.computeOPCost(plugin.stats());
-            JAOShip w2 = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+            JAOShip w2 = stationWorld(new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize())));
             w2.setSMods(smods);
             Set<String> keep2 = new LinkedHashSet<>(keepAll);
             keep2.add(SWARM);

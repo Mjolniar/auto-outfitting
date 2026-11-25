@@ -52,6 +52,15 @@ final class JAOShip implements JAOSearch.World {
     private boolean esrRead;
     /** Hullmods treated as s-mods (0 OP, s-mod effects); set by the s-mod planner. Original perma mods stay as they are. */
     Set<String> smods = new java.util.LinkedHashSet<>();
+    /**
+     * 0.5.90: a station or one of its modules (JAOOptimizer.stationWorld). Speed, acceleration and turning lost to a
+     * hullmod are no drawback, and the model judges the ship at judgeSize (capital: a module is one part of a target the
+     * whole attacking fleet shoots at) while the game's own numbers keep its real hull size.
+     */
+    boolean station;
+    int judgeSize = -1;
+    /** 0.5.90: Station Augments installed on the station (ids from the jao_augment: variant tags Auto Colonies sets). */
+    Set<String> augments = java.util.Collections.emptySet();
     private final Set<String> originalPerma;
     /** Hullmod applicability for ships off the refit screen (JAOCheckShip), made on first use. */
     private JAOCheckShip checkShip;
@@ -289,7 +298,7 @@ final class JAOShip implements JAOSearch.World {
         MutableShipStatsAPI st = scratch.getStats();
         esrStats(st);
         JAOModel.Ship s = new JAOModel.Ship();
-        s.size = size;
+        s.size = judgeSize >= 0 ? judgeSize : size;
         // the captain's skills (0.5.29): the stats read below carry them
         boolean polarized = applyCaptain(st, s);
         // Support Doctrine on a ship without an officer gives Ordnance Expertise's 1.5 flux a second per weapon OP, which
@@ -496,7 +505,35 @@ final class JAOShip implements JAOSearch.World {
         if (esrWant != null) JAOEsr.scriptEffects(s, esrWant, JAOSettings.fightSeconds);
         applySystems(s, sysUp);
         applyHullmodRules(s);
+        if (!augments.isEmpty()) stationAugments(s, augments);
         return s;
+    }
+
+    /** 0.5.90: Station Augments' Tactical Link: ballistic and energy range +35% for the station's own sections (supportPackage). */
+    static final float TACTICAL_LINK_RANGE = 35f;
+    /** 0.5.90: K-Type Shield Shunt: shields become damper fields, armor x1.4, hull x1.1 on shielded sections (shieldShunt). */
+    static final float SHUNT_ARMOR = 1.4f, SHUNT_HULL = 1.1f;
+    /** 0.5.90: Deep Shield Dissipators: 50% of hard flux dissipates with shields up (fluxShunt). */
+    static final float DEEP_DISSIPATORS = 0.5f;
+    /** 0.5.90: Axial Overclocking: weapon turn rate x3 on the sections (axialOverclocking). */
+    static final float AXIAL_TURN = 3f;
+
+    /**
+     * 0.5.90: the combat effects of the station's augments that change which weapons and hullmods are best, from Station
+     * Augments 2.4.3's source. They apply in combat only, so the scratch member's stats don't carry them. Augments that act
+     * on the whole fleet, on fighters alike or through their own weapons change no pick and aren't read.
+     */
+    static void stationAugments(JAOModel.Ship s, Set<String> augments) {
+        if (augments.contains("SA_tacticalLink")) {
+            s.rangePct[JAOModel.BAL] += TACTICAL_LINK_RANGE;
+            s.rangePct[JAOModel.ENE] += TACTICAL_LINK_RANGE;
+        }
+        if (augments.contains("SA_shieldShunt")) {
+            if (s.shield) { s.shield = false; s.hull *= SHUNT_HULL; }
+            s.armor *= SHUNT_ARMOR;
+        }
+        if (augments.contains("SA_fluxShunt") && s.shield) s.hardDiss = JAOModel.clamp(s.hardDiss + DEEP_DISSIPATORS, 0f, 1f);
+        if (augments.contains("SA_axialOverclocking")) { s.turnMult *= AXIAL_TURN; s.beamTurnMult *= AXIAL_TURN; }
     }
 
     /**
@@ -1161,6 +1198,8 @@ final class JAOShip implements JAOSearch.World {
      * whole effect. Experts take Armored Weapons on 22% of builds and Advanced Optics on 13%; the filter had kept both off.
      */
     static final Set<String> PRICED = new java.util.HashSet<>(java.util.Arrays.asList("weapon turn rate", "beam turn rate"));
+    /** 0.5.90: stats a station never uses: losing them is no drawback (Heavy Armor's handling on a station section). */
+    static final Set<String> STATION_FREE = new java.util.HashSet<>(java.util.Arrays.asList("top speed", "acceleration", "turn rate"));
 
     /** The first stat mod makes worse (by more than 0.5%), or null when it only helps. */
     String drawback(String mod, Set<String> mods) {
@@ -1179,7 +1218,7 @@ final class JAOShip implements JAOSearch.World {
             setMods(mods);
             scratch.setVariant(work, false, true);
             for (int i = 0; i < before.length; i++) {
-                if (PRICED.contains(STAT_NAMES[i])) continue;
+                if (PRICED.contains(STAT_NAMES[i]) || (station && STATION_FREE.contains(STAT_NAMES[i]))) continue;
                 if (after[i] < before[i] - Math.max(0.005f * Math.abs(before[i]), 1e-4f)) return STAT_NAMES[i];
             }
         } catch (Throwable t) {

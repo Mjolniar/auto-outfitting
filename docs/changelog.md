@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.90 - 2026-11-25
+
+- Stations: Every station section is judged as a capital, whatever its hull size: point defense need, incoming fire, armor and EMP. This covers tier 1 to 4 stations, including AotD Star Citadels and the Stella Castellum.
+- Stations: Station modules get hullmods. Their OP is not a limit, so every hullmod that adds score goes on. Engine and logistics hullmods and Safety Overrides are left off. Lost speed and turning are not a drawback on a station.
+- Stations: Guns on station carrier sections count in full. Before, they were cut like guns on a ship carrier, which filled those sections with point defense.
+- Stations: A station fight counts as twice as long as a ship fight. Limited ammo counts for less.
+- Station Augments: Tactical Link (+35% ballistic and energy range), K-Type Shield Shunt (no shields, armor x1.4), Deep Shield Dissipators and Axial Overclocking count in station fits. Auto Colonies passes the installed augments.
+
 ## 0.5.89 - 2026-11-24
 
 - Fragment Swarm: Auto Outfitting installs Fragment Swarm together with fragment weapons when the hullmod is known, a Fragment Fabricator is in cargo or storage and fragment weapons are in stock. The fit with the swarm must score 1% higher than the fit without it.
