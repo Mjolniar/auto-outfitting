@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.89 - 2026-11-24
+
+- Fragment Swarm: Auto Outfitting installs Fragment Swarm together with fragment weapons when the hullmod is known, a Fragment Fabricator is in cargo or storage and fragment weapons are in stock. The fit with the swarm must score 1% higher than the fit without it.
+- Fragment Swarm: Secondary Fabricator and Fragment Coordinator can go on in the same fit when their items are there.
+- Optimize fleet: Each planned swarm takes one Fragment Fabricator from cargo or storage. Two ships don't plan the same one.
+
 ## 0.5.88 - 2026-11-24
 
 - Ship stats: Projectile speed, recoil per shot, missile reload rate, overload duration, weapon and engine durability and autofire aim now count, each with a small weight. Extra System Reloaded's upgrades change these.

@@ -250,10 +250,20 @@ class JAOOptimizer {
         keepAll.addAll(smods);
         List<String> cands = new ArrayList<>(modCands);
         cands.removeAll(smods);
+        // 0.5.89: the stock as it was, for the Fragment Swarm trial (the search takes from the map it's given)
+        Map<String, Integer> stock0 = module ? null : new LinkedHashMap<>(stock);
         JAOSearch search = new JAOSearch(world, p, slots, stock, cands, keepAll);
         if (!module && (!planning || fullPlan)) search.fleetMods.addAll(fleetHullmods(keepAll));
         search.run();
         oneFeedbackWeapon(search);
+        if (!module) {
+            SwarmTrial t = swarmTrial(hull, hullOp, p, smods, keepAll, cands, slotsOf, stock0, weapons, world, search, real);
+            if (t != null) {
+                search = t.search; slots = t.slots; world = t.world; keepAll = t.keepAll;
+                stock.clear();
+                stock.putAll(t.stock);
+            }
+        }
 
         // 5. apply: hullmods, weapons and wings (OP-checked by the real delegate), then s-mods (no OP), then flux
         for (String m : search.mods) if (!keepAll.contains(m)) current.addMod(m);
@@ -1391,6 +1401,81 @@ class JAOOptimizer {
             slot.cands.removeIf(x -> isFeedback(x.w));
             s.pickBest(slot, false);
         }
+    }
+
+    /** 0.5.89: Threat Fragment Swarm (needs a Fragment Fabricator; the fragment weapons fire only with it). */
+    static final String SWARM = "fragment_swarm";
+    /** 0.5.89: how much better the fit with Fragment Swarm must score than the fit without. */
+    static final float SWARM_MIN_GAIN = 0.01f;
+
+    /** 0.5.89: the fit with Fragment Swarm on, when it won. */
+    private static final class SwarmTrial {
+        JAOSearch search;
+        List<JAOSearch.Slot> slots;
+        JAOShip world;
+        Set<String> keepAll;
+        Map<String, Integer> stock;
+    }
+
+    /**
+     * 0.5.89 (user 11/24): Fragment Swarm and the fragment weapons tried together. Fragment weapons are candidates only on
+     * a ship with the swarm (buildSlots), and the swarm alone adds nothing, so the search never put it on. When the swarm
+     * can go on (known, a Fragment Fabricator in cargo or storage that no other ship in the plan takes, not a phase ship,
+     * no Shrouded hullmods) and the pool has a fragment weapon, the fit is searched again with the swarm on, from the same
+     * stock. It's kept when it fits a fragment weapon and scores SWARM_MIN_GAIN better. Secondary Fabricator and Fragment
+     * Coordinator can go on in that search. Null: the fit without the swarm stays (the swarm is taken off again).
+     */
+    private SwarmTrial swarmTrial(ShipHullSpecAPI hull, int hullOp, JAOModel.Params p, Set<String> smods, Set<String> keepAll,
+                                  List<String> cands, Supplier<List<JAOSearch.Slot>> slotsOf, Map<String, Integer> stock0,
+                                  List<AvailableWeapon> weapons, JAOShip world, JAOSearch base, boolean real) {
+        if (stock0 == null || current.hasHullMod(SWARM) || !cands.contains(SWARM)) return null;
+        boolean anyFragment = false;
+        for (AvailableWeapon w : weapons) {
+            WeaponSpecAPI spec = w.getSpec();
+            if (spec != null && w.getQuantity() > 0 && spec.hasTag("fragment") && !skipped(spec.getWeaponId())) { anyFragment = true; break; }
+        }
+        if (!anyFragment || !world.canAdd(SWARM, keepAll)) return null;
+        float without = base.objective(true);
+        current.addMod(SWARM);
+        boolean keep = false;
+        try {
+            int budget = hullOp - current.computeOPCost(plugin.stats());
+            JAOShip w2 = new JAOShip(current, delegate, plugin.stats(), budget, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
+            w2.setSMods(smods);
+            Set<String> keep2 = new LinkedHashSet<>(keepAll);
+            keep2.add(SWARM);
+            List<String> cands2 = new ArrayList<>(cands);
+            cands2.remove(SWARM);
+            List<JAOSearch.Slot> slots2 = slotsOf.get();
+            Map<String, Integer> stock2 = new LinkedHashMap<>(stock0);
+            JAOSearch s2 = new JAOSearch(w2, p, slots2, stock2, cands2, keep2);
+            if (!planning || fullPlan) s2.fleetMods.addAll(fleetHullmods(keep2));
+            s2.run();
+            oneFeedbackWeapon(s2);
+            float with = s2.objective(true);
+            int fragments = 0;
+            for (JAOSearch.Slot sl : slots2) if (sl.fixed == null && sl.pick != null && !sl.pick.w.wing && (sl.pick.w.fragment || sl.pick.w.fragUse > 0f)) fragments++;
+            keep = swarmWins(fragments, with, without);
+            if (real || JAOSettings.debug) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " Fragment Swarm trial"
+                    + (real ? "" : " (preview)") + ": " + fragments + " fragment weapons, score " + with + " with, " + without + " without; "
+                    + (keep ? "swarm fitted" : "left off"));
+            if (!keep) return null;
+            SwarmTrial t = new SwarmTrial();
+            t.search = s2; t.slots = slots2; t.world = w2; t.keepAll = keep2; t.stock = stock2;
+            return t;
+        } catch (Throwable t) {
+            if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
+            keep = false;
+            Global.getLogger(JAOOptimizer.class).warn("Auto Outfitting: Fragment Swarm trial failed for " + shipName() + "; fit without it", t);
+            return null;
+        } finally {
+            if (!keep) current.removeMod(SWARM);
+        }
+    }
+
+    /** 0.5.89: the swarm stays when a fragment weapon is fitted and the score gains SWARM_MIN_GAIN. */
+    static boolean swarmWins(int fragmentWeapons, float with, float without) {
+        return fragmentWeapons > 0 && with > Math.max(0f, without) * (1f + SWARM_MIN_GAIN);
     }
 
     /** Fighter wings aren't weapons (getWeaponSpec throws for wing ids: the Legion crash on 11/02). */
