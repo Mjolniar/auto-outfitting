@@ -250,7 +250,7 @@ shield_eff_min,ix_reactive_combat_shields,0.6;ix_interdiction_array;vice_interdi
 # 0.5.59 (research roles_1116.md): vanilla hulls the community uses for another job than their numbers say
 role,mora,Battle carrier,The AI flies it as a line ship: armed fully with bombers
 role,drover,Battle carrier,The AI flies it as a line ship
-role,gemini,Battle carrier,The AI flies it as a line ship
+role,gemini,Carrier,0.98.5a-RC9 gives it the CARRIER hint: the AI flies it as a dedicated carrier
 role,colossus3,Battle carrier,The AI flies it as a line ship
 role,monitor,Support,Escort frigate: holds next to bigger ships under the Escort order
 role,centurion,Support,Escort frigate: holds next to bigger ships under the Escort order

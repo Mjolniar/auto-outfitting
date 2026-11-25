@@ -1,5 +1,13 @@
 # Patch notes
 
+## 0.5.92 - 2026-11-25
+
+- Compatibility: Starsector 0.98.5a-RC9. gameVersion is 0.98.5a-RC9.
+- Optimize fleet: Change s-mods is used only while the colony's heavy industry is working, as in RC9 (not while it's built or disrupted).
+- Roles: The Gemini counts as a carrier. RC9 gives it the carrier hint and the AI flies it as a dedicated carrier.
+- Diable Avionics 2.9.6: The new Cataphract hulls, Mini SRAB and the weapon changes need no new rules.
+- Carter's Freetraders 3.3.3: The Drebbel, the Howell pod and the missile changes need no new rules.
+
 ## 0.5.91 - 2026-11-25
 
 - Search: The extra starts that set the most-used weapon aside now fill from both ends in the first two rounds, and get three times the search work of the first two starts (was the same). A Fabricator Unit with Kinetic Fragments in stock no longer scores below its fit without them. On the fleet benchmark 3 of 19 ships score higher (up to +4.8%) and none lower. Fits take up to about twice as long on hulls where the extra rounds run.

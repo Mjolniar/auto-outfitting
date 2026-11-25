@@ -142,14 +142,23 @@ final class JAOFleetOptions {
 
     /**
      * The game's Change s-mods is open here (refit panel R.canChangeSModsAtCurrentMarket, 0.98.5a): docked at the
-     * player's own market with heavy industry, trading openly.
+     * player's own market with heavy industry, trading openly. 0.5.92: the heavy industry must be working (0.98.5a-RC9:
+     * not while it's built or disrupted; Misc.hasFunctionalHeavyIndustry, which older RCs don't have, so it's done here).
      */
     static boolean changeSmodsHere(MarketAPI market, CampaignUIAPI.CoreUITradeMode mode) {
         try {
-            return market != null && mode == CampaignUIAPI.CoreUITradeMode.OPEN && market.isPlayerOwned() && Misc.hasHeavyIndustry(market);
+            return market != null && mode == CampaignUIAPI.CoreUITradeMode.OPEN && market.isPlayerOwned() && functionalHeavyIndustry(market);
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    /** 0.5.92: a working industry tagged heavy industry (Misc.hasFunctionalHeavyIndustry in 0.98.5a-RC9). */
+    static boolean functionalHeavyIndustry(MarketAPI market) {
+        for (com.fs.starfarer.api.campaign.econ.Industry i : market.getIndustries()) {
+            if (i != null && i.isFunctional() && i.getSpec() != null && i.getSpec().hasTag(com.fs.starfarer.api.impl.campaign.ids.Industries.TAG_HEAVYINDUSTRY)) return true;
+        }
+        return false;
     }
 
     /** The ship's s-mods can be changed: the game's s-mod button is off for hulls or variants tagged unrestorable or no_changing_smods. */
