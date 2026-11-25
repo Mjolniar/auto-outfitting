@@ -123,8 +123,14 @@ class JAOOptimizer {
             if ((!module || stationFit()) && (!planning || fullPlan)) {
                 for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                     HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())
-                        || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
+                    if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())) continue;
+                    if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
+                    current.removeMod(id);
+                }
+            } else if (module && !JAOSettings.shroudedHullmods) {
+                // 0.5.94: a ship's module keeps its hullmods, except Shrouded ones while they're off
+                for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
+                    if (!shrouded(id)) continue;
                     if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                     current.removeMod(id);
                 }
@@ -155,6 +161,7 @@ class JAOOptimizer {
         // Optimize fleet's s-mod changes for credits (0.5.57) come first: everything else is chosen around the s-mods
         if (!module && planning && fullPlan && changeSmods) {
             try {
+                if (dropShrouded()) dropShroudedSmods(current, null);
                 planSmodChanges(hull, slotsOf, stock);
             } catch (Throwable t) {
                 if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
@@ -919,6 +926,8 @@ class JAOOptimizer {
                 m.setHullVariantId(m.getHullVariantId() + "_" + index);
             }
             index++;
+            // 0.5.94: Change s-mods takes the module's Shrouded s-mods off (planning works on a copy)
+            if (dropShrouded() && m != current.getModuleVariant(slotId)) dropShroudedSmods(m, m.getHullSpec().getHullName());
             JAOOptimizer mo = new JAOOptimizer(plugin, m, delegate, style, true, planning);
             mo.buying = buying;
             mo.stationParent = stationFit();
@@ -947,6 +956,41 @@ class JAOOptimizer {
     }
 
     /** 0.5.79: restoreStock on each module of the variant. */
+    /** 0.5.94: a Shrouded hullmod (Mantle, Lens, Thunderhead: the game's "shrouded" tag). */
+    static boolean shrouded(String id) {
+        try {
+            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+            return spec != null && spec.hasTag("shrouded");
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** 0.5.94: Optimize fleet takes Shrouded s-mods off with Change s-mods while Shrouded hullmods are off. */
+    private boolean dropShrouded() {
+        return !module && planning && fullPlan && changeSmods && !JAOSettings.shroudedHullmods;
+    }
+
+    /**
+     * 0.5.94: the Shrouded s-mods on this variant (the ship or a module's plan copy) come off with the game's Change
+     * s-mods, one change each at the variant's own hull size price (the game prices the selected module by its size),
+     * before any other change and whatever they're worth, while the credits last.
+     */
+    private void dropShroudedSmods(ShipVariantAPI v, String moduleName) {
+        float price = JAOFleetOptions.changePrice(v.getHullSpec().getHullSize());
+        if (price <= 0f) return;
+        for (String id : new ArrayList<>(v.getSMods())) {
+            if (!shrouded(id) || v.getHullSpec().getBuiltInMods().contains(id)) continue;
+            if (changeCost + price > changeCredits) return;
+            v.removePermaMod(id);
+            v.removeMod(id);
+            if (v == current) smodsRemoved.add(id);
+            changeCost += price;
+            changeNotes.add("s-mod change: " + (moduleName != null ? moduleName + ": " : "") + JAOSMods.name(id)
+                    + " removed (Shrouded hullmods are off, " + Misc.getDGSCredits(price) + ")");
+        }
+    }
+
     static void restoreModules(ShipVariantAPI v) {
         try {
             if (v == null) return;
@@ -1120,8 +1164,7 @@ class JAOOptimizer {
         if (strip) {
             for (String id : new ArrayList<>(current.getNonBuiltInHullmods())) {
                 HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())
-                        || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
+                if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, hull.getHullSize())) continue;
                 if (current.getPermaMods().contains(id)) continue; // s-mods stay
                 if (delegate.isPlayerCampaignRefit() && !delegate.canAddRemoveHullmodInPlayerCampaignRefit(id)) continue;
                 current.removeMod(id);

@@ -417,6 +417,15 @@ final class JAOFleetApply {
             }
             for (String id : s.smodsBought) c.smodsBought.add(JAOSMods.name(id));
             for (String id : s.smodsRemoved) c.smodsRemoved.add(JAOSMods.name(id));
+            // 0.5.94: Shrouded s-mods the plan takes off its modules
+            for (String slot : s.plan.getStationModules().keySet()) {
+                ShipVariantAPI mp = s.plan.getModuleVariant(slot), mn = now.getModuleVariant(slot);
+                if (mp == null || mn == null) continue;
+                for (String id : shroudedSmodsOff(mn, mp)) {
+                    c.smodsRemoved.add(mn.getHullSpec().getHullName() + ": " + JAOSMods.name(id));
+                    smodChanges++;
+                }
+            }
             c.bought = JAOShops.count(s.used);
             buyItems += c.bought;
             buyTotal += s.buyCost;
@@ -602,6 +611,14 @@ final class JAOFleetApply {
                     ShipVariantAPI mv = module(v, slot), mp = s.plan.getModuleVariant(slot);
                     if (mv == null || mp == null) continue;
                     missing += fit(mv, mp, used, java.util.Collections.emptySet());
+                    // 0.5.94: Shrouded hullmods off: the module's Shrouded s-mods the plan took off (Change s-mods), then the
+                    // ordinary ones
+                    if (!JAOSettings.shroudedHullmods) {
+                        moduleShroudedSmodsOff(mv, mp, s, ps);
+                        for (String id : new ArrayList<>(mv.getNonBuiltInHullmods())) {
+                            if (JAOOptimizer.shrouded(id) && !mv.getPermaMods().contains(id) && !mp.hasHullMod(id)) mv.removeMod(id);
+                        }
+                    }
                     // 0.5.85: the module's planned s-mods, one story point each
                     built += moduleSmods(mv, mp, s, ps);
                     // 0.5.60: the module plan spends its flux OP on weapons too (vents and capacitors left as they were put it over its OP)
@@ -915,8 +932,7 @@ final class JAOFleetApply {
             if (v.getPermaMods().contains(id) || plan.getNonBuiltInHullmods().contains(id)) continue;
             // hidden hullmods and never_remove rules stay, as in the single fit's strip (AI Tweaks' AI hullmods)
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, v.getHullSpec().getHullSize())
-                        || (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods)) continue;
+            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || JAOCompat.neverRemove(id, v.getHullSpec().getHullSize())) continue;
             v.removeMod(id);
         }
         List<String> newS = new ArrayList<>();
@@ -1024,6 +1040,72 @@ final class JAOFleetApply {
     /** S-mods changed with credits by this Apply, and what they cost. */
     private int changedSmods;
     private float changeSpent;
+
+    /** 0.5.94: Shrouded s-mods on the module now that its plan doesn't have (the plan took them off). */
+    static List<String> shroudedSmodsOff(ShipVariantAPI now, ShipVariantAPI plan) {
+        List<String> out = new ArrayList<>();
+        for (String id : now.getSMods()) {
+            if (!plan.getSMods().contains(id) && !now.getHullSpec().getBuiltInMods().contains(id) && JAOOptimizer.shrouded(id)) out.add(id);
+        }
+        return out;
+    }
+
+    /**
+     * 0.5.94: the game's Change s-mods on a module, for the Shrouded s-mods its plan took off: changeSmodsCost for the
+     * module's hull size per s-mod, in credits, and the bonus XP their story points didn't earn, as for a ship.
+     */
+    private void moduleShroudedSmodsOff(ShipVariantAPI mv, ShipVariantAPI mp, JAOFleetPlan.ShipPlan s, MutableCharacterStatsAPI ps) {
+        List<String> off = shroudedSmodsOff(mv, mp);
+        if (off.isEmpty()) return;
+        float cost = off.size() * JAOFleetOptions.changePrice(mv.getHullSpec().getHullSize());
+        CargoAPI pc = Global.getSector().getPlayerFleet().getCargo();
+        if (!changeHere || !JAOFleetOptions.canChangeSmods(s.member) || cost <= 0f || pc.getCredits().get() < cost) {
+            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: Optimize fleet didn't take " + off + " off " + s.name + "'s "
+                    + mv.getHullSpec().getHullName() + " (" + (cost > 0f && pc.getCredits().get() < cost ? "not enough credits" : "Change s-mods isn't open here") + ")");
+            return;
+        }
+        float[] xp = unearnedXp(s.member, off, 0);
+        for (String x : off) { mv.removePermaMod(x); mv.removeMod(x); }
+        pc.getCredits().subtract(cost);
+        changedSmods += off.size();
+        changeSpent += cost;
+        giveBonusXp(ps, xp, s.name);
+        Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + "'s " + mv.getHullSpec().getHullName()
+                + " s-mods off " + off + " for " + Math.round(cost) + " credits");
+    }
+
+    /** Story points spent on these s-mods and the bonus XP fraction they earned, from the game's s-mod records (removed beyond the added count). */
+    private static float[] unearnedXp(FleetMemberAPI member, List<String> removed, int added) {
+        float sp = 0f, gained = 0f;
+        try {
+            for (SModRecord rec : PlaythroughLog.getInstance().getSModsInstalled()) {
+                if (rec.getMember() == null || rec.getMember() != member) continue;
+                for (String x : removed) {
+                    if (!rec.getSMods().contains(x)) continue;
+                    if (added > 0) added--;
+                    else { sp += rec.getSPSpent(); gained += rec.getBonusXPFractionGained() * rec.getSPSpent(); }
+                    break;
+                }
+            }
+        } catch (Throwable t) {
+            sp = 0f;
+        }
+        return new float[]{sp, gained};
+    }
+
+    /** The bonus XP the removed s-mods' story points didn't earn, as the game gives it back. */
+    private static void giveBonusXp(MutableCharacterStatsAPI ps, float[] xp, String name) {
+        float sp = xp[0], gained = xp[1];
+        if (sp <= 0f || gained >= sp) return;
+        try {
+            ps.setOnlyAddBonusXPDoNotSpendStoryPoints(true);
+            ps.spendStoryPoints(Math.round(sp), true, null, true, 1f - gained / sp, null);
+        } catch (Throwable t) {
+            Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: couldn't give the bonus XP for " + name + "'s removed s-mods", t);
+        } finally {
+            ps.setOnlyAddBonusXPDoNotSpendStoryPoints(false);
+        }
+    }
 
     /**
      * The game's Change s-mods for one ship (0.5.57, ModPickerDialogV3 in 0.98.5a): the planned s-mods come off (the

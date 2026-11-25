@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.94 - 2026-11-25
+
+- Shrouded hullmods: With Use Shrouded hullmods off, Optimize fleet and Optimal fits take Shrouded Mantle, Lens and Thunderhead off ships and their modules. They were left on before.
+- Shrouded hullmods: With Use Shrouded hullmods off, Optimize fleet takes Shrouded s-mods off ships and modules with Change s-mods with credits, before any other s-mod change. Each costs the game's change price for that ship's or module's hull size.
+- Optimize fleet: A ship that keeps Shrouded s-mods (Change s-mods not open, or not enough credits) gets a note in the plan.
+- Settings: The Use Shrouded hullmods description says what happens when it's off.
+
 ## 0.5.93 - 2026-11-25
 
 - Auto Colonies: Added a station fit that runs in turns with the game (startFit, stepFit, fitError, cancelFit on the autofit plugin). Auto Colonies can run its station fits in slices of a few milliseconds per frame.

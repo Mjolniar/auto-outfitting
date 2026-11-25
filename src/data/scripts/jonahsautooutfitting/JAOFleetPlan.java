@@ -581,6 +581,20 @@ final class JAOFleetPlan {
      * The plan's notes: bays a bay rule leaves empty (a Guru with no plague LPCs in stock) and penalty hullmods the ship's
      * scripts would add (error, warning, malfunction or penalty markers).
      */
+    /** 0.5.94: the Shrouded s-mods on a ship and its modules, by name with a count ("Shrouded Lens x11"), or "". */
+    static String shroudedSmodsLeft(ShipVariantAPI v) {
+        Map<String, Integer> n = new java.util.TreeMap<>();
+        List<ShipVariantAPI> all = new ArrayList<>();
+        all.add(v);
+        for (String slot : v.getStationModules().keySet()) if (v.getModuleVariant(slot) != null) all.add(v.getModuleVariant(slot));
+        for (ShipVariantAPI x : all) {
+            for (String id : x.getSMods()) if (JAOOptimizer.shrouded(id)) n.merge(JAOSMods.name(id), 1, Integer::sum);
+        }
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : n.entrySet()) out.add(e.getKey() + (e.getValue() > 1 ? " x" + e.getValue() : ""));
+        return String.join(", ", out);
+    }
+
     private static void notes(ShipPlan s, JAOCompat.Probe probe) {
         s.notes.clear();
         ShipVariantAPI v = s.plan;
@@ -595,6 +609,11 @@ final class JAOFleetPlan {
             if (n.contains("error") || n.contains("warning") || n.contains("malfunction") || n.contains("penalty")) bad.add(id);
         }
         if (!bad.isEmpty()) s.notes.add("its scripts add " + JAOCompat.names(bad));
+        // 0.5.94: Shrouded s-mods the plan couldn't take off while Shrouded hullmods are off
+        if (!JAOSettings.shroudedHullmods) {
+            String left = shroudedSmodsLeft(v);
+            if (!left.isEmpty()) s.notes.add("Shrouded s-mods stay on: " + left + ". Change s-mods with credits takes them off at your colony with working heavy industry");
+        }
         if (!probe.added.isEmpty() || !probe.wings.isEmpty()) Global.getLogger(JAOFleetPlan.class).info("Auto Outfitting: " + s.name
                 + " plan: scripts fill bays " + probe.wings + ", add hullmods " + probe.added + (probe.removed.isEmpty() ? "" : ", remove " + probe.removed)
                 + (probe.over > 0 ? ", " + probe.over + " OP over (taken from flux)" : ""));
