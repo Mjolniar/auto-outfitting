@@ -111,6 +111,19 @@ final class JAOOrderPanel extends JAOOverlayPanel {
                         head.addPara(esc("Those items wait until a colony makes " + Misc.getAndJoined(names) + "."), 4f, bad);
                     }
                 }
+                // 0.5.91: special items (VoK's Tenebrium Cells for Abyss-Tech weapons), taken from your colonies' storage
+                if (!plan.special.isEmpty()) {
+                    List<String> parts = new java.util.ArrayList<>();
+                    for (java.util.Map.Entry<String, Integer> e : plan.special.entrySet())
+                        parts.add(e.getValue() + " " + JAOProduction.specialName(e.getKey()) + " (" + plan.specialFree.getOrDefault(e.getKey(), 0) + " free in storage)");
+                    head.addPara(esc("It also takes from your colonies' storage: " + Misc.getAndJoined(parts) + "."), 4f, g);
+                }
+                if (plan.specialLaterShips > 0) {
+                    List<String> items = new java.util.ArrayList<>();
+                    for (String id : plan.specialIds) items.add(JAOProduction.specialName(id));
+                    head.addPara(esc(plan.specialLaterShips + (plan.specialLaterShips == 1 ? " ship gets its" : " ships get their") + " blueprint items next time, when your colonies' storage has the "
+                            + Misc.getAndJoined(items) + " for them."), 4f, h);
+                }
             } else if (plan.monthlyCapacity <= 0 && st != null) {
                 head.addPara("No custom production capacity (Heavy Industry or Orbital Works), so the settlement takes what fits its budget.", 4f, g);
             } else if (plan.monthlyCapacity <= 0) {

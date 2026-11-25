@@ -57,6 +57,43 @@ final class JAOProduction {
         }
     }
 
+    /** 0.5.91: special items (Tenebrium Cells) one unit takes through AoTD's production; empty without AoTD or when none. */
+    static Map<String, Integer> specialPerUnit(boolean wing, String id) {
+        if (!aotd()) return new java.util.TreeMap<>();
+        try {
+            return JAOAotdProduction.specialPerUnit(wing, id);
+        } catch (Throwable t) {
+            return new java.util.TreeMap<>();
+        }
+    }
+
+    /** 0.5.91: special items in your colonies' storages that open AoTD orders don't wait for; empty without AoTD. */
+    static Map<String, Integer> specialFree() {
+        if (!aotd()) return new java.util.TreeMap<>();
+        try {
+            return JAOAotdProduction.specialFree();
+        } catch (Throwable t) {
+            Global.getLogger(JAOProduction.class).warn("Auto Outfitting: couldn't count the items AoTD's production uses", t);
+            return new java.util.TreeMap<>();
+        }
+    }
+
+    /**
+     * 0.5.91: units the free items cover (Integer.MAX_VALUE when the item needs none). Pure, for checks.
+     */
+    static int unitsCovered(Map<String, Integer> perUnit, Map<String, Integer> free) {
+        int n = Integer.MAX_VALUE;
+        for (Map.Entry<String, Integer> e : perUnit.entrySet()) {
+            if (e.getValue() == null || e.getValue() <= 0) continue;
+            n = Math.min(n, free.getOrDefault(e.getKey(), 0) / e.getValue());
+        }
+        return n;
+    }
+
+    static String specialName(String id) {
+        try { return Global.getSettings().getSpecialItemSpec(id).getName(); } catch (Throwable t) { return id; }
+    }
+
     /** One AoTD order (aotd() only). Returns the units ordered; throws if AoTD refused it. */
     static int orderAotd(Map<String, Integer> weapons, Map<String, Integer> wings) {
         return JAOAotdProduction.order(weapons, wings);

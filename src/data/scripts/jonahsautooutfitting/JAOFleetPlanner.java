@@ -61,6 +61,14 @@ final class JAOFleetPlanner {
         JAOFleetMix before, after;
         /** AoTD: commodity id -> units the order takes from your colonies' exports (JAOProduction.resources). */
         Map<String, Integer> resources = new TreeMap<>();
+        /**
+         * 0.5.91, AoTD: special items (Tenebrium Cells) the order uses from your colonies' storages, what's free there for
+         * new orders, and the ships whose items they don't cover (ordered later).
+         */
+        Map<String, Integer> special = new TreeMap<>(), specialFree = new TreeMap<>();
+        int specialLaterShips;
+        /** 0.5.91: the special items any offered blueprint uses (for the panel's names). */
+        final java.util.Set<String> specialIds = new java.util.TreeSet<>();
         /** "Ship: note" for ships whose plan the player should know about (bay rules, penalty hullmods). */
         final List<String> notes = new ArrayList<>();
         /** RAT: the Frontiers settlement that takes weapon orders (null: none, or the setting is off). */
@@ -124,6 +132,9 @@ final class JAOFleetPlanner {
                 plan.movedCost += l.total();
             }
             JAOProduction.addIncoming(ownW, ownF);
+            // 0.5.91: weapons and LPCs that use special items in AoTD's production (VoK's Abyss-Tech weapons use Tenebrium
+            // Cells) are offered only as many times as the free items cover
+            plan.specialFree = JAOProduction.specialFree();
 
             List<AvailableWeapon> weapons = new ArrayList<>();
             List<AvailableFighter> fighters = new ArrayList<>();
@@ -134,13 +145,19 @@ final class JAOFleetPlanner {
                         || spec.getType() == WeaponType.BUILT_IN || spec.getType() == WeaponType.SYSTEM) continue;
                 if (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec)) continue;   // console allblueprints gear
                 int cost = JAOProduction.unitCost(prod, false, id);   // 0: the production in use can't build it
-                if (cost > 0) weapons.add(new JAOFleetPlan.PlanWeapon(spec, cost, 9999, true));
+                Map<String, Integer> per = cost > 0 ? JAOProduction.specialPerUnit(false, id) : new TreeMap<>();
+                plan.specialIds.addAll(per.keySet());
+                int qty = Math.min(9999, JAOProduction.unitsCovered(per, plan.specialFree));
+                if (cost > 0 && qty > 0) weapons.add(new JAOFleetPlan.PlanWeapon(spec, cost, qty, true));
             }
             for (String id : new java.util.TreeSet<>(faction.getKnownFighters())) {
                 FighterWingSpecAPI spec = JAOFleetPlan.wingSpec(id);
                 if (spec == null || (!JAOSettings.cheatItems && JAOCompat.cheatOnly(spec))) continue;
                 int cost = JAOProduction.unitCost(prod, true, id);
-                if (cost > 0) fighters.add(new JAOFleetPlan.PlanFighter(spec, cost, 9999, true));
+                Map<String, Integer> per = cost > 0 ? JAOProduction.specialPerUnit(true, id) : new TreeMap<>();
+                plan.specialIds.addAll(per.keySet());
+                int qty = Math.min(9999, JAOProduction.unitsCovered(per, plan.specialFree));
+                if (cost > 0 && qty > 0) fighters.add(new JAOFleetPlan.PlanFighter(spec, cost, qty, true));
             }
             int[] civilian = new int[1];
             List<FleetMemberAPI> ships = JAOFleetPlan.combatShips(members, civilian);
@@ -186,7 +203,13 @@ final class JAOFleetPlanner {
             }
             int[] cost = new int[ships.size()], stCost = new int[ships.size()];
             for (int i = 0; i < ships.size(); i++) { cost[i] = sums.get(i)[0]; stCost[i] = sums.get(i)[2]; }
-            int[] where = split(cost, stCost, plan.budget, st == null ? -1 : st.budget, plan.custom() || st == null);
+            // 0.5.91: special items (Tenebrium Cells) go to the biggest ships first; a ship they don't cover isn't sent to
+            // custom production this time (AoTD's order would wait for them)
+            boolean[] noItems = specialShort(ships, plan.specialFree);
+            int[] splitCost = cost.clone();
+            for (int i = 0; i < ships.size(); i++) if (noItems[i]) splitCost[i] = Integer.MAX_VALUE / 4;
+            int[] where = split(splitCost, stCost, plan.budget, st == null ? -1 : st.budget, plan.custom() || st == null);
+            for (int i = 0; i < ships.size(); i++) if (noItems[i] && where[i] == LATER) plan.specialLaterShips++;
             for (int i = 0; i < ships.size(); i++) {
                 if (where[i] == SETTLEMENT) {
                     plan.settlementCost += stCost[i];
@@ -214,6 +237,10 @@ final class JAOFleetPlanner {
                 for (Line l : plan.lines) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
                 for (Line l : plan.moved) (l.wing ? wings : weapons).merge(l.id, l.count, Integer::sum);
                 plan.resources = JAOProduction.resources(weapons, wings);
+                for (Map.Entry<String, Integer> e : weapons.entrySet())
+                    for (Map.Entry<String, Integer> r : JAOProduction.specialPerUnit(false, e.getKey()).entrySet()) plan.special.merge(r.getKey(), r.getValue() * e.getValue(), Integer::sum);
+                for (Map.Entry<String, Integer> e : wings.entrySet())
+                    for (Map.Entry<String, Integer> r : JAOProduction.specialPerUnit(true, e.getKey()).entrySet()) plan.special.merge(r.getKey(), r.getValue() * e.getValue(), Integer::sum);
             }
             if (!plan.notes.isEmpty()) Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order notes: " + plan.notes);
             Global.getLogger(JAOFleetPlanner.class).info("Auto Outfitting: fleet order planned in " + plan.ms + " ms ("
@@ -228,6 +255,36 @@ final class JAOFleetPlanner {
     }
 
     static final int LATER = 0, CUSTOM = 1, SETTLEMENT = 2;
+
+    /** 0.5.91: per ship (fleet order), true when the free special items left don't cover its blueprint items' needs. */
+    static boolean[] specialShort(List<JAOFleetPlan.ShipPlan> ships, Map<String, Integer> free) {
+        List<Map<String, Integer>> needs = new ArrayList<>();
+        for (JAOFleetPlan.ShipPlan s : ships) {
+            Map<String, Integer> need = new TreeMap<>();
+            for (Object o : s.used) {
+                if (!blueprint(o)) continue;
+                for (Map.Entry<String, Integer> e : JAOProduction.specialPerUnit(o instanceof JAOFleetPlan.PlanFighter, itemId(o)).entrySet())
+                    need.merge(e.getKey(), e.getValue(), Integer::sum);
+            }
+            needs.add(need);
+        }
+        return shortOf(needs, free);
+    }
+
+    /** 0.5.91: the pure part of specialShort: needs in fleet order against the free items, taken as they're covered. */
+    static boolean[] shortOf(List<Map<String, Integer>> needs, Map<String, Integer> free) {
+        Map<String, Integer> left = new TreeMap<>(free);
+        boolean[] out = new boolean[needs.size()];
+        for (int i = 0; i < needs.size(); i++) {
+            Map<String, Integer> need = needs.get(i);
+            if (need.isEmpty()) continue;
+            boolean ok = true;
+            for (Map.Entry<String, Integer> e : need.entrySet()) if (left.getOrDefault(e.getKey(), 0) < e.getValue()) ok = false;
+            if (!ok) { out[i] = true; continue; }
+            for (Map.Entry<String, Integer> e : need.entrySet()) left.merge(e.getKey(), -e.getValue(), Integer::sum);
+        }
+        return out;
+    }
 
     /**
      * Where each ship's items go, in fleet order (biggest first): the settlement while its budget lasts (stCost[i] at its

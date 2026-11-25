@@ -302,7 +302,7 @@ final class JAOSearch {
             long base = evaluations, cap = base + (long) (DIVERSIFY_BUDGET * base), last = base / 2;
             for (int k = 0; k < DIVERSIFY_ROUNDS && evaluations + last <= cap; k++) {
                 long before = evaluations;
-                if (!diversify(order, startMods, tried)) break;
+                if (!diversify(order, k < DIVERSIFY_BOTH_ROUNDS ? small : null, startMods, tried)) break;
                 last = evaluations - before;
             }
         }
@@ -362,8 +362,11 @@ final class JAOSearch {
     static boolean DIVERSIFY = true;
     /** Most set-aside rounds, one weapon each (the most-used first). */
     static int DIVERSIFY_ROUNDS = 3;
-    /** Evaluations the extra starts may use, as a share of the first two starts' (1.0: one round on most hulls, about +20% fit time). */
-    static float DIVERSIFY_BUDGET = 1.0f;
+    /**
+     * Evaluations the extra starts may use, as a share of the first two starts'. 0.5.91: 3.0 (was 1.0), so two rounds from
+     * both ends fit; fit time up to about 2x on hulls where the extra rounds run.
+     */
+    static float DIVERSIFY_BUDGET = 3.0f;
 
     /**
      * Third start (0.5.59, review 11/16): greedy fills copy the first cheap weapon that fits across a row of mounts (six
@@ -371,7 +374,7 @@ final class JAOSearch {
      * out of the stock the same search found a better Champion. The weapon in the most mounts (3 or more) is set aside
      * for a fresh fill, then allowed back for the swap passes; the better fit stands.
      */
-    private boolean diversify(List<Slot> order, Set<String> startMods, Set<String> tried) {
+    private boolean diversify(List<Slot> order, List<Slot> small, Set<String> startMods, Set<String> tried) {
         Map<String, Integer> count = new HashMap<>();
         for (Slot s : slots) if (s.fixed == null && !s.bay && s.pick != null) count.merge(s.pick.w.id, 1, Integer::sum);
         String top = null;
@@ -397,6 +400,17 @@ final class JAOSearch {
             s.cands.removeIf(c -> c.w.id.equals(banned));
         }
         improve(order);
+        // 0.5.91: the set-aside fill from both ends, like the first two starts (user 11/25: with Kinetic Fragments in stock a
+        // Fabricator Unit's search kept a fit 6% below its fit without them; the better fit came from small mounts first)
+        if (DIVERSIFY_BOTH && small != null) {
+            float big = objective(true);
+            Map<Slot, Cand> bigPicks = new HashMap<>();
+            for (Slot s : slots) bigPicks.put(s, s.pick);
+            Set<String> bigMods = new LinkedHashSet<>(mods);
+            clear(startMods);
+            improve(small);
+            if (objective(true) < big) restore(bigPicks, bigMods, startMods);
+        }
         for (Map.Entry<Slot, List<Cand>> e : all.entrySet()) { e.getKey().cands.clear(); e.getKey().cands.addAll(e.getValue()); }
         for (int round = 0; round < 2; round++) {
             learnSplit();
@@ -416,6 +430,22 @@ final class JAOSearch {
             mods.addAll(keepMods);
         }
         return true;
+    }
+
+    /** 0.5.91: the set-aside start fills from both ends (big mounts first, then small mounts first); the better stands. */
+    static boolean DIVERSIFY_BOTH = true;
+    /** 0.5.91: how many set-aside rounds fill from both ends (the later ones fill big mounts first only). */
+    static int DIVERSIFY_BOTH_ROUNDS = 2;
+
+    /** Puts back a saved fit: picks taken from stock again, hullmods as saved. */
+    private void restore(Map<Slot, Cand> picks, Set<String> savedMods, Set<String> startMods) {
+        clear(startMods);
+        for (Slot s : slots) {
+            Cand c = picks.get(s);
+            if (s.fixed == null && c != null && take(c)) s.pick = c;
+        }
+        mods.clear();
+        mods.addAll(savedMods);
     }
 
     /** Empties every choosable mount (stock given back) and resets the hullmods to these. */

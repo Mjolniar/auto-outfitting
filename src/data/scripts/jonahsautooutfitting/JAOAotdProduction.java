@@ -83,6 +83,45 @@ final class JAOAotdProduction {
         return out;
     }
 
+    /**
+     * 0.5.91: special items one unit takes (item id -> count): Tenebrium Cells for VoK's Abyss-Tech weapons, by their
+     * substrate_N tag (AoTDProductionSpec). AoTD's order eats them from your colonies' storage every month and a unit
+     * waits until its items are there.
+     */
+    static Map<String, Integer> specialPerUnit(boolean wing, String id) {
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        AoTDProductionSpec s = spec(wing, id);
+        if (s == null) return out;
+        for (Map.Entry<String, Integer> r : s.getMapOfResourcesNeeded().entrySet()) {
+            if (r.getValue() != null && r.getValue() > 0 && AoTDProductionOrderSnapshot.isItemSpecial(r.getKey())) out.put(r.getKey(), r.getValue());
+        }
+        return out;
+    }
+
+    /**
+     * 0.5.91: special items free for new orders (item id -> count): what your colonies' storages hold (where AoTD's order
+     * takes them from, AoTDMisc.eatItems) less what open AoTD orders still wait for.
+     */
+    static Map<String, Integer> specialFree() {
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        for (com.fs.starfarer.api.campaign.econ.MarketAPI m : com.fs.starfarer.api.util.Misc.getPlayerMarkets(false)) {
+            com.fs.starfarer.api.campaign.CargoAPI c = com.fs.starfarer.api.util.Misc.getStorageCargo(m);
+            if (c == null) continue;
+            for (com.fs.starfarer.api.campaign.CargoStackAPI st : c.getStacksCopy()) {
+                if (!st.isSpecialStack() || st.getSpecialDataIfSpecial() == null) continue;
+                out.merge(st.getSpecialDataIfSpecial().getId(), (int) st.getSize(), Integer::sum);
+            }
+        }
+        for (AoTDProductionOrderSnapshot snap : AoTDProductionManager.getInstance().getCurrentSnapshots()) {
+            for (Map.Entry<String, Integer> e : snap.getReqResources().entrySet()) {
+                if (e.getValue() == null || e.getValue() <= 0 || !AoTDProductionOrderSnapshot.isItemSpecial(e.getKey())) continue;
+                out.merge(e.getKey(), -e.getValue(), Integer::sum);
+            }
+        }
+        out.replaceAll((k, v) -> Math.max(0, v));
+        return out;
+    }
+
     /** What every AoTD production order (this mod's and AoTD's own screen's) still waits to have delivered. */
     static Map<String, Integer> outstanding() {
         Map<String, Integer> out = new java.util.TreeMap<>();

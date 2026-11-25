@@ -1,5 +1,12 @@
 # Patch notes
 
+## 0.5.91 - 2026-11-25
+
+- Search: The extra starts that set the most-used weapon aside now fill from both ends in the first two rounds, and get three times the search work of the first two starts (was the same). A Fabricator Unit with Kinetic Fragments in stock no longer scores below its fit without them. On the fleet benchmark 3 of 19 ships score higher (up to +4.8%) and none lower. Fits take up to about twice as long on hulls where the extra rounds run.
+- Shrouded hullmods: Shrouded Thunderhead's and Shrouded Lens's flux no longer counts toward the penalty for more guns than the flux supports. They fire on their own and skip a shot when flux is full. Shrouded Lens counts half its flux, since it fires only at targets within 400.
+- Order fleet weapons (AoTD): VoK's Abyss-Tech weapons (the Shrouded weapons the Tenebrium Based Weapons project unlocks) are planned only as many times as the free Tenebrium Cells in your colonies' storage cover. Bigger ships get the cells first. The rest are ordered next time.
+- Order fleet weapons (AoTD): The panel shows the Tenebrium Cells the order takes and how many are free.
+
 ## 0.5.90 - 2026-11-25
 
 - Stations: Every station section is judged as a capital, whatever its hull size: point defense need, incoming fire, armor and EMP. This covers tier 1 to 4 stations, including AotD Star Citadels and the Stella Castellum.

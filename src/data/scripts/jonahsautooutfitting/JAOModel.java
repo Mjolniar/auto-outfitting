@@ -1012,7 +1012,7 @@ final class JAOModel {
         if (!s.hullmodWeapons.isEmpty()) fits = withHullmodWeapons(s, fits);
         int n = fits.size();
         Eff[] e = new Eff[n];
-        float load = 0f, rminAll = Float.MAX_VALUE;
+        float load = 0f, rminAll = Float.MAX_VALUE, hullmodLoad = 0f;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
             Eff x = new Eff();
@@ -1047,7 +1047,11 @@ final class JAOModel {
             if (!w.wing) {
                 // plain point defense mostly waits for missiles and fighters; dual-role guns (PD + PD_ALSO, e.g.
                 // Devastator) shoot ships whenever there's nothing else and pay full flux for it
-                load += w.pd && !w.pdAlso ? 0.5f * x.flux : x.flux;
+                // 0.5.91: a hullmod's attacks spend flux only when they fire; a PD-capable one (Shrouded Lens, reach 400)
+                // mostly fires at missiles and fighters that come close, so it counts half, like plain point defense
+                float f = w.hullmod ? (w.pd ? 0.5f * x.flux : x.flux) : w.pd && !w.pdAlso ? 0.5f * x.flux : x.flux;
+                load += f;
+                if (w.hullmod) hullmodLoad += f;
                 if (!w.hullmod) rminAll = Math.min(rminAll, x.range);
             }
         }
@@ -1064,7 +1068,9 @@ final class JAOModel {
         // burst windows (target overloaded, venting or flanked; mechanics 3.3-3.4: the AI opens every group up to 2x its
         // budget while its flux is hard and low): guns past the sustained budget still fire, paid from capacity
         float burstUp = load <= 0f ? 1f : Math.min(1f, (budget + BURST_CAP * s.cap / BURST_SECONDS) / load);
-        float overflux = load / budget;
+        // 0.5.91: the over-budget penalty is for guns the AI can't keep firing. A hullmod's attacks fire by themselves and
+        // skip a shot when flux is full (HumanShipShroudedHullmod.deductFlux), so their flux counts in uptime only
+        float overflux = (load - hullmodLoad) / budget;
 
         // engagement range: shortest range in the heaviest non-missile, non-PD group (mechanics 3.2-3.3)
         Map<String, float[]> groups = new HashMap<>();
