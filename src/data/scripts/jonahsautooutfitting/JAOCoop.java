@@ -65,6 +65,77 @@ final class JAOCoop {
         }
     }
 
+    /** Game thread (0.5.93): cancel() and wait up to waitMs for the task to end, so it doesn't run beside the game's thread. */
+    void cancelAndWait(long waitMs) {
+        cancel();
+        synchronized (lock) {
+            long until = System.currentTimeMillis() + waitMs;
+            while (!done) {
+                long left = until - System.currentTimeMillis();
+                if (left <= 0) break;
+                try { lock.wait(left); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+            }
+        }
+    }
+
+    /**
+     * 0.5.93: a task another mod steps from its own every-frame script (Auto Colonies' station fits). Without a worker
+     * thread the whole task runs on the first step.
+     */
+    static final class Job {
+        static final long CANCEL_WAIT_MS = 2_000L;
+        private JAOCoop coop;
+        private Runnable direct;
+        private volatile boolean finished;
+        private boolean stopped;
+        private Throwable error;
+
+        Job(Runnable task, String name) {
+            Runnable t = () -> { task.run(); finished = true; };
+            if (enabled) {
+                try {
+                    coop = new JAOCoop(t, name);
+                    return;
+                } catch (Throwable e) {
+                    enabled = false;
+                    com.fs.starfarer.api.Global.getLogger(JAOCoop.class).warn("Auto Outfitting: couldn't start a worker thread; fitting on the game's thread", e);
+                }
+            }
+            direct = t;
+        }
+
+        /** Game thread: works for about budgetMs. True once the task ended (finished, failed or stopped). */
+        boolean step(long budgetMs) {
+            if (stopped) return true;
+            if (direct != null) {
+                Runnable r = direct;
+                direct = null;
+                try { r.run(); } catch (Throwable e) { error = e; }
+                stopped = true;
+                return true;
+            }
+            if (coop.run(budgetMs)) stopped = true;
+            return stopped;
+        }
+
+        /** Null while running and after a task that finished; else what stopped it. */
+        Throwable error() {
+            if (!stopped) return null;
+            if (error != null) return error;
+            if (coop != null && coop.error != null) return coop.error;
+            return finished ? null : new IllegalStateException("Auto Outfitting: the fit stopped before it finished (cancelled, or no turn for "
+                    + IDLE_MS / 1000L + " s)");
+        }
+
+        /** Game thread: stops the task and waits for it to end. */
+        void cancel() {
+            if (stopped) return;
+            direct = null;
+            if (coop != null) coop.cancelAndWait(CANCEL_WAIT_MS);
+            stopped = true;
+        }
+    }
+
     boolean done() {
         synchronized (lock) { return done; }
     }

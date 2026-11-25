@@ -59,6 +59,8 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
             fittedFighters.clear();
             new JAOOptimizer(this, current, maxSMods, delegate, style).run();
         } catch (Throwable t) {
+            // 0.5.93: a cancelled station fit (startFit) just ends
+            if (t instanceof JAOCoop.Cancelled) throw (JAOCoop.Cancelled) t;
             // never leave the player with a half-stripped ship: log it and fall back to the game's fit of a stock goal,
             // or (0.5.60, a hull with no stock goal) of the loadout it had
             Global.getLogger(JAOAutofitPlugin.class).error("Auto Outfitting: Optimal fit failed for "
@@ -71,6 +73,30 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
                 super.doFit(current, fallback, maxSMods, delegate);
             }
         }
+    }
+
+    /**
+     * 0.5.93: Auto Colonies' station fits without freezing the game (called by name, game API and JDK types only).
+     * startFit returns a job that runs doFit with no s-mods on its own thread, in turns with the game's thread
+     * (JAOCoop). stepFit gives it about budgetMs on the game thread and returns true once it ended. fitError is null
+     * after a fit that finished; else the error, or the reason it stopped (cancelFit, or no stepFit for 30 s).
+     * The variant is fitted in place: pass a working copy and use it only after stepFit returned true and fitError is
+     * null. The job holds a thread, so it must not go into a save. One job at a time per plugin.
+     */
+    public Object startFit(ShipVariantAPI variant, ShipVariantAPI target, AutofitPluginDelegate delegate) {
+        return new JAOCoop.Job(() -> doFit(variant, target, 0, delegate), "Auto Outfitting station fit");
+    }
+
+    public boolean stepFit(Object job, long budgetMs) {
+        return ((JAOCoop.Job) job).step(budgetMs);
+    }
+
+    public Throwable fitError(Object job) {
+        return ((JAOCoop.Job) job).error();
+    }
+
+    public void cancelFit(Object job) {
+        ((JAOCoop.Job) job).cancel();
     }
 
     // CoreAutofitPlugin keeps these protected; the optimizer records what it bought through them.

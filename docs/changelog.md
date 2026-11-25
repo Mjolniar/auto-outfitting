@@ -1,5 +1,9 @@
 # Patch notes
 
+## 0.5.93 - 2026-11-25
+
+- Auto Colonies: Added a station fit that runs in turns with the game (startFit, stepFit, fitError, cancelFit on the autofit plugin). Auto Colonies can run its station fits in slices of a few milliseconds per frame.
+
 ## 0.5.92 - 2026-11-25
 
 - Compatibility: Starsector 0.98.5a-RC9. gameVersion is 0.98.5a-RC9.
