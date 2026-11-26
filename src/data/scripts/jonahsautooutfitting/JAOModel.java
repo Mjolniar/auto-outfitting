@@ -727,6 +727,27 @@ final class JAOModel {
         Map<String, Integer> fleetWeaponIds = new HashMap<>();
         /** Line ships on Auto/Balanced carry both kinetic and armor-cracking damage (COVERAGE). */
         boolean coverage;
+
+        /** 0.5.95: every value above in one line (JAOOptimizer.Memo key; JAOFitCheck checks that each field is in it). */
+        String sig() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(style).append(' ').append(role).append(' ').append(fightSeconds).append(' ').append(pdFloor).append(' ').append(rareBonus)
+                    .append(' ').append(creditCost).append(' ').append(wS).append(' ').append(wA).append(' ').append(wH).append(' ').append(offenseW)
+                    .append(' ').append(mobilityW).append(' ').append(pdMult).append(' ').append(wingMult).append(' ').append(evasionW)
+                    .append(' ').append(station).append(' ').append(flagship).append(' ').append(carrierGuns).append(' ').append(rangeSetting)
+                    .append(' ').append(rangePref).append(' ').append(coverage).append(' ').append(java.util.Arrays.toString(fleetWingBays))
+                    .append(' ').append(fleetWingIds == null ? "-" : new java.util.TreeMap<>(fleetWingIds))
+                    .append(' ').append(fleetWeaponIds == null ? "-" : new java.util.TreeMap<>(fleetWeaponIds));
+            if (targets != null) {
+                for (Target t : targets) {
+                    if (t == null) { sb.append(" T-"); continue; }
+                    sb.append(" T").append(t.size).append(',').append(t.armor).append(',').append(t.hull).append(',').append(t.cap).append(',')
+                            .append(t.diss).append(',').append(t.shieldEff).append(',').append(t.weight).append(',').append(t.threat).append(',')
+                            .append(t.speed).append(',').append(t.shield);
+                }
+            }
+            return sb.toString();
+        }
     }
 
     /**

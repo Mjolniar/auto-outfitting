@@ -18,6 +18,7 @@ public class JAOModPlugin extends BaseModPlugin {
 
     @Override
     public void onGameLoad(boolean newGame) {
+        JAOOptimizer.memoClear();
         if (!JAOSettings.load()) {
             Global.getLogger(JAOModPlugin.class).warn("Auto Outfitting: LunaLib settings not loaded; using " + JAOSettings.FILE);
             JAOSettings.load(false);

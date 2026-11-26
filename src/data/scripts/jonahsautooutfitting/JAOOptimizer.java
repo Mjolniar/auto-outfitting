@@ -189,9 +189,33 @@ class JAOOptimizer {
             keepMods.add(JAOCompat.CUSTOM_AI);
         }
         if (!module && dropCustomAi(hull)) keepMods.remove(JAOCompat.CUSTOM_AI);
+        // 0.5.95: the same fit as one made a moment ago (the Autofit dialog's preview, then Confirm) takes that fit's result
+        String memoKey = memoKey(hull, weapons, fighters, keepMods, modCands, hullOp, budget, p, st, world);
+        Memo hit = memoKey == null ? null : memoGet(memoKey, hull.getHullId());
+        if (hit != null) {
+            if (hit.swarm) current.addMod(SWARM);
+            List<JAOSearch.Slot> hitSlots = hit.swarm ? slotsOf.get() : slots;
+            if (hit.apply(hitSlots, stock)) {
+                slots = hitSlots;
+            } else {
+                if (hit.swarm) current.removeMod(SWARM);
+                hit = null;
+            }
+        }
         Set<String> smods = new LinkedHashSet<>();
         String smodNote = null;
-        if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
+        boolean smodStop = false, smodStart = false, smodStopIfReal = false;
+        if (hit != null) {
+            smods.addAll(hit.smods);
+            smodNote = hit.smodNote;
+            smodPlan = hit.smodPlan;
+            FleetMemberAPI member = delegate.getFleetMember();
+            if (member != null && member.getId() != null) {
+                if (hit.smodStop) JAOSMods.stopWaiting(member.getId());
+                if (hit.smodStart) JAOSMods.waitedDays(member.getId(), true);
+                if (hit.smodStopIfReal && real) JAOSMods.stopWaiting(member.getId());
+            }
+        } else if (!module && (planning ? planSmods : plugin.option(JAOAutofitPlugin.SMODS))) {
             List<String> available = smodCandidates(modCands, keepMods, hull);
             // s-mods the credit changes took off this run aren't built back in with story points
             available.removeAll(smodsRemoved);
@@ -206,7 +230,7 @@ class JAOOptimizer {
                         : why[1] <= 0 && fleetCapUsed() ? "Story points per Optimize fleet (" + JAOSettings.smodFleetMax + ") used up by bigger ships"
                         : why[1] <= 0 ? "no story points" + (JAOSettings.smodReserve > 0 ? " above the " + JAOSettings.smodReserve + " kept in reserve" : "")
                         : "the s-mods per ship setting allows none";
-                if (why[0] <= 0 && memberId != null && !planning) JAOSMods.stopWaiting(memberId);
+                if (why[0] <= 0 && memberId != null && !planning) { JAOSMods.stopWaiting(memberId); smodStop = true; }
             } else {
                 // waiting for missing hullmods is limited in time: after jao_smodWaitDays the ship builds the best it has
                 // (a plan starts no timer: applying it does)
@@ -236,12 +260,14 @@ class JAOOptimizer {
                 smodNote = plan.note + (dmods.isEmpty() ? "" : " (judged without the removable d-mods " + dmods + ")");
                 if (plan.waiting && memberId != null && !planning) {
                     waited = JAOSMods.waitedDays(memberId, true);
+                    smodStart = true;
                     smodNote += "; waited " + Math.round(waited) + " of " + JAOSettings.smodWaitDays + " days";
                 } else if (JAOSettings.smodWait && !mayWait) {
                     smodNote = "stopped waiting after " + JAOSettings.smodWaitDays + " days; " + smodNote;
                 }
                 // 0.5.60: s-mods go in on Confirm, so the wait is over
-                if (!plan.waiting && !plan.mods.isEmpty() && memberId != null && !planning && real) JAOSMods.stopWaiting(memberId);
+                smodStopIfReal = !plan.waiting && !plan.mods.isEmpty();
+                if (smodStopIfReal && memberId != null && !planning && real) JAOSMods.stopWaiting(memberId);
             }
         }
         // 0.5.85 (user 11/23: "Sub-parts of ships don't get S-mods"): a module's s-mods are planned after its ship's own,
@@ -260,23 +286,41 @@ class JAOOptimizer {
         keepAll.addAll(smods);
         List<String> cands = new ArrayList<>(modCands);
         cands.removeAll(smods);
-        // 0.5.89: the stock as it was, for the Fragment Swarm trial (the search takes from the map it's given)
-        Map<String, Integer> stock0 = module ? null : new LinkedHashMap<>(stock);
-        JAOSearch search = new JAOSearch(world, p, slots, stock, cands, keepAll);
-        if (!module && (!planning || fullPlan)) search.fleetMods.addAll(fleetHullmods(keepAll));
-        search.run();
-        oneFeedbackWeapon(search);
-        if (!module) {
-            SwarmTrial t = swarmTrial(hull, hullOp, p, smods, keepAll, cands, slotsOf, stock0, weapons, world, search, real);
-            if (t != null) {
-                search = t.search; slots = t.slots; world = t.world; keepAll = t.keepAll;
-                stock.clear();
-                stock.putAll(t.stock);
+        JAOSearch search = null;
+        List<String> addMods = new ArrayList<>();
+        int[] vc;
+        Map<String, String> drawbacks;
+        if (hit != null) {
+            if (hit.swarm) keepAll.add(SWARM);
+            addMods.addAll(hit.addMods);
+            vc = hit.flux.clone();
+            drawbacks = hit.drawbacks;
+        } else {
+            // 0.5.89: the stock as it was, for the Fragment Swarm trial (the search takes from the map it's given)
+            Map<String, Integer> stock0 = module ? null : new LinkedHashMap<>(stock);
+            search = new JAOSearch(world, p, slots, stock, cands, keepAll);
+            if (!module && (!planning || fullPlan)) search.fleetMods.addAll(fleetHullmods(keepAll));
+            search.run();
+            oneFeedbackWeapon(search);
+            boolean swarm = false;
+            if (!module) {
+                SwarmTrial t = swarmTrial(hull, hullOp, p, smods, keepAll, cands, slotsOf, stock0, weapons, world, search, real);
+                if (t != null) {
+                    search = t.search; slots = t.slots; world = t.world; keepAll = t.keepAll;
+                    stock.clear();
+                    stock.putAll(t.stock);
+                    swarm = true;
+                }
             }
+            for (String m : search.mods) if (!keepAll.contains(m)) addMods.add(m);
+            vc = search.fluxBest();
+            drawbacks = world.drawbacks;
+            if (memoKey != null) memoPut(Memo.of(memoKey, hull.getHullId(), slots, addMods, vc, drawbacks, swarm, smods, smodNote, smodPlan,
+                    smodStop, smodStart, smodStopIfReal, search.evaluations));
         }
 
         // 5. apply: hullmods, weapons and wings (OP-checked by the real delegate), then s-mods (no OP), then flux
-        for (String m : search.mods) if (!keepAll.contains(m)) current.addMod(m);
+        for (String m : addMods) current.addMod(m);
         for (JAOSearch.Slot s : slots) {
             if (s.fixed != null || s.pick == null || s.pick.entry == null) continue;
             if (s.bay) {
@@ -311,7 +355,6 @@ class JAOOptimizer {
         }
         // vents and capacitors from the OP really left now (not the plan's figure), the plan's split first and any
         // difference into vents, then capacitors, up to their maximums: no point is left unspent if one can be used
-        int[] vc = search.fluxBest();
         int maxV = plugin.getMaxVents(hull.getHullSize()), maxC = plugin.getMaxCaps(hull.getHullSize());
         int vents = Math.min(Math.min(vc[0], maxV), Math.max(0, left));
         int caps = Math.min(Math.min(vc[1], maxC), Math.max(0, left - vents));
@@ -322,18 +365,23 @@ class JAOOptimizer {
         current.setNumFluxVents(vents);
         current.setNumFluxCapacitors(caps);
         int unused = hullOp - current.computeOPCost(plugin.stats());
-        if (unused > 0 && !planning && (real || JAOSettings.debug)) {
-            StringBuilder why = new StringBuilder("vents and capacitors at maximum, no hullmod or weapon upgrade fits");
-            if (!JAOSettings.allowDrawbacks && !world.drawbacks.isEmpty()) {
-                why.append("; hullmods with drawbacks that \"Allow hullmods with drawbacks\" would let in: ");
-                int n = 0;
-                for (Map.Entry<String, String> e : world.drawbacks.entrySet()) {
-                    if (world.modOp(e.getKey()) > unused) continue;
-                    why.append(n++ == 0 ? "" : ", ").append(JAOSMods.name(e.getKey())).append(" (").append(e.getValue()).append(')');
+        if (!planning && (real || JAOSettings.debug)) {
+            // 0.5.95: a module's spare OP goes into its ship's or station's line, written once after the last module
+            List<String> letIn = new ArrayList<>();
+            if (unused > 0 && !JAOSettings.allowDrawbacks) {
+                for (Map.Entry<String, String> e : drawbacks.entrySet()) {
+                    if (world.modOp(e.getKey()) <= unused) letIn.add(JAOSMods.name(e.getKey()) + " (" + e.getValue() + ")");
                 }
-                if (n == 0) why.append("none that fits");
             }
-            Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " has " + unused + " OP unused: " + why);
+            if (parentFit != null) {
+                if (unused > 0) {
+                    parentFit.moduleUnused.merge(unused + " on " + hull.getHullId(), 1, Integer::sum);
+                    parentFit.moduleLetIn.addAll(letIn);
+                    if (!drawbacks.isEmpty()) parentFit.moduleHadDrawbacks = true;
+                }
+            } else if (unused > 0 || !moduleUnused.isEmpty()) {
+                Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + unusedLine(unused, letIn, !drawbacks.isEmpty()));
+            }
         }
 
         current.getWeaponGroups().clear();
@@ -346,7 +394,7 @@ class JAOOptimizer {
             if (st != JAOStyle.AUTO && st != JAOStyle.BALANCED) what = what.isEmpty() ? st.label : what + ", " + st.label;
             if (p.flagship) what = what.isEmpty() ? "Flagship" : what + ", flagship";
             current.setVariantDisplayName(JAOGoals.PREFIX + (what.isEmpty() ? "" : ": " + what) + (built > 0 ? " +" + built + " s-mod" + (built > 1 ? "s" : "") : "")
-                    + (unused > 0 ? " (" + unused + " OP spare" + (!JAOSettings.allowDrawbacks && !world.drawbacks.isEmpty() ? ": drawbacks off)" : ")") : ""));
+                    + (unused > 0 ? " (" + unused + " OP spare" + (!JAOSettings.allowDrawbacks && !drawbacks.isEmpty() ? ": drawbacks off)" : ")") : ""));
             delegate.syncUIWithVariant(current);
             if (real) settleOp(hullOp, maxV, maxC, role == JAORole.CARRIER || role == JAORole.PHASE || role == JAORole.MISSILE_BOAT || role == JAORole.SUPPORT);
         }
@@ -354,9 +402,216 @@ class JAOOptimizer {
             Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " s-mods" + (real ? "" : " (preview)") + ": " + smodNote);
         }
         if (JAOSettings.debug) {
-            log(search, world, p, st, (System.nanoTime() - t0) / 1_000_000L);
-            if (!world.drawbacks.isEmpty()) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName()
-                    + " hullmods skipped for drawbacks: " + world.drawbacks);
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            if (search != null) log(search, world, p, st, ms);
+            else Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + hull.getHullId() + (module ? " (module)" : "") + " "
+                    + (p.role != null ? p.role.label + "/" : "") + st.label + " in " + ms + " ms: same fit as " + hit.evaluations
+                    + " evaluations " + (System.currentTimeMillis() - hit.at) / 1000L + " s ago (Autofit preview), reused");
+            // 0.5.95: a module's list goes to its ship or station, written once with its own
+            if (parentFit != null) {
+                for (Map.Entry<String, String> e : drawbacks.entrySet()) parentFit.moduleDrawbacks.putIfAbsent(e.getKey(), e.getValue());
+            } else {
+                Map<String, String> all = new LinkedHashMap<>(drawbacks);
+                for (Map.Entry<String, String> e : moduleDrawbacks.entrySet()) all.putIfAbsent(e.getKey(), e.getValue());
+                if (!all.isEmpty()) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " hullmods skipped for drawbacks: " + all);
+            }
+        }
+    }
+
+    /** 0.5.95: set on a module's fit; its OP-unused and drawback notes go to this fit (its ship or station). */
+    JAOOptimizer parentFit;
+    /** 0.5.95: "674 on module_hightech_hangar" -> how many modules had it. */
+    final Map<String, Integer> moduleUnused = new LinkedHashMap<>();
+    /** 0.5.95: drawback hullmods that would fit a module's spare OP. */
+    final Set<String> moduleLetIn = new LinkedHashSet<>();
+    boolean moduleHadDrawbacks;
+    /** 0.5.95: the modules' hullmods skipped for drawbacks (debug log). */
+    final Map<String, String> moduleDrawbacks = new java.util.TreeMap<>();
+
+    /** 0.5.95: one line for the ship's or station's spare OP and its modules'. */
+    String unusedLine(int unused, List<String> letIn, boolean hadDrawbacks) {
+        StringBuilder sb = new StringBuilder(shipName());
+        List<String> mods = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : moduleUnused.entrySet()) mods.add(e.getKey() + (e.getValue() > 1 ? " (x" + e.getValue() + ")" : ""));
+        if (unused > 0) sb.append(" has ").append(unused).append(" OP unused");
+        if (!mods.isEmpty()) sb.append(unused > 0 ? ", modules " : " modules have OP unused: ").append(String.join(", ", mods));
+        sb.append(": vents and capacitors at maximum, no hullmod or weapon upgrade fits");
+        Set<String> all = new LinkedHashSet<>(letIn);
+        all.addAll(moduleLetIn);
+        if (!JAOSettings.allowDrawbacks && (hadDrawbacks || moduleHadDrawbacks)) {
+            sb.append("; hullmods with drawbacks that \"Allow hullmods with drawbacks\" would let in: ")
+                    .append(all.isEmpty() ? "none that fits" : String.join(", ", all));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 0.5.95: one fit's search result, for a fit with exactly the same inputs. The refit screen's Autofit dialog fits the
+     * ship for its preview and again on Confirm (log 11/25: a Voidsaint twice, 150 and 162 ms, the same 1,453
+     * evaluations). The key holds everything the search reads; Confirm then applies the preview's picks without a search.
+     * Single fits on the refit screen only (no plans, no station fits); kept MEMO_MS.
+     */
+    static final class Memo {
+        String key, hullId;
+        long at;
+        /** Slot id -> the pick's candKey (weapon or wing id, price, where it comes from). */
+        final Map<String, String> picks = new LinkedHashMap<>();
+        final List<String> addMods = new ArrayList<>();
+        int[] flux;
+        final Map<String, String> drawbacks = new LinkedHashMap<>();
+        boolean swarm;
+        final Set<String> smods = new LinkedHashSet<>();
+        String smodNote;
+        JAOSMods.Plan smodPlan;
+        boolean smodStop, smodStart, smodStopIfReal;
+        int evaluations;
+
+        static Memo of(String key, String hullId, List<JAOSearch.Slot> slots, List<String> addMods, int[] flux, Map<String, String> drawbacks,
+                       boolean swarm, Set<String> smods, String smodNote, JAOSMods.Plan smodPlan, boolean smodStop, boolean smodStart,
+                       boolean smodStopIfReal, int evaluations) {
+            Memo m = new Memo();
+            m.key = key; m.hullId = hullId; m.at = System.currentTimeMillis();
+            for (JAOSearch.Slot s : slots) if (s.fixed == null && s.pick != null) m.picks.put(s.id, candKey(s.pick));
+            m.addMods.addAll(addMods);
+            m.flux = flux.clone();
+            m.drawbacks.putAll(drawbacks);
+            m.swarm = swarm;
+            m.smods.addAll(smods);
+            m.smodNote = smodNote; m.smodPlan = smodPlan;
+            m.smodStop = smodStop; m.smodStart = smodStart; m.smodStopIfReal = smodStopIfReal;
+            m.evaluations = evaluations;
+            return m;
+        }
+
+        /** Puts the kept picks on these slots and takes them from the stock. False (nothing changed) if one isn't there. */
+        boolean apply(List<JAOSearch.Slot> slots, Map<String, Integer> stock) {
+            Map<JAOSearch.Slot, JAOSearch.Cand> found = new java.util.IdentityHashMap<>();
+            Map<String, Integer> need = new HashMap<>();
+            int matched = 0;
+            for (JAOSearch.Slot s : slots) {
+                if (s.fixed != null) continue;
+                String want = picks.get(s.id);
+                if (want == null) continue;
+                JAOSearch.Cand c = null;
+                for (JAOSearch.Cand x : s.cands) if (want.equals(candKey(x))) { c = x; break; }
+                if (c == null) return false;
+                found.put(s, c);
+                need.merge(c.stockKey, 1, Integer::sum);
+                matched++;
+            }
+            if (matched != picks.size()) return false;
+            for (Map.Entry<String, Integer> e : need.entrySet()) {
+                Integer q = stock.get(e.getKey());
+                if (q == null || q < e.getValue()) return false;
+            }
+            for (JAOSearch.Slot s : slots) if (s.fixed == null) s.pick = found.get(s);
+            for (Map.Entry<String, Integer> e : need.entrySet()) stock.merge(e.getKey(), -e.getValue(), Integer::sum);
+            return true;
+        }
+    }
+
+    static final long MEMO_MS = 300_000L;
+    static final int MEMO_MAX = 32;
+    private static final Map<String, Memo> MEMO = new LinkedHashMap<>(16, 0.75f, true);
+
+    static synchronized Memo memoGet(String key, String hullId) {
+        long now = System.currentTimeMillis();
+        MEMO.values().removeIf(m -> now - m.at > MEMO_MS);
+        Memo m = MEMO.get(key);
+        if (m == null && JAOSettings.debug) {
+            // the newest kept fit of this hull, for the line that differs (shows why a Confirm searched again)
+            Memo last = null;
+            for (Memo x : MEMO.values()) if (x.hullId.equals(hullId) && (last == null || x.at >= last.at)) last = x;
+            if (last != null) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + hullId + " fit not reused: " + memoDiff(last.key, key));
+        }
+        return m;
+    }
+
+    static synchronized void memoPut(Memo m) {
+        MEMO.put(m.key, m);
+        while (MEMO.size() > MEMO_MAX) {
+            java.util.Iterator<String> it = MEMO.keySet().iterator();
+            it.next();
+            it.remove();
+        }
+    }
+
+    static synchronized void memoClear() { MEMO.clear(); }
+
+    /** The first key line that differs, by its label. */
+    static String memoDiff(String a, String b) {
+        String[] x = a.split("\n"), y = b.split("\n");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            String p = i < x.length ? x[i] : "", q = i < y.length ? y[i] : "";
+            if (!p.equals(q)) {
+                int c = q.indexOf(':');
+                return (c > 0 ? q.substring(0, c) : "line " + i) + " changed";
+            }
+        }
+        return "same key";
+    }
+
+    /** A pick by what it is and where it comes from (cargo or a submarket), the same for the preview and Confirm. */
+    static String candKey(JAOSearch.Cand c) {
+        return c.w.id + "@" + c.price + "/" + source(c.entry);
+    }
+
+    static String source(Object entry) {
+        com.fs.starfarer.api.campaign.econ.SubmarketAPI sub = null;
+        try {
+            if (entry instanceof AvailableWeapon) sub = ((AvailableWeapon) entry).getSubmarket();
+            else if (entry instanceof AvailableFighter) sub = ((AvailableFighter) entry).getSubmarket();
+            if (sub == null) return "fleet";
+            return sub.getSpecId() + (sub.getMarket() == null ? "" : "." + sub.getMarket().getId());
+        } catch (Throwable t) {
+            return "?";
+        }
+    }
+
+    /**
+     * 0.5.95: everything this fit's search and s-mod plan read, one labelled line each (Memo); null for fits that aren't
+     * kept (plans, station fits, the civilian logistics fit).
+     */
+    private String memoKey(ShipHullSpecAPI hull, List<AvailableWeapon> weapons, List<AvailableFighter> fighters, Set<String> keepMods,
+                           List<String> modCands, int hullOp, int budget, JAOModel.Params p, JAOStyle st, JAOShip world) {
+        if (planning || stationFit() || civilianFit) return null;
+        try {
+            StringBuilder k = new StringBuilder(8192);
+            FleetMemberAPI m = delegate.getFleetMember();
+            k.append("ship: ").append(m == null ? "-" : m.getId()).append(' ').append(hull.getHullId())
+                    .append(module ? " module of " + parentSize + " x" + moduleCount : "").append('\n');
+            k.append("hullmods: ").append(new TreeSet<>(current.getHullMods())).append('\n');
+            k.append("s-mods: ").append(new TreeSet<>(current.getSMods())).append(' ').append(new TreeSet<>(current.getSModdedBuiltIns()))
+                    .append(' ').append(new TreeSet<>(current.getPermaMods())).append(' ').append(new TreeSet<>(current.getSuppressedMods())).append('\n');
+            Map<String, String> fitted = new java.util.TreeMap<>();
+            for (String id : current.getFittedWeaponSlots()) fitted.put(id, current.getWeaponId(id));
+            k.append("weapons on: ").append(fitted).append('\n');
+            k.append("wings on: ").append(current.getWings()).append('\n');
+            k.append("kept: ").append(keepMods).append('\n');
+            k.append("candidates: ").append(modCands).append('\n');
+            k.append("hullmods known: ").append(new TreeSet<>(delegate.getAvailableHullmods())).append('\n');
+            k.append("op: ").append(hullOp).append(' ').append(budget).append(' ').append(plugin.getMaxVents(hull.getHullSize()))
+                    .append(' ').append(plugin.getMaxCaps(hull.getHullSize())).append('\n');
+            k.append("params: ").append(st).append(' ').append(p.sig()).append('\n');
+            k.append("captain: ").append(m == null || m.getCaptain() == null ? "-" : m.getCaptain().getId()).append(' ').append(world.captainSkills).append('\n');
+            int[] why = new int[4];
+            int limit = module ? 0 : smodLimit(why);
+            k.append("s-mod limit: ").append(plugin.option(JAOAutofitPlugin.SMODS)).append(' ').append(limit).append(' ').append(java.util.Arrays.toString(why))
+                    .append(' ').append(storyPoints).append(' ').append(Global.getSector().getPlayerStats().getStoryPoints())
+                    .append(' ').append(m == null || m.getId() == null ? 0f : JAOSMods.waitedDays(m.getId(), false)).append('\n');
+            List<String> pool = new ArrayList<>();
+            for (AvailableWeapon w : weapons) pool.add(w.getId() + "@" + w.getPrice() + "/" + source(w) + " x" + w.getQuantity());
+            java.util.Collections.sort(pool);
+            k.append("weapon stock: ").append(pool).append('\n');
+            pool.clear();
+            for (AvailableFighter f : fighters) pool.add(f.getId() + "@" + f.getPrice() + "/" + source(f) + " x" + f.getQuantity());
+            java.util.Collections.sort(pool);
+            k.append("wing stock: ").append(pool).append('\n');
+            k.append("options: ").append(plugin.optionSig()).append('\n');
+            k.append("settings: ").append(JAOSettings.loads).append(' ').append(JAOSettings.summary()).append('\n');
+            return k.toString();
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -931,6 +1186,7 @@ class JAOOptimizer {
             JAOOptimizer mo = new JAOOptimizer(plugin, m, delegate, style, true, planning);
             mo.buying = buying;
             mo.stationParent = stationFit();
+            mo.parentFit = this;
             mo.augments.addAll(augments);
             mo.parentSize = current.getHullSpec().getHullSize();
             mo.moduleCount = current.getStationModules().size();

@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.95 - 2026-11-25
+
+- Autofit: Confirm uses the fit the preview made when nothing changed in between. The ship is fitted once.
+- Log: A station's or ship's modules with spare OP are written in one line after the last module.
+- Log: Hullmods skipped for drawbacks are written once per station or ship, its modules included.
+
 ## 0.5.94 - 2026-11-25
 
 - Shrouded hullmods: With Use Shrouded hullmods off, Optimize fleet and Optimal fits take Shrouded Mantle, Lens and Thunderhead off ships and their modules. They were left on before.

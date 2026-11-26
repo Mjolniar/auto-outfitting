@@ -106,4 +106,11 @@ public class JAOAutofitPlugin extends CoreAutofitPlugin {
     List<AvailableWeapon> weapons(AutofitPluginDelegate delegate) { return getWeapons(delegate); }
     List<AvailableFighter> fighters(AutofitPluginDelegate delegate) { return getFighters(delegate); }
     boolean option(String id) { return isChecked(id); }
+
+    /** 0.5.95: every box of the panel as id=ticked (JAOOptimizer.Memo key). */
+    String optionSig() {
+        StringBuilder sb = new StringBuilder();
+        for (AutofitOption o : options) sb.append(o.id).append('=').append(o.checked).append(' ');
+        return sb.toString();
+    }
 }

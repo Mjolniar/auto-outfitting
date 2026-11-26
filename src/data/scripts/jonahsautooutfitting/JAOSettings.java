@@ -38,6 +38,8 @@ public class JAOSettings {
 
     static JSONObject file;
     static boolean useLuna;
+    /** 0.5.95: how many times the settings were read (a kept fit, JAOOptimizer.Memo, is for the settings it was made with). */
+    static int loads;
 
     public static boolean luna() { return Global.getSettings().getModManager().isModEnabled(LUNA); }
 
@@ -56,6 +58,7 @@ public class JAOSettings {
             try { probe = JAOLuna.bool("jao_enabled"); } catch (Throwable t) { probe = null; }
             if (probe == null) return false;
         }
+        loads++;
         enabled = bool("jao_enabled", true);
         style = JAOStyle.named(string("jao_style", "Auto"));
         allStyles = bool("jao_allStyles", false);
