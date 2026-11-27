@@ -145,6 +145,19 @@ final class JAOCompat {
         return -1f;
     }
 
+    /**
+     * 0.5.102: jao_rules wing_value (wing id or pattern -> multiplier on the wing's value): craft systems, drones and
+     * support work the weapon model doesn't read (Diable Warlust drones, ED Maltese repairs). 1 when none.
+     */
+    static float wingValue(String wingId, List<String[]> rules) {
+        if (wingId == null || rules == null) return 1f;
+        for (String[] r : rules) {
+            if (!r[0].equals("wing_value") || !JAORatings.glob(r[1], wingId)) continue;
+            try { float v = Float.parseFloat(r[2]); if (v > 0f) return v; } catch (NumberFormatException ignored) { }
+        }
+        return 1f;
+    }
+
     /** A wing with no crew (minimum crew 0 on its fighter hull). */
     static boolean uncrewed(FighterWingSpecAPI spec) {
         try { return spec != null && spec.getVariant() != null && spec.getVariant().getHullSpec().getMinCrew() <= 0f; }
@@ -464,6 +477,10 @@ final class JAOCompat {
 
     static Probe settle(ShipVariantAPI plan, boolean capsFirst, String memberId) {
         Probe p = probe(plan, memberId);
+        // 0.5.102: scripts that take more OP than the plan's vents and capacitors: the plan fails (the ship keeps its old
+        // plan or its own fit); cutting all flux left it over its OP limit
+        if (p.over > plan.getNumFluxVents() + plan.getNumFluxCapacitors())
+            throw new IllegalStateException("hullmod scripts take " + p.over + " OP; the plan has " + (plan.getNumFluxVents() + plan.getNumFluxCapacitors()) + " in vents and capacitors");
         for (Map.Entry<Integer, String> e : p.wings.entrySet()) plan.setWingId(e.getKey(), e.getValue());
         if (p.over > 0) {
             int over = p.over, v = plan.getNumFluxVents(), c = plan.getNumFluxCapacitors();

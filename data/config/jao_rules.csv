@@ -201,6 +201,11 @@ drawback,ah_crystalized_armor,removes the shield,
 drawback,ah_galvanized_armor,speed down with hard flux,
 drawback,ah_nano_hull,dissipation down while damaged,
 drawback,ah_delta_shield,shield upkeep rises with hard flux,
+drawback,A_S-F_ElectroVent,self EMP arcs when an overload starts,"A_S-F Electromagnetic Flux Stabiliser: 3/5/7/9 arcs from the ship to itself, 0 damage, 200 x flux level EMP each, shields pierced."
+drawback,khedamn90s,overload time x1.9; vents at 90% flux,"Khe's Tech Rolling Nines: vents at 90% flux unless overloaded, venting or phased; overloads capped at 9 s."
+drawback,khesystemhack,uses the ship system whenever it is ready,Khe's Tech The Otto System: the system turns on whenever it is ready and can't be turned off. System cooldown x0.83.
+drawback,vice_field_repair_nanites,costs 1% CR per 3% of hull repaired,Emergent Threats Field Repair Nanites: s-mod 1% per 5%. Stops at 15% CR.
+drawback,vice_adaptive_entropy_arrester,costs 1% CR per 4% of hull repaired,Emergent Threats Adaptive Entropy Arrester: stops at 15% CR.
 combat,ah_combat_analyzer,DMG_BE:1.0375:1:-ah_alpha_subsystem,+1% per 12 s up to 30%: 3.75% average over 90 s
 combat,ah_combat_analyzer,DMG_BE:1.05:1:+ah_alpha_subsystem,Alpha: +1% per 9 s up to 40%
 combat,ah_crystalized_armor,TAKEN_ARMOR:0.8:1:SHIELDHULL&-ah_delta_subsystem,armor damage taken x0.8 on hulls built with a shield
@@ -564,3 +569,13 @@ skip_slots,shrouded_maw,WS 013;WS 014;WS 019;WS 024,"Emergent Threats Dweller Bo
 skip_slots,shrouded_tendril,WS 003,Emergent Threats Dweller Boost sets assaying_rift or clears this slot on every ship creation; guard only
 needs_system,ah_overcharge,,"Overcharge (Advanced Modifications): advanceInCombat calls ship.getSystem().isActive() every frame with no null check, so a hull with no ship system (merlon, shuttlepod, logi_apoapsis, logi_stormbreaker) crashes the combat"
 needs_shield,ah_flux_shield_matrix,,"Flux Shield Matrix (Advanced Modifications): with Delta Subsystem on a hull with no shield, advanceInCombat reads Shield.getRadius() with no null check and crashes the combat; without Delta the game refuses it there"
+# 0.5.102: wing_value (wing id or pattern -> multiplier on the wing's value: craft systems, drones and support work the weapon model doesn't read); coverage audit of the enabled mods
+wing_value,CFT_arkyd_standard_wing,1.2,"Carter's Freetraders Arkyd: each craft launches up to 4 Mining Drones (600 hull, 150 armor, mining laser). Counted as 2 drones a craft (judgment)."
+wing_value,diableavionics_warlust_wing,1.34,"Diable Warlust: system Snap Drones adds 2 drones (200 hull, 100 armor) with a 400 dps fragmentation PD gun each."
+wing_value,diableavionics_hoar_wing,1.28,Diable Hoar: system Gun Kata sets time x4 to x8 for 10 s every 31.5 s. Average rate of fire x1.95 (judgment: used on every cooldown).
+wing_value,edshipyard_maltese_wing,1.6,ED Maltese: repair drone with no weapons. Repairs 17 to 69 hull a second plus armor cells on allies (judgment: quality 0.8).
+wing_value,uf03_wing,1.19,HPST UF03: system Temporal Shell sets time x3 for 10 s every 26 s. Average x1.9 (judgment: used on every cooldown).
+wing_value,scarp_wing,1.19,"HPST Scarp: system Canister Flak, 5 x 200 HE a use, 2 charges, 1 charge per 20 s. Counted as a finite payload (judgment)."
+combat,heavyarmor,TAKEN_ARMOR:0.75:1:HULL=kol_alysse|kol_larkspur|kol_libra|kol_lotus|kol_lunaria|kol_marigold|kol_mimosa|kol_snowdrop|kol_sundew|kol_tamarisk,Knights of Ludd: Knight Refit gives every armor module the ship's Heavy Armor. Module armor damage x0.35 to x0.64. Counted as ship armor damage x0.75 (judgment: modules take about half the hits).
+combat,reinforcedhull,TAKEN_HULL:0.85:1:HULL=kol_alysse|kol_larkspur|kol_libra|kol_lotus|kol_lunaria|kol_marigold|kol_mimosa|kol_snowdrop|kol_sundew|kol_tamarisk,Knights of Ludd: Knight Refit gives every module the ship's Reinforced Bulkheads. Module hull damage x0.71. Counted as x0.85 (judgment).
+combat,blast_doors,TAKEN_HULL:0.92:1:HULL=kol_alysse|kol_larkspur|kol_libra|kol_lotus|kol_lunaria|kol_marigold|kol_mimosa|kol_snowdrop|kol_sundew|kol_tamarisk,Knights of Ludd: Knight Refit gives every module the ship's Blast Doors. Module hull damage x0.83. Counted as x0.92 (judgment).

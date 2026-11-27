@@ -47,6 +47,7 @@ public class JAORatings {
     /** Drops the cache (after a load or a settings change); the next fit rebuilds it. */
     static void reset() {
         JAOCompat.reset();
+        JAOUtility.resetSurvey();
         weapons.clear();
         wings.clear();
         wingRefs = null;
@@ -92,6 +93,14 @@ public class JAORatings {
         w.name = spec.getWeaponName();
         w.size = spec.getSize() == null ? 0 : spec.getSize().ordinal();
         w.cls = cls(spec.getType());
+        // 0.5.102: the mount type the game's range listeners read (Ballistic Rangefinder: ballistic and hybrid mounts)
+        try {
+            com.fs.starfarer.api.combat.WeaponAPI.WeaponType mt = spec.getMountType();
+            w.mount = mt == com.fs.starfarer.api.combat.WeaponAPI.WeaponType.BALLISTIC ? JAOModel.SLOT_BAL
+                    : mt == com.fs.starfarer.api.combat.WeaponAPI.WeaponType.ENERGY ? JAOModel.SLOT_ENE
+                    : mt == com.fs.starfarer.api.combat.WeaponAPI.WeaponType.MISSILE ? JAOModel.SLOT_MIS
+                    : mt == com.fs.starfarer.api.combat.WeaponAPI.WeaponType.HYBRID ? JAOModel.SLOT_HYB : -1;
+        } catch (Throwable ignored) { }
         w.dmg = dmg(spec.getDamageType() == null ? null : spec.getDamageType().name());
         w.beam = spec.isBeam();
         w.soft = w.beam || spec.hasTag("damage_soft_flux");
@@ -356,6 +365,8 @@ public class JAORatings {
         float op = r.op;
         if (r.free) { op = JAOModel.freeWingOp(r.axes, ref); axes = JAOModel.perOp(r.axes, op); }
         w.dps = JAOModel.wingValue(op, axes, ref);
+        // 0.5.102: jao_rules wing_value (the role references stay as they are)
+        w.dps *= JAOCompat.wingValue(w.id, rules());
         boolean home = spec.getRange() <= 0f || spec.hasTag("stay_in_front_of_ship");
         w.pd = w.interceptor || JAOModel.pdDrone(home, r.role, r.pdShare);
         w.wingPd = w.pd ? 0f : r.pdShare;

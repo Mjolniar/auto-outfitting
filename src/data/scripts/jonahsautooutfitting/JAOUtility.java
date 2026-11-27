@@ -154,6 +154,12 @@ final class JAOUtility {
     private static float surveyTarget = -1f, treasureTarget = -1f;
     private static long surveyDay = Long.MIN_VALUE;
 
+    /** 0.5.102: on every game load (JAORatings.reset): another save on the same date read the last one's target. */
+    static void resetSurvey() {
+        surveyTarget = -1f;
+        surveyDay = Long.MIN_VALUE;
+    }
+
     /**
      * Survey supplies reduction the fleet needs: the 90th percentile, over the sector's planets not yet fully surveyed,
      * of what the game's survey plugin charges past the 5-supply floor with no surveying equipment. Recounted once a day.

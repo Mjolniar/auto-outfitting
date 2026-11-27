@@ -50,6 +50,10 @@ final class JAOCheckShip extends JAOStubShip {
     public ShieldAPI getShield() {
         ShipHullSpecAPI h = variant.getHullSpec();
         ShieldType t = h.getShieldType();
+        // 0.5.102: Makeshift Shield Generator gives a shieldless hull a front shield (arc 90, efficiency 1.2, upkeep 0.5 of
+        // dissipation, as JAOShip scores it); shield hullmods check getShield() != null
+        if (t == ShieldType.NONE && variant.hasHullMod("frontshield") && !variant.hasHullMod(HullMods.SHIELD_SHUNT))
+            return new Shield(ShieldType.FRONT, 90f, 0.5f * h.getFluxDissipation(), 1.2f);
         if ((t != ShieldType.FRONT && t != ShieldType.OMNI) || h.getShieldSpec() == null || variant.hasHullMod(HullMods.SHIELD_SHUNT)) return null;
         return new Shield(t, h.getShieldSpec().getArc(), h.getShieldSpec().getUpkeepCost(), h.getShieldSpec().getFluxPerDamageAbsorbed());
     }
@@ -66,9 +70,13 @@ final class JAOCheckShip extends JAOStubShip {
         return id == null || id.isEmpty() ? null : new SystemStub(id);
     }
 
+    /** 0.5.102: set when getMutableStats() ran the scratch member (JAOShip then refreshes before reading its stats). */
+    boolean statsTouched;
+
     @Override
     public MutableShipStatsAPI getMutableStats() {
         if (scratch == null) return null;
+        statsTouched = true;
         scratch.setVariant(variant, false, true);
         return scratch.getStats();
     }

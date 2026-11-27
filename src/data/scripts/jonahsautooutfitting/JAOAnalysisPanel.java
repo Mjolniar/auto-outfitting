@@ -73,7 +73,8 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
             head.addPara("Fighter bays: " + esc(m.toString()) + " (aim about " + esc(aim()) + "). Most common: %s.", 4f, h, topWings(mix.wingIds, filled));
         }
 
-        TooltipMakerAPI list = element(W - 20f, H - 290f, true, 10f, 230f);
+        // 0.5.102: filled before it's placed (the scroller is sized when it's added; ships past the first screen were cut off)
+        TooltipMakerAPI list = scroller(W - 20f, H - 290f);
         list.addSectionHeading("Recommendations", Alignment.MID, 0f);
         List<String> recs = recommendations(fleet, shieldShort, armorShort);
         if (recs.isEmpty()) list.addPara("The fleet's balanced, so there's nothing to re-fit.", 4f, good);
@@ -89,6 +90,7 @@ final class JAOAnalysisPanel extends JAOOverlayPanel {
             list.addPara("%s  %s   range %s   anti-shield %s, armor %s   PD %s" + (s.bays > 0 ? "   bays " + esc(wingMix(s)) : "") + (s.emptyMounts > 0 ? "   %s empty" : ""), 2f,
                     new Color[]{h, g, h, h, h, pdShort(s) ? bad : h, bad}, vals);
         }
+        place(list, 10f, 230f);
         buttons();
     }
 

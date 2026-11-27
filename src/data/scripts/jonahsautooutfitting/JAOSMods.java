@@ -124,7 +124,10 @@ final class JAOSMods {
                 Map<String, Float> screen = new LinkedHashMap<>();
                 for (String m : candidates) {
                     world.setSMods(chosen);
-                    if (chosen.contains(m) || !world.canAdd(m, without(baseFit.mods, m))) continue;
+                    // 0.5.102: applicability without the ordinary form's drawbacks; the s-mod form is judged next
+                    if (chosen.contains(m) || !world.canAddSMod(m, without(baseFit.mods, m))) continue;
+                    // 0.5.102: never a hullmod with a drawback (user 11/27), whatever "Allow hullmods with drawbacks" says
+                    if (world.smodDrawback(m, without(baseFit.mods, m)) != null) continue;
                     Set<String> s = new LinkedHashSet<>(chosen);
                     s.add(m);
                     if (next.containsKey(key(s))) continue;
@@ -221,13 +224,14 @@ final class JAOSMods {
         if (JAOCompat.neverAdd(id)) return false;
         // never built in by the mod (0.5.36: AI Subsystem Integration took the first s-mod on every warship); the player can
         if (JAORatings.ruleMatches("never_smod", id)) return false;
-        if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
+        // 0.5.102: Shrouded hullmods are never built in (crew losses +50% and Luddic hostility; user 11/27: no hullmod
+        // with a downside as an s-mod). "Use Shrouded hullmods" still fits them as ordinary hullmods.
+        if (spec.hasTag("shrouded")) return false;
         JSONObject row = JAORatings.hullmods().get(id);
         if (row != null && !"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE")) && !JAOShip.SMOD_VALUE.contains(id)) return false;
         // s-mods whose s-mod effect is a penalty (Heavy Armor maneuver -25%, Expanded Missile Racks missile rate of
-        // fire x0.8, Autoloader 10 s cooldown): with "Allow hullmods with drawbacks" on they stay candidates (the
-        // scratch fleet member applies the penalty and the model scores it); off, never
-        if (!JAOSettings.allowDrawbacks && row != null && "TRUE".equalsIgnoreCase(row.optString("smodPenalty"))) return false;
+        // fire x0.8, Autoloader 10 s cooldown): never (0.5.102: also with "Allow hullmods with drawbacks" on)
+        if (row != null && "TRUE".equalsIgnoreCase(row.optString("smodPenalty"))) return false;
         if (row != null && "listener".equals(row.optString("how")) && !JAOShip.modelled(id)) return false;
         return true;
     }

@@ -45,6 +45,13 @@ final class JAOSearch {
         default float fixedWeaponOp() { return 0f; }
         /** 0.5.101: mod's isApplicableToShip with these others on (a hullmod can need another one). */
         default boolean applies(String mod, Set<String> others) { return true; }
+        /**
+         * 0.5.102: why mod can't be built in as an s-mod next to these hullmods (any drawback, s-mod penalty or combat
+         * drawback), or null. Checked whatever "Allow hullmods with drawbacks" says (user 11/27: never build them in).
+         */
+        default String smodDrawback(String mod, Set<String> mods) { return null; }
+        /** 0.5.102: canAdd for an s-mod candidate, without the ordinary form's drawbacks (smodDrawback judges the s-mod form). */
+        default boolean canAddSMod(String mod, Set<String> mods) { return canAdd(mod, mods); }
     }
 
     /** 0.5.101: every chosen hullmod still applies next to the others (checked when one comes off or is traded). */

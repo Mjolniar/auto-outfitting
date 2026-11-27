@@ -400,7 +400,14 @@ final class JAOFleetApply {
             c.weapons = diffWeapons(now, s.plan);
             for (String slot : now.getStationModules().keySet()) {
                 ShipVariantAPI a = now.getModuleVariant(slot), b = s.plan.getModuleVariant(slot);
-                if (a != null && b != null) c.weapons += diffWeapons(a, b);
+                if (a == null || b == null) continue;
+                c.weapons += diffWeapons(a, b);
+                // 0.5.102: a module's wings and ordinary hullmods count too (a plan that changed only those was skipped)
+                int mb = Math.max(Global.getSettings().computeNumFighterBays(a), Global.getSettings().computeNumFighterBays(b));
+                for (int i = 0; i < mb; i++) if (!same(wingAt(a, i), wingAt(b, i))) c.wings++;
+                Set<String> ma = new LinkedHashSet<>(a.getNonBuiltInHullmods()), mbm = new LinkedHashSet<>(b.getNonBuiltInHullmods());
+                for (String id : mbm) if (!ma.contains(id)) c.added.add(b.getHullSpec().getHullName() + ": " + JAOSMods.name(id));
+                for (String id : ma) if (!mbm.contains(id) && !b.getSMods().contains(id)) c.removed.add(a.getHullSpec().getHullName() + ": " + JAOSMods.name(id));
             }
             int bays = Math.max(Global.getSettings().computeNumFighterBays(now), Global.getSettings().computeNumFighterBays(s.plan));
             for (int i = 0; i < bays; i++) if (!same(wingAt(now, i), wingAt(s.plan, i))) c.wings++;
@@ -552,6 +559,8 @@ final class JAOFleetApply {
                 ShipVariantAPI v = live(s.member, true);
                 strip(v, off);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
+                    // 0.5.102: no_autofit modules keep what they carry (armaa Spriggan Weapons Pack: 0 OP, its missile is the hull's own)
+                    if (JAOOptimizer.noAutofit(v.getModuleVariant(slot))) continue;
                     ShipVariantAPI mv = module(v, slot);
                     if (mv != null) strip(mv, off);
                 }
@@ -572,6 +581,8 @@ final class JAOFleetApply {
                 ShipVariantAPI v = live(m, true);
                 strip(v, off);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
+                    // 0.5.102: no_autofit modules keep what they carry (armaa Spriggan Weapons Pack: 0 OP, its missile is the hull's own)
+                    if (JAOOptimizer.noAutofit(v.getModuleVariant(slot))) continue;
                     ShipVariantAPI mv = module(v, slot);
                     if (mv != null) strip(mv, off);
                 }
@@ -610,6 +621,7 @@ final class JAOFleetApply {
                 ShipVariantAPI v = live(s.member, true);
                 missing += fit(v, s.plan, used, s.scripted);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
+                    if (JAOOptimizer.noAutofit(v.getModuleVariant(slot))) continue;
                     ShipVariantAPI mv = module(v, slot), mp = s.plan.getModuleVariant(slot);
                     if (mv == null || mp == null) continue;
                     missing += fit(mv, mp, used, java.util.Collections.emptySet());
@@ -1180,7 +1192,11 @@ final class JAOFleetApply {
         int c = Math.min(over, v.getNumFluxCapacitors());
         v.setNumFluxCapacitors(v.getNumFluxCapacitors() - c);
         over -= c;
-        v.setNumFluxVents(Math.max(0, v.getNumFluxVents() - over));
+        int ventsCut = Math.min(over, v.getNumFluxVents());
+        v.setNumFluxVents(v.getNumFluxVents() - ventsCut);
+        // 0.5.102: what flux can't cover is logged (the ship stays over its OP; nothing else is taken off)
+        if (over > ventsCut) Global.getLogger(JAOFleetApply.class).warn("Auto Outfitting: Optimize fleet: " + (m == null ? v.getHullVariantId() : m.getShipName())
+                + " is still " + (over - ventsCut) + " OP over after removing all vents and capacitors");
         Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + (m == null ? v.getHullVariantId() : m.getShipName())
                 + " was over its OP after refitting (scripts or changed costs); now vents " + v.getNumFluxVents() + ", caps " + v.getNumFluxCapacitors());
         return true;

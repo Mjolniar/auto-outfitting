@@ -92,6 +92,8 @@ final class JAOShip implements JAOSearch.World {
         size = Math.max(0, JAORatings.sizeIndex(hull.getHullSize()));
         work = current.clone();
         originalPerma = new java.util.HashSet<>(work.getPermaMods());
+        paidMods = new java.util.HashSet<>(work.getNonBuiltInHullmods());
+        paidMods.removeAll(work.getSMods());
         work.setNumFluxVents(0);
         work.setNumFluxCapacitors(0);
         scratch = Global.getFactory().createFleetMember(FleetMemberType.SHIP, work);
@@ -682,6 +684,8 @@ final class JAOShip implements JAOSearch.World {
             s.pdBeamRange = st.getBeamPDWeaponRangeBonus().getFlatBonus();
             s.pdPct = st.getNonBeamPDWeaponRangeBonus().getPercentMod();
             s.pdMult = st.getNonBeamPDWeaponRangeBonus().getMult();
+            s.pdBeamPct = st.getBeamPDWeaponRangeBonus().getPercentMod();
+            s.pdBeamMult = st.getBeamPDWeaponRangeBonus().getMult();
         } catch (Throwable ignored) { }
         try { s.missileHp = mult(st.getMissileHealthBonus().computeEffective(1f)); } catch (Throwable ignored) { }
         try {
@@ -1018,7 +1022,15 @@ final class JAOShip implements JAOSearch.World {
     }
 
     @Override
-    public int hullOp() { return budget; }
+    public int hullOp() {
+        // 0.5.102: a planned s-mod the variant already had as an ordinary hullmod frees its OP (budget was set with it paid)
+        int op = budget;
+        for (String m : smods) if (paidMods.contains(m)) op += modOp(m);
+        return op;
+    }
+
+    /** 0.5.102: the variant's ordinary hullmods when this world was made (their OP is already off budget). */
+    private final Set<String> paidMods;
 
     @Override
     public int modOp(String mod) {
@@ -1161,6 +1173,8 @@ final class JAOShip implements JAOSearch.World {
                 ok = false;
             } finally {
                 ship.setVariantForHullmodCheckOnly(orig);
+                // 0.5.102: the stand-in's getMutableStats() runs the scratch member on this set; op() must refresh
+                if (ship == checkShip && checkShip.statsTouched) { statsKey = null; checkShip.statsTouched = false; }
             }
         }
         addCache.put(key, ok);
@@ -1169,6 +1183,24 @@ final class JAOShip implements JAOSearch.World {
 
     /** 0.5.101: set only inside canAddTagged. */
     private boolean autofitTagOk;
+    /** 0.5.102: check() for an s-mod candidate: the ordinary form's drawbacks don't count (smodDrawback judges the s-mod form). */
+    private boolean smodForm;
+
+    /**
+     * 0.5.102: canAdd for an s-mod candidate (audit: Omni Shield Emitter's arc x0.7 applies only when not built in, so the
+     * ordinary form's drawback refused it as an s-mod). Cached apart from canAdd.
+     */
+    @Override
+    public boolean canAddSMod(String mod, Set<String> mods) {
+        String key = key(mods) + "|smod|" + mod;
+        Boolean v = addCache.get(key);
+        if (v != null) return v;
+        boolean ok;
+        smodForm = true;
+        try { ok = check(mod, mods); } finally { smodForm = false; }
+        addCache.put(key, ok);
+        return ok;
+    }
 
     /**
      * 0.5.101: canAdd that lets through the game's do_not_apply_hullmod_during_autofit tag, not cached. The Fragment Swarm
@@ -1238,6 +1270,8 @@ final class JAOShip implements JAOSearch.World {
                 return false;
             } finally {
                 ship.setVariantForHullmodCheckOnly(orig);
+                // 0.5.102: the stand-in's getMutableStats() runs the scratch member on this set; op() must refresh
+                if (ship == checkShip && checkShip.statsTouched) { statsKey = null; checkShip.statsTouched = false; }
             }
         }
         try {
@@ -1245,7 +1279,7 @@ final class JAOShip implements JAOSearch.World {
         } catch (Throwable t) {
             return false;
         }
-        if (!JAOSettings.allowDrawbacks && !(JAOSettings.shroudedHullmods && spec.hasTag("shrouded"))) {
+        if (!JAOSettings.allowDrawbacks && !smodForm && !(JAOSettings.shroudedHullmods && spec.hasTag("shrouded"))) {
             String why = drawback(mod, mods);
             if (why != null) {
                 if (!BROKEN.equals(why)) drawbacks.putIfAbsent(mod, why);
@@ -1301,7 +1335,11 @@ final class JAOShip implements JAOSearch.World {
             "ballistic flux cost", "energy flux cost", "missile flux cost", "beam flux cost", "missile ammo",
             "weapon turn rate", "beam turn rate", "peak operating time", "CR loss rate", "CR per deployment",
             "supplies per month", "supplies to recover", "deployment points", "fuel use", "venting", "fighter refit time",
-            "fighter bays", "crew needed", "sensor profile", "burn level", "shield", "crew salary", "crew losses"};
+            "fighter bays", "crew needed", "sensor profile", "burn level", "shield", "crew salary", "crew losses",
+            // 0.5.102 (audit: Rolling Nines overload x1.9, Prismatic Shield HE and fragmentation x2 on shields)
+            "overload time", "max CR", "kinetic shield damage taken", "HE shield damage taken", "fragmentation shield damage taken",
+            "energy shield damage taken", "weapon malfunctions", "engine malfunctions", "critical malfunctions", "shield malfunctions",
+            "shield turn rate", "shield unfold rate", "zero-flux boost"};
 
     /**
      * Crew salary multiplier and Safety Overrides' extra crew losses (0.98.5a stats ship_crew_salary_mult and
@@ -1387,7 +1425,14 @@ final class JAOShip implements JAOSearch.World {
                 -st.getSuppliesPerMonth().getModifiedValue(), -st.getSuppliesToRecover().getModifiedValue(), -scratch.getDeploymentPointsCost(),
                 -st.getFuelUseMod().computeEffective(1f), st.getVentRateMult().getModifiedValue(), -st.getFighterRefitTimeMult().getModifiedValue(),
                 st.getNumFighterBays().getModifiedValue(), -st.getMinCrewMod().computeEffective(100f), -st.getSensorProfile().getModifiedValue(),
-                st.getMaxBurnLevel().getModifiedValue(), shield ? 1f : 0f, -salaryMult(st), -crewLoss(st)};
+                st.getMaxBurnLevel().getModifiedValue(), shield ? 1f : 0f, -salaryMult(st), -crewLoss(st),
+                -st.getOverloadTimeMod().computeEffective(1f), st.getMaxCombatReadiness().getModifiedValue(),
+                -st.getKineticShieldDamageTakenMult().getModifiedValue(), -st.getHighExplosiveShieldDamageTakenMult().getModifiedValue(),
+                -st.getFragmentationShieldDamageTakenMult().getModifiedValue(), -st.getEnergyShieldDamageTakenMult().getModifiedValue(),
+                -st.getWeaponMalfunctionChance().getModifiedValue(), -st.getEngineMalfunctionChance().getModifiedValue(),
+                -st.getCriticalMalfunctionChance().getModifiedValue(), -st.getShieldMalfunctionChance().getModifiedValue(),
+                st.getShieldTurnRateMult().getModifiedValue(), st.getShieldUnfoldRateMult().getModifiedValue(),
+                st.getZeroFluxSpeedBoost().getModifiedValue()};
     }
 
     /**
@@ -1398,6 +1443,51 @@ final class JAOShip implements JAOSearch.World {
     static final Set<String> PRICED = new java.util.HashSet<>(java.util.Arrays.asList("weapon turn rate", "beam turn rate"));
     /** 0.5.90: stats a station never uses: losing them is no drawback (Heavy Armor's handling on a station section). */
     static final Set<String> STATION_FREE = new java.util.HashSet<>(java.util.Arrays.asList("top speed", "acceleration", "turn rate"));
+
+    private final Map<String, String> smodDrawbacks = new HashMap<>();
+
+    /**
+     * 0.5.102 (user 11/27: hullmods with downsides may be fitted, never built in): a known or combat drawback, an s-mod
+     * penalty row, or any stat the hullmod as an s-mod makes worse, turn rates included. Null when building it in only
+     * helps. Cached per hullmod set and s-mod set.
+     */
+    @Override
+    public String smodDrawback(String mod, Set<String> mods) {
+        if (KNOWN_DRAWBACKS.containsKey(mod)) return KNOWN_DRAWBACKS.get(mod);
+        for (String[] r : JAORatings.rules()) if (r[0].equals("drawback") && r[1].equals(mod)) return r[2].isEmpty() ? "combat drawback" : r[2];
+        JSONObject row = JAORatings.hullmods().get(mod);
+        if (row != null && "TRUE".equalsIgnoreCase(row.optString("smodPenalty"))) return "s-mod penalty";
+        Set<String> base = new java.util.LinkedHashSet<>(mods);
+        base.remove(mod);
+        String k = key(base) + "|sd|" + mod;
+        String hit = smodDrawbacks.get(k);
+        if (hit != null) return hit.isEmpty() ? null : hit;
+        String why = null;
+        Set<String> saved = smods;
+        try {
+            setMods(base);
+            refresh();
+            float[] before = snapshot();
+            Set<String> with = new java.util.LinkedHashSet<>(saved);
+            with.add(mod);
+            smods = with;
+            setMods(base);
+            refresh();
+            float[] after = snapshot();
+            for (int i = 0; i < before.length && why == null; i++) {
+                if (station && STATION_FREE.contains(STAT_NAMES[i])) continue;
+                if (after[i] < before[i] - Math.max(0.005f * Math.abs(before[i]), 1e-4f)) why = "s-mod: " + STAT_NAMES[i];
+            }
+        } catch (Throwable t) {
+            brokenOnce(mod, t);
+            why = BROKEN;
+        } finally {
+            smods = saved;
+            try { setMods(mods); refresh(); } catch (Throwable ignored) { }
+        }
+        smodDrawbacks.put(k, why == null ? "" : why);
+        return why;
+    }
 
     /** The first stat mod makes worse (by more than 0.5%), or null when it only helps. */
     String drawback(String mod, Set<String> mods) {

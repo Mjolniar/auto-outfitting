@@ -430,7 +430,9 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             for (String n : c.ship.notes) list.addPara("%s  %s", 3f, new Color[]{h, g}, c.ship.name, n + ".");
         }
         place(list, 10f, 75f);
-        planButtons(job.changedShips > 0 || job.officerMoves() > 0 || job.augmentMoves() > 0 || !job.stored.isEmpty());
+        // 0.5.102: d-mod repairs and reverse engineering sends count too (a plan with only those couldn't be applied)
+        planButtons(job.changedShips > 0 || job.officerMoves() > 0 || job.augmentMoves() > 0 || !job.stored.isEmpty()
+                || !job.repairs.isEmpty() || !job.reverseW.isEmpty() || !job.reverseF.isEmpty());
     }
 
     private void planButtons(boolean canApply) {

@@ -384,6 +384,8 @@ final class JAOModel {
 
         String id, name;
         int size, cls, dmg = EN;
+        /** 0.5.102: the spec's mount type as SLOT_BAL / SLOT_ENE / SLOT_MIS / SLOT_HYB, -1 when unknown (Ballistic Rangefinder reads it). */
+        int mount = -1;
         boolean beam, soft, pd, pdOnly, pdAlso, strike, guided, guidedPoor, fireWhenInefficient, wing, interceptor, bomber;
         /** Wings: W_FIGHTER / W_BOMBER / W_INTERCEPTOR / W_SUPPORT. */
         int wingRole;
@@ -553,6 +555,8 @@ final class JAOModel {
          * Supercomputer -190%, A_S-F Targeting Adjunct -15%). The game adds the percent to the weapon type's percent.
          */
         float pdPct, pdMult = 1f;
+        /** 0.5.102: beam PD range percent and multiplier (A_S-F Overclocked Targeting Unit -15%). */
+        float pdBeamPct, pdBeamMult = 1f;
         /** Missile hit points (Missile Specialization +25%). */
         float missileHp = 1f;
         /**
@@ -626,7 +630,7 @@ final class JAOModel {
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             s.projSpeedMult = projSpeedMult; s.regenMis = regenMis; s.overloadMult = overloadMult; s.weaponHealth = weaponHealth; s.aimBonus = aimBonus;
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
-            s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.pdPct = pdPct; s.pdMult = pdMult; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
+            s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.pdPct = pdPct; s.pdMult = pdMult; s.pdBeamPct = pdBeamPct; s.pdBeamMult = pdBeamMult; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
             s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
@@ -858,9 +862,13 @@ final class JAOModel {
             if (w.cls != MIS) base = Math.min(base, CHRONOS_CAP[Math.max(0, Math.min(2, w.size))]);
             base *= 0.8f;
         }
-        if (w.cls == BAL && !w.pd) {
+        // Ballistic Rangefinder (0.5.102, the game's RangefinderRangeModifier): ballistic and hybrid mount types, not PD;
+        // hybrid x2 with at least 100 (large too); never past the cap from the weapon's own range
+        int mt = w.mount >= 0 ? w.mount : w.cls == BAL ? SLOT_BAL : -1;
+        if (s.bfCap > 0f && (mt == SLOT_BAL || mt == SLOT_HYB) && !w.pd) {
             float add = w.size == 0 ? s.bfSmall : w.size == 1 ? s.bfMedium : 0f;
-            if (add > 0f) base = Math.max(base, Math.min(base + add, s.bfCap));
+            if (mt == SLOT_HYB) add = Math.max(2f * add, 100f);
+            if (add > 0f) base += Math.max(0f, Math.min(add, s.bfCap - w.range));
         }
         // ESR Fire Control Equalizer: min(200, 800 - the weapon's own range), added to the other base-range bonuses
         if (s.eqAdd > 0f && (w.cls == BAL || w.cls == ENE) && w.range > 0f && w.range < s.eqCap) base += Math.min(s.eqAdd, s.eqCap - w.range);
@@ -872,6 +880,8 @@ final class JAOModel {
         // 0.5.101: the non-beam PD percent adds to the type percent; its multiplier applies to the whole range
         float pdM = 1f;
         if (w.pd && !w.beam && w.cls != MIS) { pct += s.pdPct; pdM = s.pdMult; }
+        // 0.5.102: beam PD weapons get the beam PD percent and multiplier (the game's range code, as for non-beam PD)
+        if (w.pd && w.beam) { pct += s.pdBeamPct; pdM = s.pdBeamMult; }
         float r = Math.max(0f, (base + base * pct / 100f + flat) * s.rangeMult[w.cls] * (w.beam ? s.beamMult : 1f) * pdM);
         if (w.cls != MIS && r > s.threshold) r = s.threshold + (r - s.threshold) * s.pastThreshold;
         return r;
@@ -1622,7 +1632,8 @@ final class JAOModel {
             float rate = (hard * t.shieldEff + Math.max(0f, soft * t.shieldEff - SOFT_SPARE * t.diss)) * debuff;
             for (int i = 0; i < n; i++) {
                 W w = fits.get(i).w;
-                if (mRate[i] > 0f && (w.dmg == KIN || w.shieldMultExtra > 1f)) rate += mRate[i] * SHIELD_MULT[w.dmg] * w.shieldMultExtra;
+                // 0.5.102: the target's shield efficiency, as for guns and free-fire missiles
+                if (mRate[i] > 0f && (w.dmg == KIN || w.shieldMultExtra > 1f)) rate += mRate[i] * SHIELD_MULT[w.dmg] * w.shieldMultExtra * t.shieldEff;
                 rate += mShield[i] * SHIELD_MULT[w.dmg] * t.shieldEff;
                 if (w.extraFrac > 0f && w.extraShields) rate += mShield[i] * w.extraFrac * SHIELD_MULT[w.extraDmg] * t.shieldEff;
             }
@@ -1719,7 +1730,8 @@ final class JAOModel {
      */
     static float chargedDps(W w, Ship s, float fight) {
         if (w.regen <= 0f || w.burstDps <= w.dps * 1.05f || w.ammoMax <= 0f) return w.dps;
-        float ammo = w.fixedAmmo ? 1f : w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : 1f;
+        // 0.5.102: missiles that regenerate get the missile ammo bonus (Expanded Missile Racks) on their magazine
+        float ammo = w.fixedAmmo ? 1f : w.cls == BAL ? s.ammoBal : w.cls == ENE ? s.ammoEn : w.cls == MIS ? s.ammoMult : 1f;
         float regen = w.cls == BAL ? s.regenBal : w.cls == ENE ? s.regenEn : w.cls == MIS ? s.regenMis : 1f;
         // faster reload while phased (0.5.50: RAT's Hyperspatial Javelin and Dart): the script adds the weapon's own base
         // reload once more while phased, not scaled by the ship's regen bonus, on phase-cloak ships for the share of the fight
@@ -1822,7 +1834,8 @@ final class JAOModel {
      */
     static float track(Fit f, Ship s, int ts) {
         W w = f.w;
-        if (w.wing || w.cls == MIS || w.homing) return 1f;
+        // 0.5.102: damage hullmods have no bearing limit (their Fit is a hardpoint only for the mount bookkeeping)
+        if (w.wing || w.cls == MIS || w.homing || w.hullmod) return 1f;
         // hardpoints aim by turning the ship (0.5.59, interplay_1116 gap 7): an Onslaught (turn 4) against a frigate 0.74
         if (f.hardpoint) return s.turnRate > 0f ? 0.5f + 0.5f * clamp((5f + s.turnRate) / CROSSING[Math.max(0, Math.min(3, ts))], TRACK_MIN, 1f) : 1f;
         if (w.turnRate <= 0f) return 1f;

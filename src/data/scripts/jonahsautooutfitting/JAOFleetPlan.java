@@ -489,9 +489,10 @@ final class JAOFleetPlan {
             o.storyPoints = storyPoints;
             o.run();
             int newSmods = Math.max(0, v.getSMods().size() - variantOf.apply(s.member).getSMods().size());
+            // 0.5.102: settle first (it can fail the plan), then the story points are counted
+            JAOCompat.Probe probe = JAOCompat.settle(v, true, s.member.getId());
             s.newSmods = newSmods;
             storyPoints -= newSmods;
-            JAOCompat.Probe probe = JAOCompat.settle(v, true, s.member.getId());
             s.plan = v;
             s.used.clear();
             s.used.addAll(d.used);
@@ -667,7 +668,8 @@ final class JAOFleetPlan {
 
     private JAOFleetMix mixWithout(ShipPlan except) {
         JAOFleetMix mix = new JAOFleetMix();
-        for (ShipPlan s : ships) if (s != except && s.plan != null) mix.addShip(s.ws);
+        // 0.5.102: civilian logistics plans aren't combat ships (they counted toward the mix's minimum of 3 ships)
+        for (ShipPlan s : ships) if (s != except && s.plan != null && !s.civilian) mix.addShip(s.ws);
         return mix;
     }
 
@@ -874,7 +876,8 @@ final class JAOFleetPlan {
         addMounted(v, w, f);
         for (String slot : v.getStationModules().keySet()) {
             ShipVariantAPI mv = v.getModuleVariant(slot);
-            if (mv != null) addMounted(mv, w, f);
+            // 0.5.102: a no_autofit module keeps its weapons; they aren't stock for other ships
+            if (mv != null && !JAOOptimizer.noAutofit(mv)) addMounted(mv, w, f);
         }
     }
 

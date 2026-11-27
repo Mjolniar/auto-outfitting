@@ -790,9 +790,22 @@ class JAOOptimizer {
         after.addAll(smods);
         smods.removeIf(id -> JAOCompat.smodLost(id, hull.getBuiltInMods(), after));
         if (smods.isEmpty()) return 0;
-        // the module's OP doesn't change (s-mods cost none); its vents and capacitors stay as fitted
         int n = buildIn(smods, real, hull);
-        for (String id : smods) moduleSmodNotes.add(hull.getHullName() + ": " + JAOSMods.name(id));
+        // 0.5.102: picks that went on as ordinary hullmods (no story point spent) come off again when the module is over
+        // its OP; OP a built-in hullmod frees goes to vents, then capacitors
+        int opMax = hull.getOrdnancePoints(plugin.stats());
+        for (String id : smods) {
+            if (current.computeOPCost(plugin.stats()) <= opMax) break;
+            if (!keepNow.contains(id) && !current.getSMods().contains(id) && current.getNonBuiltInHullmods().contains(id)) current.removeMod(id);
+        }
+        int spare = opMax - current.computeOPCost(plugin.stats());
+        if (spare > 0) {
+            int maxV = plugin.getMaxVents(hull.getHullSize()), maxC = plugin.getMaxCaps(hull.getHullSize());
+            int addV = Math.min(spare, Math.max(0, maxV - current.getNumFluxVents()));
+            current.setNumFluxVents(current.getNumFluxVents() + addV);
+            current.setNumFluxCapacitors(current.getNumFluxCapacitors() + Math.min(spare - addV, Math.max(0, maxC - current.getNumFluxCapacitors())));
+        }
+        for (String id : smods) if (current.getSMods().contains(id)) moduleSmodNotes.add(hull.getHullName() + ": " + JAOSMods.name(id));
         if (real || JAOSettings.debug) Global.getLogger(JAOOptimizer.class).info("Auto Outfitting: " + shipName() + " module " + hull.getHullId()
                 + " s-mods" + (real ? "" : " (preview)") + ": " + smods + "; " + plan.note);
         return n;
@@ -857,6 +870,12 @@ class JAOOptimizer {
         for (String id : keepMods) if (JAOSMods.buildable(id) && !available.contains(id)) available.add(id);
         // 0.5.66: never one the hull's script deletes next to the s-mods already built in (jao_rules smod_lost)
         available.removeIf(id -> JAOCompat.smodLost(id, hull.getBuiltInMods(), current.getSMods()));
+        // 0.5.102: a ship's module builds in no engine or logistics hullmod (it doesn't move on its own; linked-hull
+        // scripts delete them)
+        if (module) available.removeIf(id -> {
+            HullModSpecAPI sp = Global.getSettings().getHullModSpec(id);
+            return sp == null || !stationHullmod(id, sp.hasUITag("Logistics"), sp.hasUITag("Engines"));
+        });
         // hullmods worth something only as s-mods (Escort Package) aren't ordinary candidates
         for (String id : JAOShip.SMOD_VALUE) {
             if (available.contains(id) || !delegate.getAvailableHullmods().contains(id) || hull.getBuiltInMods().contains(id)
@@ -993,6 +1012,19 @@ class JAOOptimizer {
         try {
             String t = com.fs.starfarer.api.impl.campaign.ids.Tags.TAG_NO_AUTOFIT;
             return m != null && ((m.getHullSpec() != null && m.getHullSpec().hasTag(t)) || (m.getVariant() != null && m.getVariant().hasTag(t)));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * 0.5.102: a module whose hull or variant carries no_autofit (117 module hulls: armaa Spriggan Weapons Pack, Nightcross
+     * Moonbeam and Lo Sulci modules, Knights of Ludd, Emergent Threats). Its fit is left as it is.
+     */
+    static boolean noAutofit(ShipVariantAPI v) {
+        try {
+            String t = com.fs.starfarer.api.impl.campaign.ids.Tags.TAG_NO_AUTOFIT;
+            return v != null && ((v.getHullSpec() != null && v.getHullSpec().hasTag(t)) || v.hasTag(t));
         } catch (Throwable t) {
             return false;
         }
@@ -1205,6 +1237,8 @@ class JAOOptimizer {
         for (String slotId : new ArrayList<>(current.getStationModules().keySet())) {
             ShipVariantAPI m = current.getModuleVariant(slotId);
             if (m == null) continue;
+            // 0.5.102: no_autofit modules keep their fit (no weapons, flux or module s-mods from here)
+            if (noAutofit(m)) continue;
             // 0.5.79: a module the ship doesn't hold a copy of is the game's own stock variant, one object shared by every
             // ship and station with that module. Fitting it in place changed it for all of them, and the game's fleet
             // inflater then stripped it (user 11/23: star fortress modules had no weapons in battle). It gets a copy.
@@ -1335,7 +1369,9 @@ class JAOOptimizer {
         if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) return false;
         if (JAOCompat.neverAdd(id) || (!stationFit() && JAOCompat.tooSmall(id, current.getHullSize())) || JAOCompat.notOnPhase(id, current.getHullSpec())
                 || JAOCompat.removedByHull(id, current.getHullSpec()) || JAOCompat.missingNeed(id, current.getHullSpec())) return false;
-        if (stationFit() && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) return false;
+        // 0.5.102: a ship's modules too (module s-mods: modules don't move on their own, and TBJ, SWP and Underworld linked
+        // hulls delete engine and logistics hullmods from them)
+        if ((stationFit() || module) && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) return false;
         if (spec.hasUITag("Logistics") && !JAOSettings.logistics) return false;
         if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
                 || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) return false;
@@ -1501,6 +1537,8 @@ class JAOOptimizer {
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.hasTag(com.fs.starfarer.api.impl.campaign.ids.Tags.HULLMOD_NO_BUILD_IN)) continue;
             world.setSMods(smods);
+            // 0.5.102: never one with a drawback (user 11/27), whatever "Allow hullmods with drawbacks" says
+            if (world.smodDrawback(id, mods) != null) continue;
             // one already fitted as an ordinary hullmod is simply built in
             if (!mods.contains(id) && !logisticsAllowed(world, id, mods, skipped)) continue;
             if (!fleetNeeds(world, mods, smods, id, true, others, enough)) continue;
@@ -1775,12 +1813,12 @@ class JAOOptimizer {
 
     /** jao_rules one_per_ship: more than one feedback weapon makes them hurt their own ship (Emergent Threats). */
     private static void oneFeedbackWeapon(JAOSearch s) {
+        // 0.5.102: a kept mount's feedback weapon counts first, wherever its slot is (an earlier open slot kept a second one)
         boolean seen = false;
+        for (JAOSearch.Slot slot : s.slots) if (slot.fixed != null && isFeedback(slot.fixed.w)) seen = true;
         for (JAOSearch.Slot slot : s.slots) {
-            JAOSearch.Cand c = slot.fixed != null ? slot.fixed : slot.pick;
-            if (c == null || !isFeedback(c.w)) continue;
+            if (slot.fixed != null || slot.pick == null || !isFeedback(slot.pick.w)) continue;
             if (!seen) { seen = true; continue; }
-            if (slot.fixed != null) continue;
             s.give(slot.pick);
             slot.pick = null;
             slot.cands.removeIf(x -> isFeedback(x.w));

@@ -1,5 +1,41 @@
 # Patch notes
 
+## 0.5.102 - 2026-11-27
+
+- S-mods: Hullmods with a drawback are never built in, with "Allow hullmods with drawbacks" on or off. This covers stat drawbacks, combat-only drawbacks, s-mod penalties and Shrouded hullmods.
+- S-mods: A hullmod whose penalty goes away as an s-mod can be built in (Omni Shield Emitter).
+- S-mods: Building in a hullmod the ship already has frees its OP for weapons and other hullmods.
+- S-mods: A ship's modules build in no engine or logistics hullmods.
+- Civilian ships: Fleet-wide s-mods skip hullmods with a drawback.
+- Settings: "Allow hullmods with drawbacks" stays off by default.
+- Drawbacks: The drawback check also reads overload time, max CR, shield damage by type, malfunction chances, shield turn and unfold rate and zero-flux boost.
+- Drawbacks: Added combat drawback rules for A_S-F Electromagnetic Flux Stabiliser, Khe's Tech Rolling Nines and The Otto System, and Emergent Threats Field Repair Nanites and Adaptive Entropy Arrester.
+- Damage model: Kinetic missiles count the target's shield efficiency.
+- Damage model: Damage hullmods have no turn-rate limit.
+- Damage model: Regenerating missiles get the missile ammo bonus.
+- Range: Ballistic Rangefinder follows the game's mount type rule. Hybrid mounts get twice the bonus, at least 100.
+- Range: Beam PD range penalties count (A_S-F Overclocked Targeting Unit).
+- Ship systems: Added 70 rows for weapon, time, flux and defense systems from A_S-F, Diable Avionics, Emergent Threats, RAT, Seeker, Threat Tech, Yunru, Arma Armatura and Tahlan, and the vanilla Fortress Shield.
+- Ship systems: A_S-F AURA, Adaptive Burst and EMP Emission count the damage of their system weapons.
+- Ship systems: Nightcross Flickerfield uses the 2.2.2 numbers. Project Arondight Spotter Lattice counts beam damage once.
+- Ship roles: Teleporters and displacers without a copy render (Diable Flicker cores, Valkyrian and JaydeePiracy teleporters) count as jump systems.
+- Ship roles: Plasma Burn and Temporal Shell copies count like the vanilla systems. Movement systems named without a keyword count by their AI hints.
+- A_S-F: Removed the Wasteland row (a MIRV in 1.8.0). Klabu blast is 300. Added Expiation.
+- Weapons: Added IX Plasma Lancet and Plasma Lancet Repeater (damage past the armor) and RAT Cecaelia Shotgun (8 pellets).
+- Arma Armatura: Basilisk and PERCEPT Orb count x0.75 for blasts that hit allies.
+- Wings: New rule kind wing_value. CFT Arkyd, Diable Warlust and Hoar, ED Maltese and HPST UF03 and Scarp count their drone, repair, time and flak systems.
+- Knights of Ludd: Heavy Armor, Reinforced Bulkheads and Blast Doors count the protection Knight Refit gives the modules.
+- Modules: Modules tagged no_autofit keep their fit (armaa Spriggan Weapons Pack, Nightcross Moonbeam and Lo Sulci modules).
+- Optimize fleet: Apply works for plans that only repair d-mods or send items to reverse engineering.
+- Optimize fleet: Changes to a module's wings and hullmods count as changes.
+- Optimize fleet: A plan fails when hullmod scripts take more OP than its vents and capacitors. The ship keeps its old plan or its own fit.
+- Optimize fleet: Module s-mods that fall back to ordinary hullmods come off when the module is over its OP. Freed OP goes to vents and capacitors.
+- Optimize fleet: Civilian plans don't count toward the fleet mix.
+- Optimize fleet: Off-screen fits refresh ship stats after a hullmod check reads them. Ships with Makeshift Shield Generator can take shield hullmods.
+- Feedback weapons: One per ship also when a kept mount comes later in slot order.
+- Logistics: The survey target is recounted on each game load.
+- Order panel, Fleet analysis: Long lists scroll.
+
 ## 0.5.101 - 2026-11-27
 
 - Ship roles: Teleporter and displacer systems from mods count like the vanilla Phase Teleporter and Displacer (A_S-F Light Phase Teleporter, IX and Vice teleporters, mod skimmers).

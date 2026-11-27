@@ -146,7 +146,8 @@ final class JAOOrderPanel extends JAOOverlayPanel {
         }
 
         if (plan != null) {
-            TooltipMakerAPI list = element(W - 20f, H - HEAD - 80f, true, 10f, HEAD + 20f);
+            // 0.5.102: filled before it's placed (the scroller is sized when it's added; long orders were cut off)
+            TooltipMakerAPI list = scroller(W - 20f, H - HEAD - 80f);
             Color text = Global.getSettings().getColor("standardTextColor");
             List<JAOFleetPlanner.Line> all = new java.util.ArrayList<>(plan.lines);
             all.addAll(plan.moved);
@@ -157,6 +158,7 @@ final class JAOOrderPanel extends JAOOverlayPanel {
             }
             if (both) list.addPara("Custom production", g, 8f);
             lines(list, all, h, text, g);
+            place(list, 10f, HEAD + 20f);
         }
 
         TooltipMakerAPI buttons = element(W - 20f, 40f, false, 10f, H - 50f);

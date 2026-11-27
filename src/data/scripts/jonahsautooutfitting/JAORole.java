@@ -75,7 +75,51 @@ public enum JAORole {
         if (system == null) return false;
         String s = system.toLowerCase(Locale.ROOT);
         return s.equals("plasmajets") || s.equals("microburn") || s.equals("displacer") || s.equals("phaseteleporter")
-                || s.equals("temporalshell") || s.contains("quickboost") || s.contains("punisherjets") || blinkSystem(system);
+                || s.equals("temporalshell") || s.contains("quickboost") || s.contains("punisherjets") || blinkSystem(system)
+                // 0.5.102: copies of Plasma Burn and Temporal Shell under other ids (Valkyrian Burst Drive, Threat Tech
+                // microburn, the mods' temporal shells)
+                || s.contains("microburn") || s.endsWith("temporalshell") || copyOf(system, BURN_COPIES) || copyOf(system, SHELL_COPIES);
+    }
+
+    static final String[] BURN_COPIES = {"MicroBurnStats", "MicroBurnOmegaStats"}, SHELL_COPIES = {"TemporalShellStats"};
+
+    /** 0.5.102: system id -> its stats script class name ("" unknown), cached. */
+    private static final java.util.Map<String, String> STATS_CLASS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 0.5.102: the system's stats script is one of these classes (by simple name). False when the game can't be read. */
+    static boolean copyOf(String system, String[] classes) {
+        if (system == null || system.isEmpty()) return false;
+        String c = STATS_CLASS.get(system);
+        if (c == null) {
+            if (com.fs.starfarer.api.Global.getSettings() == null) return false;
+            c = "";
+            try {
+                com.fs.starfarer.api.combat.ShipSystemSpecAPI spec = com.fs.starfarer.api.Global.getSettings().getShipSystemSpec(system);
+                if (spec != null && spec.getStatsScriptClassName() != null) c = spec.getStatsScriptClassName();
+            } catch (Throwable ignored) { }
+            STATS_CLASS.put(system, c);
+        }
+        for (String k : classes) if (c.equals(k) || c.endsWith("." + k)) return true;
+        return false;
+    }
+
+    /** 0.5.102: system id -> {burst movement potential, average speed increase} from its AI hints, cached. */
+    private static final java.util.Map<String, float[]> MOVE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static float[] movement(String system) {
+        float[] m = MOVE.get(system);
+        if (m != null) return m;
+        if (com.fs.starfarer.api.Global.getSettings() == null) return new float[2];
+        m = new float[2];
+        try {
+            com.fs.starfarer.api.combat.ShipSystemSpecAPI spec = com.fs.starfarer.api.Global.getSettings().getShipSystemSpec(system);
+            if (spec != null && spec.getAIHints2() != null) {
+                m[0] = spec.getAIHints2().getBurstMovementPotential();
+                m[1] = spec.getAIHints2().getAverageSpeedIncrease();
+            }
+        } catch (Throwable ignored) { }
+        MOVE.put(system, m);
+        return m;
     }
 
     /** 0.5.101: system id -> teleporter or displacer read from its spec, cached (the planner thread reads it too). */
@@ -99,6 +143,15 @@ public enum JAORole {
         } catch (Throwable t) {
             return false;
         }
+        // 0.5.102: the .system file's type with a jump range (Diable Flicker cores, Valkyrian and JaydeePiracy teleporters:
+        // no copy render or no burst hint); Energy Conversion has range 0
+        if (!blink) {
+            try {
+                org.json.JSONObject j = com.fs.starfarer.api.Global.getSettings().loadJSON("data/shipsystems/" + system + ".system");
+                String type = j.optString("type", "");
+                blink = ("TELEPORTER".equals(type) || "DISPLACER".equals(type)) && j.optDouble("range", 0) > 0;
+            } catch (Throwable ignored) { }
+        }
         BLINK.put(system, blink);
         return blink;
     }
@@ -116,10 +169,15 @@ public enum JAORole {
         String s = system.toLowerCase(Locale.ROOT);
         if (s.contains("displacer") || s.contains("teleport") || s.contains("skimmer") || s.contains("blink") || s.contains("warp")
                 || blinkSystem(system)) return 2;
-        // the AI fires Plasma Burn only to close in, never to break off (roles_1116: Shrike, Fury, Odyssey, Brilliant)
-        if (s.startsWith("microburn")) return 0;
+        // the AI fires Plasma Burn only to close in, never to break off (roles_1116: Shrike, Fury, Odyssey, Brilliant);
+        // 0.5.102: its copies too (Threat Tech microburn, Valkyrian Burst Drive)
+        if (s.contains("microburn") || copyOf(system, BURN_COPIES)) return 0;
         if (s.contains("burn") || s.contains("jets") || s.contains("boost") || s.contains("dash") || s.contains("orion")
-                || s.equals("temporalshell") || s.contains("lunge") || s.contains("thruster") || s.contains("afterburn")) return 1;
+                || s.endsWith("temporalshell") || s.contains("lunge") || s.contains("thruster") || s.contains("afterburn")
+                || copyOf(system, SHELL_COPIES)) return 1;
+        // 0.5.102: movement systems named without a keyword (Tahlan drives, Seeker Alcubierre, UAF evasive jets): the AI hints
+        float[] m = movement(system);
+        if (m[0] >= 300f || m[1] >= 100f) return 1;
         return 0;
     }
 
