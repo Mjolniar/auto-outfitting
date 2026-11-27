@@ -299,3 +299,212 @@ smod_set,tania_ancient_weapon_sys,hiressensors;magazines;turretgyros,Ancient Fra
 smod_set,tania_ancient_weapon_sys,shrouded_mantle;shrouded_thunderhead;shrouded_lens,Ancient Frame: Heart of the Abyss set
 smod_set,tania_ancient_weapon_sys,fragment_swarm;secondary_fabricator;fragment_coordinator,Ancient Frame: Threat Resonator set
 warship,tania_wader_main,,"Wader: CIVILIAN and TRANSPORT hints, but its ground support grows with its wing and hullmods (Modular Operations Facility), so it gets a warship fit"
+# 0.5.96: Domain Phase Lab (plans/2026-11-26-new-mods/out/dpl.md)
+combat,dpl_weapon_overcharge,DMG_BEM:1.1:1,"Weapon Overcharge: all damage the ship deals x1.1 through a DamageDealtModifier (dpl_WeaponOvercharge.dpl_WeaponOverrideDamageDealtMod, DAMAGE 10); the stats show only its penalties"
+beams_hard,dpl_plasmacoupling,,Plasma Coupling: dpl_PlasmaCouplingDamageDealtMod sets forceHardFlux on every beam of the ship
+weapon_range,dpl_focus_lens,dpl_plasma_lance=40%;dpl_graviton_lance=40%;dpl_gamma_blaster=40%;dpl_hdpb=40%;dpl_lightning_lance=40%;dpl_dre=40%;dpl_jingle=40%;dpl_doom_ray=40%;dpl_doom_pd=40%;dpl_chants=40%;dpl_weak_spot=40%;taclaser=40%;hil=40%;phasebeam=40%;pdlaser=40%;lrpdlaser=40%;irpulse=40%;tachyonlance=40%,"EM-Focus Lens (Baritone): beam base range x1.4 (EnergyBoltCohererRangeModifier, RANGE_BONUS 40); listed are the beam ids of Domain Phase Lab and the vanilla beams known to this table; other mods' beams are not listed"
+never_use,dpl_song_of_chaos,,"Song of Chaos: after 20 s of continuous beam the ship hits itself for 2.5% of its own max hull every 1.0 s, falling 0.08 per second to 0.1 s (dpl_song_of_chaosEffect self_interval); 150 dps listed"
+skip_slots,dpl_euphonium,WS0001;WS0002;WS0007;WS0008,"Defensive Design (dpl_pd_targeting_core, built in): any large non-PD weapon makes all damage the ship deals x0.1; these are the 4 large energy slots; stopgap until AO can limit those slots to PD weapons (dpl_phase_pd has the PD hint)"
+skip_slots,dpl_flute,WS0003,Defensive Design (built in): the one large energy slot; as above
+skip_slots,dpl_invictus_alt,WS0001;WS0002;WS0005;WS0006;WS0007;WS0008;WS0009;WS0010,Defensive Design (built in): the 8 large energy slots; as above
+# 0.5.96: Nightcross Armory (plans/2026-11-26-new-mods/out/nc.md)
+removed_by,na_tidalgrid,adaptive_coils,"Nightcross: Tidal Grid (Ister, Xanthe, Macula proto, Mare proto, Sop proto) removes Adaptive Phase Coils after ship creation (MagicIncompatibleHullmods.removeHullmodWithWarning)"
+removed_by,na_hardlightmatrix,adaptiveshields;extendedshieldemitter,Nightcross: Hardlight Matrix (Losulci) removes Omni Shield Conversion and Extended Shields after ship creation
+removed_by,na_hardlightmatrix2,adaptiveshields;extendedshieldemitter,Nightcross: Aegis Deflectors (Stargazer Losulci) removes Omni Shield Conversion and Extended Shields after ship creation
+removed_by,na_energizedarmor,shield_shunt,Nightcross: Armor Energizer Matrix (built into the Autonomous Unit) removes Shield Shunt after ship creation
+removed_by,na_stargazerhullmod,fragment_swarm,Nightcross: Stargazer (built into 11 Stargazer hulls) extends the Stardust Nebula script and removes Fragment Swarm after ship creation
+never_remove,na_insanitystats,,"Nightcross: hidden hullmod that NA_InsanityManager adds to every non-fighter member of the player fleet while a Project: GHOST ship has a Ghost, Matrix or Grid core; the mod removes it again itself"
+never_smod,na_stargazerstars,,Nightcross: its s-mod is a penalty (max CR -20%)
+never_smod,na_stargazerhullmod,,Nightcross: built-in Stargazer hullmod; its s-mod has no effect
+never_smod,na_stargazersoulsteal,,Nightcross: Soul Stealer has no s-mod effect
+combat,nightcrosstargeting,ROF_BE:1.33:0.4:FRIGATE,"Dynamic Grid: ballistic and energy rate of fire +33% after the shield has been off 0.75 s; shield-off share 0.4 of the fight (judgment: shorter delay, more uptime)"
+combat,nightcrosstargeting,FLUXSHOT_BE:0.67:0.4:FRIGATE,Dynamic Grid: flux per shot -33% in the same window (flux a second x0.89 with the rate bonus)
+combat,nightcrosstargeting,ROF_BE:1.33:0.35:DESTROYER,"Dynamic Grid: ballistic and energy rate of fire +33% after the shield has been off 1.1 s; shield-off share 0.35 of the fight (judgment: shorter delay, more uptime)"
+combat,nightcrosstargeting,FLUXSHOT_BE:0.67:0.35:DESTROYER,Dynamic Grid: flux per shot -33% in the same window (flux a second x0.89 with the rate bonus)
+combat,nightcrosstargeting,ROF_BE:1.33:0.3:CRUISER,"Dynamic Grid: ballistic and energy rate of fire +33% after the shield has been off 2 s; shield-off share 0.3 of the fight (judgment: shorter delay, more uptime)"
+combat,nightcrosstargeting,FLUXSHOT_BE:0.67:0.3:CRUISER,Dynamic Grid: flux per shot -33% in the same window (flux a second x0.89 with the rate bonus)
+combat,nightcrosstargeting,ROF_BE:1.33:0.25:CAPITAL,"Dynamic Grid: ballistic and energy rate of fire +33% after the shield has been off 3 s; shield-off share 0.25 of the fight (judgment: shorter delay, more uptime)"
+combat,nightcrosstargeting,FLUXSHOT_BE:0.67:0.25:CAPITAL,Dynamic Grid: flux per shot -33% in the same window (flux a second x0.89 with the rate bonus)
+combat,na_tidalgrid,ROF_BAL:1.5:0.2,"Tidal Grid: ballistic rate of fire +50% during Tidal Burst; 1.2 s of burst per second phased, max 15 s, after 2-3 s in phase; share 0.2 (judgment: a dive of about 6 s gives (6 - 2.3) x 1.2 = 4.4 s of burst per 22 s dive cycle)"
+combat,na_tidalgrid,FLUXSHOT_BAL:0.5:0.2,Tidal Grid: ballistic flux cost -50% during Tidal Burst
+combat,na_tidalgrid,DMG_ENE:1.33:0.2,Tidal Grid: energy weapon damage +33% during Tidal Burst
+combat,na_tidalgrid,FLUXSHOT_ENE:0.67:0.2,Tidal Grid: energy flux cost -33% during Tidal Burst
+combat,na_tidalgrid,DMG_MIS:1.33:0.2,Tidal Grid: missile damage +33% (and HP +50%) during Tidal Burst
+combat,na_hardlightmatrix,TAKEN_HULL:0.8:0.8,"Hardlight Matrix: two generators, hull damage taken x0.8; share 0.8 (judgment: modules alive and not overloading or venting)"
+combat,na_hardlightmatrix,TAKEN_ARMOR:0.64:0.8,"Hardlight Matrix: armor damage x0.8 and effective armor +700 on 1000 armor (about x0.8 more, judgment); share 0.8"
+combat,na_hardlightmatrix2,TAKEN_SHIELD:0.1:0.8,"Aegis Deflectors: two generators, shield damage taken x0.1; share 0.8 (judgment: modules alive and not overloading or venting)"
+combat,na_energizedarmor,TAKEN_HULL:0.65:0.5,Armor Energizer Matrix: hull damage taken x(1 - 0.5 x sqrt(E / Emax)); energy at half of max on average (judgment) gives x0.65; share 0.5
+combat,na_energizedarmor,TAKEN_ARMOR:0.85:0.5,Armor Energizer Matrix: effective armor +213/320/426/566 at half energy; about x0.85 armor damage (judgment); share 0.5
+combat,na_superconductingconduits,ROF_MIS:1.25:1,"Superconducting Conduits: missile cooldown x(1 + r); r 0.6 up to T OP of missile and synergy weapons (T 10/20/40/80), 0.3 at 2T, 0.2 from 3T; a typical fit at 1.2 x T gives r 0.5 and a 0.65 cooldown share gives x1.28 (judgment). Misses the 4 energy-type synergy weapons and missile ammo regen"
+combat,na_stargazerdiss,VENT_FLAT:60:0.8:FRIGATE,Cosmic Shunt: +4 dissipation per live mote; 15 motes at full swarm; share 0.8 (judgment: motes spent by weapons or lost to damage)
+combat,na_stargazerdiss,VENT_FLAT:120:0.8:DESTROYER,Cosmic Shunt: +4 dissipation per live mote; 30 motes at full swarm; share 0.8 (judgment: motes spent by weapons or lost to damage)
+combat,na_stargazerdiss,VENT_FLAT:180:0.8:CRUISER,Cosmic Shunt: +4 dissipation per live mote; 45 motes at full swarm; share 0.8 (judgment: motes spent by weapons or lost to damage)
+combat,na_stargazerdiss,VENT_FLAT:240:0.8:CAPITAL,Cosmic Shunt: +4 dissipation per live mote; 60 motes at full swarm; share 0.8 (judgment: motes spent by weapons or lost to damage)
+combat,na_stargazersoulsteal,DMG_ENE:1.1:1:FRIGATE,Soul Stealer: energy damage +15% at a full swarm; 70% of a full swarm on average (judgment)
+combat,na_stargazersoulsteal,DMG_MIS:1.1:1:FRIGATE,"Soul Stealer: missile damage, same bonus"
+combat,na_stargazersoulsteal,DMG_ENE:1.1:1:DESTROYER,Soul Stealer: energy damage +15% at a full swarm; 70% of a full swarm on average (judgment)
+combat,na_stargazersoulsteal,DMG_MIS:1.1:1:DESTROYER,"Soul Stealer: missile damage, same bonus"
+combat,na_stargazersoulsteal,DMG_ENE:1.08:1:CRUISER,Soul Stealer: energy damage +11.25% at a full swarm; 70% of a full swarm on average (judgment)
+combat,na_stargazersoulsteal,DMG_MIS:1.08:1:CRUISER,"Soul Stealer: missile damage, same bonus"
+combat,na_stargazersoulsteal,DMG_ENE:1.05:1:CAPITAL,Soul Stealer: energy damage +7.5% at a full swarm; 70% of a full swarm on average (judgment)
+combat,na_stargazersoulsteal,DMG_MIS:1.05:1:CAPITAL,"Soul Stealer: missile damage, same bonus"
+removed_by,na_stargazerstars,fragment_swarm,Nightcross: Stardust Nebula removes Threat Fragment Swarm after ship creation (NA_StargazerStars line 61)
+role,na_nammu,Support,"Occator: Utility Vessel with a built-in repair drone wing, Repair Coordinator and Flux Stabilizer (moves ally flux onto itself); built-in wing leaves 0 free bays, so numbers (destroyer speed 80, ratio 1.0) make it a Flanker (judgment)"
+role,naai_nammu,Support,Cerealia (Stargazer): Harvester with two built-in Locust wings and Stardust Conduit (strips ally flux); numbers make it a Flanker (judgment)
+role,na_tempus,Line,Tempus Spatium: speed 80 against a cruiser median of 60-65 gives ratio 1.23-1.33 and the Flanker line is 1.3; 8 small ballistic turrets and 2 medium energy hardpoints fight at range (judgment)
+combat,na_gravitydrag,TAKEN_ALL:0.95:1.0,"Gravitational Drag (Mare Crisium (X), String of Pearls (X), Krun Macula (X)): enemies within 1500 su get time x(1 - 0.1 x (1 - d/1500)), x2 strength while this ship is phased; about -5% at 750 su, so their damage to anything is x0.95 (judgment: fight range 500-1000 su)"
+# 0.5.96: Crab Shack (plans/2026-11-26-new-mods/out/crab.md)
+never_add,cs_conversion,,"Crab Shack: conversion for Conquest, Pegasus, Champion and Mudskipper2; takes a Dubious Disc, clears every fitted weapon, clones the hull spec, cannot be removed"
+never_add,cs_onslaughtCoreConversion,,Crab Shack: sets a Slaught core captain on a capital Onslaught; takes a Slaught Core item
+never_add,cs_aiswitch,,"Crab Shack: takes an Alpha Core, clones the hull spec, adds a non-removable OP penalty, presses the R key through Robot in the refit tab, nerfs AI core captains in auto mode"
+never_add,cs_sharedConcord,,Crab Shack Choir: works only as an s-mod; clones the hull spec to an omni shield and replaces the ship system
+never_add,cs_transcendencemod,,"Crab Shack Transcendence: host hull 1, a flux-capacity shield drone replaces hull and armor; cannot be modeled"
+never_add,cs_vambraceDuctTape,,"Crab Shack Duct Tape: replaces the fleet member's variant, adds 2 armor modules, sets CR to 0, cannot be removed"
+never_add,cs_systemSwap,,Crab Shack System Swap: opens a dialog in the refit tab and presses R through Robot
+never_add,cs_propagation,,Crab Shack Module Propagator: copies parent hullmods onto 0 OP modules; calls the combat engine outside combat
+never_add,cs_flextrousTurrets,,"Crab Shack Flextrous Turrets: experimental; turret arcs x1.5 through a spec clone, which AO does not read"
+never_add,cs_phaseShunt,,Crab Shack Phase Shunt: removes the phase cloak through a spec clone; experimental
+never_add,cs_makeshiftPhaseCloak,,Crab Shack Makeshift Phase Cloak: adds a phase cloak through a spec clone; experimental
+never_add,cs_kiteStorm,,Crab Shack Erratic Fighter Forge: replaces launched fighters with random fighters; takes an Erratic Fighter Forge item
+paid_install,cs_inertiaNegator,sector_memory,Crab Shack: needs an Inertia Negator Node item; cannot be removed; the item is taken on install and not returned
+paid_install,cs_diamondBack,sector_memory,Crab Shack: needs a Metallic Aggregate item; cannot be removed; the item is taken on install and not returned
+paid_install,cs_terraprismahullmod,sector_memory,Crab Shack: needs a Terra fragment item; the item is taken on install and not returned
+paid_install,cs_planula,sector_memory,Crab Shack: needs a Planula item; the item is taken on install and not returned
+paid_install,cs_pocketICBM,sector_memory,Crab Shack: needs a Pocket I.C.B.M. item; the item is taken on install and not returned
+paid_install,cs_lobsterControlNode,sector_memory,Crab Shack: needs a Bad Tempered Lobster item; the item is taken on install and not returned
+paid_install,cs_bombAutofab,sector_memory,Crab Shack: needs an Antimatter Microforge item; the item is taken on install and not returned
+never_remove,cs_conversion,,Crab Shack: cannot be removed in the game
+never_remove,cs_inertiaNegator,,Crab Shack: cannot be removed in the game
+never_remove,cs_diamondBack,,Crab Shack: cannot be removed in the game
+never_remove,cs_vambraceDuctTape,,Crab Shack: cannot be removed in the game
+never_remove,cs_terraprismahullmod,,Crab Shack: its item is not returned
+never_remove,cs_planula,,Crab Shack: its item is not returned
+never_remove,cs_pocketICBM,,Crab Shack: its item is not returned
+never_remove,cs_transcendencemod,,Crab Shack: its item is not returned
+never_remove,cs_lobsterControlNode,,Crab Shack: its item is not returned; the lobster officer leaves with it
+never_remove,cs_kiteStorm,,Crab Shack: its item is not returned
+never_remove,cs_aiswitch,,Crab Shack: removing it reverts the hull spec
+never_remove,cs_sharedConcord,,Crab Shack: removing it reverts the hull spec and the shield
+never_remove,cs_onslaughtCoreConversion,,Crab Shack: its item is not returned
+never_smod,cs_superficialSurfacing,,Crab Shack: its s-mod effect only raises the hull's resale value (x1.35)
+never_smod,cs_lobsterControlNode,,Crab Shack: s-mod makes the ship Reckless and ignoring orders
+never_smod,cs_sharedConcord,,Crab Shack Choir: s-mod rewrites the shield and system
+never_use,cs_zapinator,,"Crab Shack Zapinator: 5% a shot removes the firing ship for 1-5 s, 15% launches it, 0.5% clones it; the on-hit table can replace the target ship or move player control"
+hull_regen,cs_planula,0.005;0,Crab Shack Planula: 15 hull points per hull or armor hit; 3 hits a second on a 9000 hull is 0.5% of hull a second (judgment); no cap
+combat,cs_pocketICBM,DMG_MIS:2.0:1,"Crab Shack Pocket I.C.B.M.: two extra missiles per fired missile (random point within 20 su, +-20 degrees) at damage x0.67 each: 3 x 0.67 = 2.0 per missile of ammo (judgment: all copies hit)"
+combat,cs_diamondBack,TAKEN_ARMOR:0.81:1,Crab Shack Diamond Back system: armor damage taken x(1 - 0.67 x level) for 8 s of a 24.2 s cycle: average level 0.335 x AI 0.85 = 0.285; 1 - 0.67 x 0.285 = 0.81
+combat,cs_diamondBack,TAKEN_HULL:0.81:1,"Crab Shack Diamond Back system: hull damage taken, as above"
+skip_slots,cs_longquest_lefthand,WS0001,Crab Shack: BUILT_IN slot whose weapon cs_skeletronprime sets on every ship creation (guard only)
+skip_slots,cs_longquest_righthand,WS0001,Crab Shack: as cs_longquest_lefthand
+skip_slots,cs_locus,WS0001,Crab Shack: BUILT_IN slot that cs_locushullmod rewrites on every ship creation (guard only)
+skip_slots,cs_wake,WS0001;WS0002;WS0003,"Crab Shack Wake: cs_fluxinverter makes shield damage taken -1 and dissipation 0; AO's model cannot score it, so its weapons stay as shipped"
+role,cs_gnasher,Brawler,"Crab Shack Gnasher: 1500 hull, 2000 armor, speed 110; its defense cs_ammofeed_rightclick is flagged as a phase cloak, which makes AO detect the Phase role"
+role,cs_fenrir,Battle carrier,"Crab Shack Fenrir: CARRIER and COMBAT hints, one large ballistic hardpoint and 3 bays of bound wings"
+role,cs_fenrir_perfected,Battle carrier,Crab Shack Fenrir (P): skin of cs_fenrir
+# 0.5.96: ED Shipyards, Luddic Enhancement, Luddic Enhancement IED (plans/2026-11-26-new-mods/out/ed-ludd.md)
+removed_by,edshipyard_safetyremoval,safetyoverrides,"ED Shipyards: Safety Removal (Leonberger, Saluki, Saluki-X, Chupacabra, Wolfhound Mk.II) removes Safety Overrides after ship creation"
+removed_by,edshipyard_ancient_phase_coils,adaptive_coils,ED Shipyards: Ancient Phase Coils (Saluki-X) removes Adaptive Phase Coils after creation unless it is an s-mod
+removed_by,edshipyard_module_range,targetingunit;advancedoptics;diableavionics_mount;dedicated_targeting_core,"ED Shipyards: Multicore Ballistic Integration (Beagle, Dobermann, Dobermann shield module) removes these after creation"
+removed_by,edshipyard_no_shields,frontshield,"ED Shipyards: Shield Incompatible (Wurgandal modules, Cargo Wagons, Riptide) removes Makeshift Shield Generator"
+removed_by,edshipyard_no_omni,adaptiveshields,ED Shipyards: Frontal Locked Shields (Wurgandal jaw modules) removes Shield Conversion - Omni
+removed_by,edshipyard_no_hangar,converted_hangar,"ED Shipyards: Hangar Incompatible (Wurgandal jaw and weapon modules, Retriever Shield) removes Converted Hangar"
+removed_by,edshipyard_field_shield,advancedshieldemitter;extendedshieldemitter;shield_shunt;frontshield;hardenedshieldemitter;frontemitter;adaptiveshields;stabilizedshieldemitter;ah_submatter_shield;ix_reactive_combat_shields;vice_adaptive_temporal_shell;vice_adaptive_flux_dissipator;khehardfluxshield;kheshieldhack;tahlan_forcedoverdrive;swp_shieldbypass,ED Shipyards: Field Shield Generator (Retriever) removes every non-built-in hullmod tagged shields or reqShields (list from the 11/26 dump) and swp_shieldbypass
+removed_by,luddenhance_shieldblock,frontshield;frontemitter;adaptiveshields;stabilizedshieldemitter;hardenedshieldemitter;advancedshieldemitter;extendedshieldemitter,Luddic Enhancement: Damper Defense System (Lector) removes these after ship creation
+removed_by,luddenhance_bombardment,efficiency_overhaul,Luddic Enhancement: Bombardment of Divine Wrath (Prometheus Mk. IV) removes Efficiency Overhaul after ship creation
+never_add,edshipyard_fleet_repair_optimizations_bonus,,ED Shipyards: permanent mod that FleetRepairOptimizationsBonusScript adds to every player fleet member while a Retriever is in the fleet
+never_remove,edshipyard_fleet_repair_optimizations_bonus,,ED Shipyards: the script re-adds it every 10 s while a Retriever is in the fleet
+never_add,LE_IncompatibleHullmodWarning,,Luddic Enhancement: hidden helper shown for 3 frames after a blocked hullmod is removed
+never_remove,LE_IncompatibleHullmodWarning,,Luddic Enhancement: the shieldblock and bombardment scripts remove it themselves after 3 frames
+wing_mult,luddenhance_debuff,0.88,"Luddic Enhancement: Converted Cargo Bay (Phaeton (LP)) gives its fighters Defective Manufactory: speed x0.75, damage taken +25% (value of defective_manufactory)"
+role,edshipyard_chin,Civilian,"ED Shipyards: Chin is a civilian freighter (hints CIVILIAN, FREIGHTER, 1 small composite slot); the designation Phase Freighter makes JAORole.detect return Phase before its civilian check"
+role,edshipyard_collie,Support,"ED Shipyards: Collie (PD-only weapons through Point Defense Specialization, 3 small hybrid slots, 1 drone bay, spatial swap rescue system); numbers give Skirmisher (judgment)"
+role,edshipyard_retriever,Support,"ED Shipyards: Retriever (Nurse Ship: PD-only weapons, 6 built-in Maltese support drones, rescue drone modules, repair bonus); numbers give Battle carrier (judgment)"
+role,edshipyard_dobermann_shieldmodule,Line,"ED Shipyards: Dobermann and Beagle shield module (speed 0, one medium ballistic turret, front shield 30 degrees); numbers give Skirmisher (judgment)"
+role,sebastian,Battle carrier,Luddic Enhancement: Sebastian (Heavy Combat Carrier) has 2 bays and 12 large and medium ballistic slots with 16000 hull points; the designation gives Carrier (judgment)
+role,edshipyard_riptide,Brawler,ED Shipyards: Riptide has 16 built-in HE beams with 100 su range (ShipBreakerBeamEffect) and no shield; numbers give Anchor (judgment)
+# 0.5.96: JaydeePiracy, JaydeeProficiencies, Gladiator Society, Knights Hospitallar, Heggie Tales (plans/2026-11-26-new-mods/out/jdp.md)
+never_use,jdp_grapple,,"Hookshot: 0 OP tethered large weapon (137.5 dps, 175 flux a second); GrappleAdvanceble adds velocity to the firing ship and the target toward each other while the line is at 95% of range or more; restricted, no_drop; judgment: AO would use a free large slot filler that pulls its own ship out of formation"
+role,jdp_meridian,Line,"Meridian: 2 bays hold 2 built-in terminator_wing, so no bay is free; detection reads 2 bays from ship_data.csv (Carrier or Battle carrier); 6 small energy, 1 large energy and 1 large missile slot and speed 75 suit a line cruiser (judgment)"
+role,jdp_thunderer,Line,Thunderer: 2 bays hold 2 built-in jdp_pup_wing; detection reads 2 bays (Battle carrier); all its slots are weapons and it carries a built-in jdp_nariman (10000 range artillery missile); speed 35 (judgment)
+role,jdp_lupara,Missile boat,"Lupara: the one bay holds the built-in mining_drone_wing; detection reads 1 bay (Battle carrier) before the missile share; 2 large and 1 small missile slot, Dumb-fire Conversion (judgment)"
+role,jdp_atlas,Line,"Atlas Mk.II-LP: 6 built-in jdp_cargo launchers (range 12000, 3000 HE warhead) and no CIVILIAN hint; the numbers make it an Anchor; as rule atlas2 (artillery from behind the line; judgment)"
+combat,jdp_externalMissileRacks,MIS_RELOAD_BASE:-0.17:1,Plunder: ammo +100% is read; when the cargo pods module dies the missile ammo is halved and every missile weapon is disabled; 35% chance the module dies in a fight (judgment) x 0.5 = ammo x0.83
+combat,jdp_scwarzsechHide,ARMOR_REGEN:0.011:1,"Chuuni: repairs 20 armor a second against 900 armor rating = 0.022 of the armor a second, paid with the same amount of hard flux, so x0.5 (judgment: hard flux is present about half the time); capped at 5 x armor rating repaired (4500, beyond a 90 s fight)"
+purge_lpc,jdp_relay,,"JaydeePiracy: jdp_RefitApplicator.run (the refit applicator skill of JaydeeProficiencies, applied to the player's ships) calls consumeItem on a jdp_relay fighter chip every refit update, so the chip is deleted from cargo; the wing is 0 OP, no_drop, no_sell, restricted and flies only from the helper's built-in bay"
+# 0.5.96: Rumours of Neoteric Designs, Khe's Tech (plans/2026-11-26-new-mods/out/neo-khe.md)
+never_add,ordnance_amendment7s,,Neoteric: cargo x0.1 and removes Expanded Cargo Holds; its missile ammo bonus is read from a map filled after ship creation
+never_add,khehardfluxshield,,Khe: EMP damage taken becomes 1 + hard flux (modifyFlat on a multiplier); no hard flux dissipation
+never_add,khephasestasis*,,"Khe: normalizes phase time to 1.0x, which AO does not count; Model B shows as upkeep x0.5"
+never_add,khephasehack,,"Khe: dissipation 0, +300 OP per weapon, cloak forced on"
+never_add,kheluddictorch,,Khe: the ship loses 1/120 of its hull a second
+never_add,kheluddicsmite,,Khe: the Torch plus no hull repair
+never_add,khereplexer*,,Khe: weapon OP costs drop to 0 and the flux penalty is added after creation
+never_add,kheartillerymodule*,,Khe: +20 or +10 OP per large weapon and +1000 range added after creation
+never_add,khemeteordrivesubsystem,,"Khe burn drive subsystem: forced overload, flameout and weapons off after each drive use"
+never_add,khephasedrivesubsystem,,"Khe burn drive subsystem: forced overload, flameout and weapons off after each drive use"
+never_add,kheglaredrivesubsystem,,"Khe burn drive subsystem: forced overload, flameout and weapons off after each drive use"
+never_add,khelightwavedrivesubsystem,,"Khe burn drive subsystem: forced overload, flameout and weapons off after each drive use"
+never_add,no_salvage7s,,Neoteric: adds the perma mod Explodes7s when the variant has d-mods
+never_add,Explodes7s,,Neoteric: 150000 damage to the ship every frame
+never_remove,khereplexer*,,Khe: removal can leave the ship over its OP; the game blocks it in the refit screen
+never_remove,kheartillerymodule*,,Khe: same
+never_remove,aswitcher_elipsion,,"Neoteric (hidden, guard only): Elipsion mode switcher; its absence makes every mode hullmod delete the mode state"
+never_remove,aswitcher_maya,,"Neoteric (hidden, guard only): Mayawati mode switcher; same"
+never_remove,defensemode7s,,"Neoteric (hidden, guard only): Elipsion mode"
+never_remove,attackmode7s,,"Neoteric (hidden, guard only): Elipsion mode"
+never_remove,chasemode7s,,"Neoteric (hidden, guard only): Elipsion mode"
+never_remove,dummydefense7s,,"Neoteric (hidden, guard only): Elipsion mode state"
+never_remove,dummyattack7s,,"Neoteric (hidden, guard only): Elipsion mode state"
+never_remove,dummychase7s,,"Neoteric (hidden, guard only): Elipsion mode state"
+never_remove,breakpoint7s,,"Neoteric (hidden, guard only): Mayawati mode"
+never_remove,frame7s,,"Neoteric (hidden, guard only): Mayawati mode"
+never_remove,dummysynergy7s,,"Neoteric (hidden, guard only): Mayawati mode state"
+never_remove,dummyframe7s,,"Neoteric (hidden, guard only): Mayawati mode state"
+never_remove,dummyanchor7s,,"Neoteric (hidden, guard only): Mayawati phase anchor AI"
+never_remove,resonance7s,,"Neoteric (hidden, guard only): Mayawati clone resonance"
+never_remove,Cheat_Maya7s,,"Neoteric (hidden, guard only): Mayawati cheat core; removes itself when the variant has d-mods"
+never_remove,cheat_tempestas7s,,"Neoteric (hidden, guard only): Tempestas cheat core; removes itself when the variant has d-mods"
+never_smod,kheslowtimereactor,,Khe: the s-mod sets ship time x1/3 and damage taken x1/3; a combat row has no s-mod condition
+removed_by,aswitcher_elipsion,safetyoverrides,Neoteric: the Elipsion modes remove Safety Overrides (MagicIncompatibleHullmods)
+removed_by,ballistic_support7s,ballistic_rangefinder,"Neoteric: Ballistic Adapters (Strider7s, Glider7s) remove Ballistic Rangefinder"
+wing_mult,necro_scavenger7s,1.2,Neoteric: extra craft up to 2x-3x wing size for 35 s once a destroyer or larger hulk is on the map (judgment)
+wing_mult,kheinvertedomegafractalpilot,1.10,Khe: fighters copy the core captain's skills; DP +20% (judgment)
+wing_mult,khefighterdefenseextender,1.12,Khe: unshielded fighters take x2/3 damage (judgment; shielded and phase wings gain less)
+role,Hercules7s,Missile boat,Neoteric: 4 large and 2 medium missile hardpoints and a x2 missile rate system; JAORole gives Battle carrier by bays (judgment)
+role,elipsion7s,Line,"Neoteric: the three modes change the shared hull spec's system, so the detected role flips between Brawler and Flanker (judgment)"
+role,khe_catslaught,Anchor,Khe: designation 'Hybrid Phase-Battleship' makes JAORole.detect return Phase; it has no cloak
+role,khe_facet,Brawler,"Khe: designation 'Phase-Warped Facet' returns Phase; no cloak, shield removed, speed 60 with Phase-Quantum Plating (judgment)"
+role,khe_vanguard,Brawler,Khe: speed 135 halved to 67 by Phase-Quantum Plating; the burn drive is a ram (judgment)
+combat,kheventhack,DISS:2:1,Khe Passive Venting Hack: dissipation x2 x non-zero vent mods set in advanceInCombat
+combat,kheslowtimereactor,TIME:0.667:1,"Khe Buttercup: ship time x2/3 (dissipation, speed and rate of fire)"
+combat,kheslowtimereactor,TAKEN_ALL:0.667:1,"Khe Buttercup: hull, armor and shield damage taken x the time mult (2/3)"
+combat,khemeteordrivesubsystem,NOFIRE:0.17:0.5,Khe Meteor: weapons off for the 4 s drive plus about 4 s of forced overload in a 47 s cycle (cooldown x2); AI uses it about half the cycles (judgment)
+combat,khemeteordrivesubsystem,TAKEN_ALL:0:0.06,Khe Meteor: invulnerable for 6 s of 47 (IN and ACTIVE) x 0.5 use
+combat,khephasedrivesubsystem,NOFIRE:0.17:0.5,Khe Phasediver: same cycle as Meteor
+combat,khephasedrivesubsystem,TAKEN_ALL:0:0.06,Khe Phasediver: phased and invulnerable for 6 s of 47 x 0.5 use
+combat,kheglaredrivesubsystem,NOFIRE:0.17:0.5,Khe Red-Glare: same cycle; ammo restore of 10% of max ammo a tick not counted
+combat,khelightwavedrivesubsystem,NOFIRE:0.17:0.5,Khe Lightwave: same cycle; the x3 speed for 4 s is not counted
+combat,cheat_tempestas7s,FLUXSHOT_ENE:0.5:1,Neoteric Tempestas core: energy weapon flux cost x0.5 each frame
+combat,cheat_tempestas7s,TIME:1.25:1,Neoteric Tempestas core: ship time x1.25
+combat,cheat_tempestas7s,MIS_RELOAD_BASE:24:1,Neoteric Tempestas core: missile ammo x25
+# 0.5.96: Project Arondight, Unthemed Weapons Collection (plans/2026-11-26-new-mods/out/aro-uwc.md)
+removed_by,arondight_lattice,additional_crew_quarters;expanded_deck_crew,Arondight: Morphogenic Lattice removes both from the variant after ship creation (MorphogenicLattice BLOCKED_CREW_MODS)
+never_add,arondight_*,,"Arondight form frames, lattice and boss hullmods: hidden, built in, canBeAddedOrRemovedNow is false"
+never_remove,arondight_*,,Arondight: WeaveApplier.stripSignatureModResidue strips these from the variant and the hull spec carries them; leave them alone
+never_add,wpnxt_cohererOverride,,Unthemed Weapons: hidden; its after-creation hook calls ship.getSystem().getId() with no null check
+skip_slots,arondight_base,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_durendal,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_hauteclere,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_joyeuse,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_longinus,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_gaebolg,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_rhongomyniad,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_curtana,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_clarent,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+skip_slots,arondight_fragarach,WS_ARM_L;WS_SH_L;WS_SH_R,"Arondight: the arm and shoulder mounts are the player's choice; the mod turns a slot into a turret mount for animated weapons (SpecMutators.unhideIfUnsafe), which makes it look fillable, and returns weapons to cargo when its spec clone is broken"
+role,arondight_durendal,Brawler,"Ward hull: 2400-4000 hull, 400-650 armor, speed 95-145, the ward blocks all damage while up; JAOShip.phaseCloak counts it as a phase ship (defense system is a phase-cloak type) but it never phases"
+role,arondight_hauteclere,Brawler,"Ward hull: 2400-4000 hull, 400-650 armor, speed 95-145, the ward blocks all damage while up; JAOShip.phaseCloak counts it as a phase ship (defense system is a phase-cloak type) but it never phases"
+role,arondight_joyeuse,Brawler,"Ward hull: 2400-4000 hull, 400-650 armor, speed 95-145, the ward blocks all damage while up; JAOShip.phaseCloak counts it as a phase ship (defense system is a phase-cloak type) but it never phases"
+role,arondight_longinus,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"
+role,arondight_gaebolg,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"
+role,arondight_rhongomyniad,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"

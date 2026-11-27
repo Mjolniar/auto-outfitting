@@ -1,5 +1,24 @@
 # Patch notes
 
+## 0.5.96 - 2026-11-26
+
+- Domain Phase Lab: Added scripted effects for 30 weapons, 23 hullmod rows, 7 ship system rows and 7 rules.
+- Domain Phase Lab: The large slots on Euphonium, Flute and Invictus (DPL) are not filled or cleared. Defensive Design cuts all damage to 10% while a large non-PD weapon is fitted.
+- Domain Phase Lab: Song of Chaos is never picked. It damages its own ship.
+- Nightcross Armory: Added scripted effects for 50 weapons, 11 hullmod rows, 14 ship system rows and 45 rules (hullmods its hulls delete, hull-bound weapons and wings, roles).
+- Crab Shack: Added 3 weapon rows, 38 hullmod rows, 4 ship system rows, 1 hullmod damage row and 47 rules.
+- Crab Shack: Hullmods that rewrite the hull, take a special item or cannot be removed are never added or removed.
+- Crab Shack: Gnasher and both Fenrirs get fixed roles. Their right-click systems read as phase cloaks.
+- ED Shipyards, Luddic Enhancement, Luddic Enhancement IED: Added scripted effects for 8 weapons, 27 hullmod rows, 8 ship system rows, 2 hullmod damage rows (Grand Salvo) and 20 rules.
+- ED Shipyards: The Retriever's fleet repair bonus hullmod is never added or removed.
+- JaydeePiracy, JaydeeProficiencies, Gladiator Society, Knights Hospitallar, Heggie Tales: Added scripted effects for 6 weapons, 34 hullmod rows, 14 ship system rows and 8 rules.
+- JaydeePiracy: The Hookshot is never picked. It tethers its own ship.
+- JaydeePiracy: Relay drone chips that the refit applicator skill deletes are cleared from cargo and storage.
+- Rumours of Neoteric Designs, Khe's Tech: Added scripted effects for 3 weapons, 42 hullmod rows, 18 ship system rows and 55 rules.
+- Khe's Tech: Hullmods that change weapon OP costs, add OP per weapon, drain hull or delete d-mods are never added or removed.
+- Project Arondight, Unthemed Weapons Collection: Added scripted effects for 15 weapons, 12 hullmod rows, 5 ship system rows and 20 rules.
+- Project Arondight: Its hullmods are never added or removed. The weapon slots its form code fills are not filled or cleared.
+
 ## 0.5.95 - 2026-11-25
 
 - Autofit: Confirm uses the fit the preview made when nothing changed in between. The ship is fitted once.
