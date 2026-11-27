@@ -116,7 +116,7 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             float pass = 0f;
             int planned = 0;
             for (com.fs.starfarer.api.fleet.FleetMemberAPI m : ships) {
-                if (JAOLocks.locked(m) || m.getVariant() == null) continue;
+                if (JAOLocks.locked(m) || JAOOptimizer.noAutofit(m) || m.getVariant() == null) continue;
                 planned++;
                 pass += JAOPlanTimes.shipWork(m);
             }
@@ -351,7 +351,12 @@ final class JAOFleetPanel extends JAOOverlayPanel {
             if (stay > 0) notes.append(stay).append(stay == 1 ? " ship couldn't be planned and stays as it is" : " ships couldn't be planned and stay as they are").append(" (see starsector.log). ");
             if (earlier > 0) notes.append(earlier).append(earlier == 1 ? " ship keeps" : " ships keep").append(" the plan of an earlier pass (see starsector.log). ");
         }
-        for (JAOFleetPlan.ShipPlan s : job.fleet.ships) if (s.keep) notes.append(s.name).append(" stays as it is, since it's the ship on the refit screen and it still has its stock loadout (show another ship first, or change something on it by hand once). ");
+        for (JAOFleetPlan.ShipPlan s : job.fleet.ships) {
+            if (!s.keep) continue;
+            // 0.5.97: the no_autofit tag
+            if (s.noAutofit) notes.append(s.name).append(" stays as it is, since its mod marks the hull so autofit leaves it alone (the Autofit button still works on it). ");
+            else notes.append(s.name).append(" stays as it is, since it's the ship on the refit screen and it still has its stock loadout (show another ship first, or change something on it by hand once). ");
+        }
         if (job.crShips > 0) notes.append("Refitting in space costs CR, same as on the refit screen, so ").append(job.crShips)
                 .append(job.crShips == 1 ? " ship loses " : " ships lose ").append("up to ").append(Math.round(job.crMax * 100f))
                 .append("% (shown per ship). Refits at a market don't cost CR. ");

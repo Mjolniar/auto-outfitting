@@ -1,5 +1,15 @@
 # Patch notes
 
+## 0.5.97 - 2026-11-26
+
+- Optimize fleet: Ships whose hull or loadout has the game's no_autofit tag stay as they are and keep their gear (Project Arondight, ED Shipyards and Khe's Tech hulls, the Omega hulls). The Autofit button still works on them.
+- Phase ships: Arondight's Durendal, Hauteclere and Joyeuse and Crab Shack ships with right-click systems are no longer read as phase ships.
+- Phase ships: A hull counts as phase or not as it was when the game loaded. Rumours of Neoteric Designs' mode hullmods change a hull's defense during play.
+- D-mod repairs: Crab Shack super d-mods are never repaired.
+- Nightcross Armory: Ships with Stardust Nebula or the Stargazer hullmod get their Stardust swarm counted (15/30/45/60 motes by hull size). The six Stardust weapons are valued on them.
+- Domain Phase Lab: Phase Rupture is rated at its 20 OP price under the drone factories (was 999).
+- Domain Phase Lab: Euphonium, Flute and Invictus (DPL) get only PD weapons in large mounts. 0.5.96 left those mounts as they were.
+
 ## 0.5.96 - 2026-11-26
 
 - Domain Phase Lab: Added scripted effects for 30 weapons, 23 hullmod rows, 7 ship system rows and 7 rules.

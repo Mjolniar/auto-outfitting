@@ -122,6 +122,28 @@ final class JAOShip implements JAOSearch.World {
      */
     static boolean phaseCloak(ShipHullSpecAPI h) {
         if (h == null) return false;
+        // 0.5.97: the value at application load for the same spec object. Rumours of Neoteric Designs' mode hullmods
+        // rewrite the shared spec's defense and PHASE hint whenever a ship is made; a hullmod's spec clone is read live
+        Object[] at = PHASE_AT_LOAD.get(h.getHullId());
+        if (at != null && at[0] == h) return (Boolean) at[1];
+        return phaseCloakNow(h);
+    }
+
+    /** Hull id -> {spec object, phaseCloak} as at application load (0.5.97). */
+    private static final Map<String, Object[]> PHASE_AT_LOAD = new java.util.HashMap<>();
+
+    /** 0.5.97: phaseCloak of every hull, read once at application load before any ship is made. */
+    static void cachePhase() {
+        PHASE_AT_LOAD.clear();
+        for (ShipHullSpecAPI h : Global.getSettings().getAllShipHullSpecs()) {
+            try { PHASE_AT_LOAD.put(h.getHullId(), new Object[]{h, phaseCloakNow(h)}); } catch (Throwable ignored) { }
+        }
+    }
+
+    static boolean phaseCloakNow(ShipHullSpecAPI h) {
+        // 0.5.97: a defense flagged as a phase cloak that never phases (Arondight wards, Crab Shack right-click systems;
+        // jao_rules not_phase_cloak by system id)
+        if (h.getShieldType() == ShieldType.PHASE && h.getShipDefenseId() != null && JAORatings.ruleMatches("not_phase_cloak", h.getShipDefenseId())) return false;
         if (h.isPhase()) return true;
         if (h.getShieldType() != ShieldType.PHASE) return false;
         try {
@@ -313,6 +335,8 @@ final class JAOShip implements JAOSearch.World {
         // Threat fragment swarm (0.5.38): the fragments its weapons spend, by hull size, with Secondary Fabricator and
         // Fragment Coordinator (dynamic stats, read the way FragmentSwarmHullmod reads them)
         if (work.hasHullMod("fragment_swarm")) fragmentSwarm(st, hull.getHullSize(), s);
+        // 0.5.97: Nightcross Stardust (its hullmods remove the Fragment Swarm, so the two never share a ship)
+        else if (work.hasHullMod("na_stargazerhullmod") || work.hasHullMod("na_stargazerstars")) stardustSwarm(st, s);
         // hullmods that deal damage by themselves (0.5.40): weapons without a mount in the model
         s.hullmodWeapons = hullmodWeapons();
         s.hull = st.getHullBonus().computeEffective(hull.getHitpoints());
@@ -588,6 +612,25 @@ final class JAOShip implements JAOSearch.World {
         }
         return out == null ? java.util.Collections.emptyList() : out;
     }
+
+    /**
+     * 0.5.97: Nightcross Armory's Stardust swarm (na_stargazerhullmod, na_stargazerstars; NA_StargazerStars): 15/30/45/60
+     * motes by hull size x the dynamic stat na_stardust_respawn_max, regrowing 0.5/1/1.5/3 a second x
+     * na_stardust_respawn_rate. Its six Stardust weapons share it through the fragmentsPerShot column, as fragment
+     * weapons share the Threat swarm.
+     */
+    static void stardustSwarm(MutableShipStatsAPI st, JAOModel.Ship s) {
+        int i = Math.max(0, Math.min(3, s.size));
+        float max = 1f, rate = 1f;
+        try {
+            max = st.getDynamic().getValue("na_stardust_respawn_max");
+            rate = st.getDynamic().getValue("na_stardust_respawn_rate");
+        } catch (Throwable ignored) { }
+        s.fragSize = STARDUST_SIZE[i] * max;
+        s.fragRegen = STARDUST_REGEN[i] * rate;
+    }
+
+    static final float[] STARDUST_SIZE = {15f, 30f, 45f, 60f}, STARDUST_REGEN = {0.5f, 1f, 1.5f, 3f};
 
     static void fragmentSwarm(MutableShipStatsAPI st, ShipAPI.HullSize size, JAOModel.Ship s) {
         try {

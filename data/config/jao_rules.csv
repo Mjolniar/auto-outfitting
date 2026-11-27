@@ -290,6 +290,7 @@ role,tania_black_hawk_module_*,Support,Black Hawk armor plates: as above (judgme
 role,tania_merite_left,Support,Merite left armor plate: as above (judgment)
 role,tania_merite_right,Support,Merite right armor plate: as above (judgment)
 # 0.5.66: smod_lost (built-in hullmod -> s-mod@s-mods: its script deletes that s-mod once those are s-mods; never built), smod_set (built-in -> s-mods of a set; kept by s-mod changes), warship (hull id or pattern: fitted as a warship despite a civilian hint)
+# 0.5.97: not_phase_cloak (defense system id or pattern flagged isPhaseCloak that never phases: its hulls are not phase ships), never_repair (d-mod id or pattern d-mod repairs never remove), wing_op (wing id or pattern -> OP its rating uses when its listed cost is a gate a hullmod lowers), pd_only_size (hullmod id or pattern -> weapon sizes split by ;: with it on, those sizes are fitted only with the PD hint)
 smod_lost,tania_ancient_weapon_sys,pointdefenseai@missleracks;expanded_cargo_holds,"Ancient Frame: with Expanded Missile Racks and Expanded Cargo Holds as s-mods, an Integrated Point Defense AI s-mod is swapped for Cargo Holds (story point lost)"
 smod_lost,tania_ancient_weapon_sys,fluxcoil@hiressensors;magazines;turretgyros,"Ancient Frame: with the Solaris set as s-mods, a Flux Coil Adjunct s-mod is swapped for Expanded Magazines (story point lost)"
 smod_set,tania_ancient_weapon_sys,expanded_cargo_holds;missleracks,Ancient Frame: Stealth Mines set
@@ -304,9 +305,6 @@ combat,dpl_weapon_overcharge,DMG_BEM:1.1:1,"Weapon Overcharge: all damage the sh
 beams_hard,dpl_plasmacoupling,,Plasma Coupling: dpl_PlasmaCouplingDamageDealtMod sets forceHardFlux on every beam of the ship
 weapon_range,dpl_focus_lens,dpl_plasma_lance=40%;dpl_graviton_lance=40%;dpl_gamma_blaster=40%;dpl_hdpb=40%;dpl_lightning_lance=40%;dpl_dre=40%;dpl_jingle=40%;dpl_doom_ray=40%;dpl_doom_pd=40%;dpl_chants=40%;dpl_weak_spot=40%;taclaser=40%;hil=40%;phasebeam=40%;pdlaser=40%;lrpdlaser=40%;irpulse=40%;tachyonlance=40%,"EM-Focus Lens (Baritone): beam base range x1.4 (EnergyBoltCohererRangeModifier, RANGE_BONUS 40); listed are the beam ids of Domain Phase Lab and the vanilla beams known to this table; other mods' beams are not listed"
 never_use,dpl_song_of_chaos,,"Song of Chaos: after 20 s of continuous beam the ship hits itself for 2.5% of its own max hull every 1.0 s, falling 0.08 per second to 0.1 s (dpl_song_of_chaosEffect self_interval); 150 dps listed"
-skip_slots,dpl_euphonium,WS0001;WS0002;WS0007;WS0008,"Defensive Design (dpl_pd_targeting_core, built in): any large non-PD weapon makes all damage the ship deals x0.1; these are the 4 large energy slots; stopgap until AO can limit those slots to PD weapons (dpl_phase_pd has the PD hint)"
-skip_slots,dpl_flute,WS0003,Defensive Design (built in): the one large energy slot; as above
-skip_slots,dpl_invictus_alt,WS0001;WS0002;WS0005;WS0006;WS0007;WS0008;WS0009;WS0010,Defensive Design (built in): the 8 large energy slots; as above
 # 0.5.96: Nightcross Armory (plans/2026-11-26-new-mods/out/nc.md)
 removed_by,na_tidalgrid,adaptive_coils,"Nightcross: Tidal Grid (Ister, Xanthe, Macula proto, Mare proto, Sop proto) removes Adaptive Phase Coils after ship creation (MagicIncompatibleHullmods.removeHullmodWithWarning)"
 removed_by,na_hardlightmatrix,adaptiveshields;extendedshieldemitter,Nightcross: Hardlight Matrix (Losulci) removes Omni Shield Conversion and Extended Shields after ship creation
@@ -508,3 +506,33 @@ role,arondight_joyeuse,Brawler,"Ward hull: 2400-4000 hull, 400-650 armor, speed 
 role,arondight_longinus,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"
 role,arondight_gaebolg,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"
 role,arondight_rhongomyniad,Line,"Spotter hull: speed 60-120, frame sets base range x2 to x3, Spotter Lattice marks a target within 4000"
+# 0.5.97: code rules for the 0.5.96 mods (plans/2026-11-26-new-mods/report.md)
+not_phase_cloak,arondight_ward,,Arondight ward: PHASE_CLOAK system on Durendal, Hauteclere and Joyeuse; its stats script never phases the ship
+not_phase_cloak,arondight_ward_flash,,Arondight ward (flash): PHASE_CLOAK system on Durendal, Hauteclere and Joyeuse; its stats script never phases the ship
+not_phase_cloak,arondight_ward_bulwark,,Arondight ward (bulwark): PHASE_CLOAK system on Durendal, Hauteclere and Joyeuse; its stats script never phases the ship
+not_phase_cloak,cs_notFlareLauncher,,Crab Shack Flare Launcher: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_empressDash,,Crab Shack Glittering Glide: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_diamondBack,,Crab Shack Diamond Back: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_gnasherfeed,,Crab Shack Burst Feeder: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_houndSlaughtDispersion,,Crab Shack Dispersion: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_guardianarms,,Crab Shack Detach: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_wingbeat,,Crab Shack Wingbeat: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_withdraw,,Crab Shack Withdraw: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_flareshield,,Crab Shack Flare Formation: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_ammofeed_rightclick,,Crab Shack Accelerated Ammo Feeder: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+not_phase_cloak,cs_fullerAuto,,Crab Shack Fuller Auto: a right-click system flagged isPhaseCloak in ship_systems.csv; no phasing
+never_repair,cs_fragmentingPlating,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_startYourEngines,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_kindaSmartShells,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_fluxLooping,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_missileBlend,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_burstingCoils,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_outoftuneCoils,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_driftingCoils,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_rampantNanoforge,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_faultiffcodes,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_exunstableshields,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_hotwireBypass,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+never_repair,cs_glitchedSystemCore,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
+wing_op,dpl_anomaly_fighter,20,Phase Rupture: 99999 OP listed; 20 OP under Drone Assembly Plant or Rupture Drone Factory (FighterOPCostModifier on the tag dpl_anomaly_drone)
+pd_only_size,dpl_pd_targeting_core,LARGE,Defensive Design (Euphonium, Flute, Invictus (DPL)): any large non-decorative weapon without the PD hint makes all damage the ship deals x0.1 (dpl_PDTargetingCore.DAMAGE_PENALTY)

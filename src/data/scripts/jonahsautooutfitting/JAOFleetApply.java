@@ -170,7 +170,7 @@ final class JAOFleetApply {
                 try {
                     com.fs.starfarer.api.campaign.FleetDataAPI sd = storage.getMothballedShips();
                     if (sd != null) for (FleetMemberAPI m : sd.getMembersListCopy()) {
-                        if (m == null || m.isFighterWing() || m.getVariant() == null || JAOLocks.locked(m)) continue;
+                        if (m == null || m.isFighterWing() || m.getVariant() == null || JAOLocks.locked(m) || JAOOptimizer.noAutofit(m)) continue;
                         Map<String, Integer> sw = new TreeMap<>(), sf = new TreeMap<>();
                         try {
                             JAOFleetPlan.addMountedWithModules(m.getVariant(), sw, sf);
@@ -200,7 +200,7 @@ final class JAOFleetApply {
             try {
                 Map<String, Integer> kw = new TreeMap<>(), kf = new TreeMap<>();
                 for (FleetMemberAPI m : planned) {
-                    boolean keep = JAOLocks.locked(m);
+                    boolean keep = JAOLocks.locked(m) || JAOOptimizer.noAutofit(m);
                     if (!keep) try { keep = shown(m) && live(m, false).isStockVariant(); } catch (Throwable ignored) { }
                     if (keep) JAOFleetPlan.addMountedWithModules(live(m, false), kw, kf);
                 }

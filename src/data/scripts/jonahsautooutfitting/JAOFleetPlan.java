@@ -63,6 +63,8 @@ final class JAOFleetPlan {
         boolean locked;
         /** Kept as it is like a locked ship, not by the player's lock (0.5.60: the refit screen's ship still on its stock variant). */
         boolean keep;
+        /** 0.5.97: kept because the hull or variant has the game's no_autofit tag (JAOOptimizer.noAutofit). */
+        boolean noAutofit;
         /** 0.5.57: credits the plan spends at shops for this ship, and on s-mod changes. */
         double buyCost, changeCost;
         /** 0.5.57: s-mods the plan takes off and builds in with credits (the game's Change s-mods), and the lines saying so. */
@@ -202,6 +204,8 @@ final class JAOFleetPlan {
             s.civilian = JAOSettings.civilianLogistics && JAOOptimizer.civilian(m.getHullSpec());
             s.locked = JAOLocks.locked(m);
             if (s.locked) locked++;
+            // 0.5.97: hulls the game's fleet autofit leaves alone stay as they are
+            else if (JAOOptimizer.noAutofit(m)) { s.noAutofit = true; s.keep = true; }
             ships.add(s);
         }
         // warships first, then civilians (0.5.34): the story points one Optimize fleet may spend go to warships before

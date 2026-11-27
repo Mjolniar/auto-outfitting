@@ -418,6 +418,9 @@ public class JAORatings {
         // a 1000-OP gate (Seeker's plague LPCs cost 1008-1012 and their hulls take 1000 off): rated at the OP past it,
         // or the wing's value would dwarf everything on the ship
         if (r.op >= 1000f) r.op = Math.max(1f, r.op % 1000f);
+        // 0.5.97: a gate a hullmod lowers to a set price (jao_rules wing_op)
+        float gate = JAOCompat.wingOp(spec.getId(), rules());
+        if (gate > 0f) { r.op = gate; r.free = false; }
         r.dmg = parts.dmg;
         r.hit = parts.hit();
         r.pdShare = parts.pdShare();

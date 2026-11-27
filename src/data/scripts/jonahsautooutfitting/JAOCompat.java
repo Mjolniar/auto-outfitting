@@ -114,6 +114,37 @@ final class JAOCompat {
         return false;
     }
 
+    /**
+     * 0.5.97: jao_rules pd_only_size (hullmod id or pattern -> weapon sizes split by ;). With such a hullmod on the ship,
+     * weapons of those sizes are fitted only with the PD hint (Domain Phase Lab Defensive Design: any large weapon
+     * without it makes all the ship's damage x0.1).
+     */
+    static Set<String> pdOnlySizes(java.util.Collection<String> hullmods, List<String[]> rules) {
+        Set<String> out = new java.util.HashSet<>();
+        if (hullmods == null || rules == null) return out;
+        for (String[] r : rules) {
+            if (!r[0].equals("pd_only_size")) continue;
+            boolean on = false;
+            for (String h : hullmods) if (JAORatings.glob(r[1], h)) { on = true; break; }
+            if (!on) continue;
+            for (String s : r[2].split(";")) if (!s.trim().isEmpty()) out.add(s.trim().toUpperCase(java.util.Locale.ROOT));
+        }
+        return out;
+    }
+
+    /**
+     * 0.5.97: jao_rules wing_op (wing id or pattern -> OP): the OP a wing is rated at when its listed cost is a gate a
+     * hullmod lowers (Domain Phase Lab Phase Rupture: 99999 listed, 20 under its drone factories). -1 when none.
+     */
+    static float wingOp(String wingId, List<String[]> rules) {
+        if (wingId == null || rules == null) return -1f;
+        for (String[] r : rules) {
+            if (!r[0].equals("wing_op") || !JAORatings.glob(r[1], wingId)) continue;
+            try { return Float.parseFloat(r[2]); } catch (NumberFormatException ignored) { }
+        }
+        return -1f;
+    }
+
     /** A wing with no crew (minimum crew 0 on its fighter hull). */
     static boolean uncrewed(FighterWingSpecAPI spec) {
         try { return spec != null && spec.getVariant() != null && spec.getVariant().getHullSpec().getMinCrew() <= 0f; }

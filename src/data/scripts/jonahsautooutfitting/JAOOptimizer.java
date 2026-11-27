@@ -962,7 +962,22 @@ class JAOOptimizer {
 
     /** A d-mod a restoration removes: tagged dmod and not built into the hull. */
     static boolean dmodRemovable(String id, boolean dmodTag, java.util.Collection<String> hullBuiltIns) {
-        return dmodTag && (hullBuiltIns == null || !hullBuiltIns.contains(id));
+        // 0.5.97: d-mods that help the ship (Crab Shack super d-mods) are never repaired (jao_rules never_repair)
+        return dmodTag && (hullBuiltIns == null || !hullBuiltIns.contains(id)) && !JAORatings.ruleMatches("never_repair", id);
+    }
+
+    /**
+     * 0.5.97: the hull or the variant carries the game's no_autofit tag (Project Arondight, ED Shipyards, Khe's Tech,
+     * the Omega hulls). The game's fleet autofit leaves these alone, and Optimize fleet does too; the Autofit button
+     * still works on them.
+     */
+    static boolean noAutofit(FleetMemberAPI m) {
+        try {
+            String t = com.fs.starfarer.api.impl.campaign.ids.Tags.TAG_NO_AUTOFIT;
+            return m != null && ((m.getHullSpec() != null && m.getHullSpec().hasTag(t)) || (m.getVariant() != null && m.getVariant().hasTag(t)));
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** A scratch world for the ship as a restoration would leave it (the removable d-mods taken off a copy). */
@@ -1028,6 +1043,8 @@ class JAOOptimizer {
     private List<JAOSearch.Slot> buildSlots(ShipHullSpecAPI hull, Set<String> skip, int bays, int builtInWings,
                                             List<AvailableWeapon> weapons, List<AvailableFighter> fighters) {
         boolean fragments = current.hasHullMod("fragment_swarm");
+        // 0.5.97: weapon sizes that need the PD hint while a hullmod is on (jao_rules pd_only_size)
+        Set<String> pdOnly = JAOCompat.pdOnlySizes(current.getHullMods(), JAORatings.rules());
         List<JAOSearch.Slot> slots = new ArrayList<>();
         // degrees from the bow to each weapon mount's arc, for how much of its fire reaches the main target
         Map<JAOSearch.Slot, Float> offs = new java.util.IdentityHashMap<>();
@@ -1081,6 +1098,7 @@ class JAOOptimizer {
                     // restricted weapons aren't bought from markets; a known blueprint can still build them
                     if (m.ownedOnly && w.getPrice() > 0f && (!planning || w.getSubmarket() != null)) continue;
                     if (spec.hasTag("fragment") && !fragments) continue;
+                    if (!pdOnly.isEmpty() && spec.getSize() != null && pdOnly.contains(spec.getSize().name()) && !spec.getAIHints().contains(AIHints.PD)) continue;
                     if (skipped(spec.getWeaponId())) continue;
                     // unguided missiles and strike weapons need to face the bow (CoreAutofitPlugin.getPossibleWeapons)
                     if ((spec.getType() == WeaponType.MISSILE || spec.getAIHints().contains(AIHints.STRIKE)) && !spec.getAIHints().contains(AIHints.DO_NOT_AIM)) {

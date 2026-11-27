@@ -14,6 +14,9 @@ public class JAOModPlugin extends BaseModPlugin {
         try { if (JAOSettings.luna()) JAOLuna.register(); }
         catch (Throwable t) { Global.getLogger(JAOModPlugin.class).warn("Auto Outfitting: LunaLib link failed; using " + JAOSettings.FILE, t); }
         JAOSettings.load();
+        // 0.5.97: phase reads before any ship is made (a mod's mode hullmods rewrite shared hull specs later)
+        try { JAOShip.cachePhase(); }
+        catch (Throwable t) { Global.getLogger(JAOModPlugin.class).warn("Auto Outfitting: couldn't read the phase hulls at load", t); }
     }
 
     @Override
