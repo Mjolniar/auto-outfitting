@@ -371,6 +371,25 @@ final class JAOCompat {
         return false;
     }
 
+    /**
+     * 0.5.100: jao_rules needs_system and needs_shield rows: hullmods whose combat script crashes on a hull with no ship
+     * system (Advanced Modifications Overcharge) or no shield (Flux Shield Matrix with Delta Subsystem).
+     */
+    static boolean missingNeed(String id, com.fs.starfarer.api.combat.ShipHullSpecAPI hull) {
+        if (hull == null || id == null) return false;
+        return missingNeed(id, hull.getShipSystemId(), hull.getShieldType(), JAORatings.rules());
+    }
+
+    static boolean missingNeed(String id, String systemId, com.fs.starfarer.api.combat.ShieldAPI.ShieldType t, List<String[]> rules) {
+        boolean system = systemId != null && !systemId.isEmpty();
+        boolean shield = t == com.fs.starfarer.api.combat.ShieldAPI.ShieldType.FRONT || t == com.fs.starfarer.api.combat.ShieldAPI.ShieldType.OMNI;
+        for (String[] r : rules) {
+            if (r[0].equals("needs_system") && !system && JAORatings.glob(r[1], id)) return true;
+            if (r[0].equals("needs_shield") && !shield && JAORatings.glob(r[1], id)) return true;
+        }
+        return false;
+    }
+
     static boolean tooSmall(String id, com.fs.starfarer.api.combat.ShipAPI.HullSize size) {
         if (size == null) return false;
         for (String[] r : JAORatings.rules()) {

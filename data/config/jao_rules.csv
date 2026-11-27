@@ -228,7 +228,7 @@ combat,ah_infinity,RANGE_PCT_BE:30:1:FRIGATE,ballistic and energy range +30/40/5
 combat,ah_infinity,RANGE_PCT_BE:40:1:DESTROYER,as above
 combat,ah_infinity,RANGE_PCT_BE:50:1:CRUISER,as above
 combat,ah_infinity,RANGE_PCT_BE:60:1:CAPITAL,as above
-combat,ah_infinity,DMG_BE:1.05:1,5% chance of double damage
+combat,ah_infinity,DMG_BE:1.06:1,a roll of 0-99 at or below 5 doubles ballistic and energy damage: 6% of frames
 hull_regen,ah_nano_hull,0.0075;0,Nano Hull: 0.6% of hull a second per 20% missing; 0.75% average (judgment)
 combat,ah_nano_hull,DISS:0.7:0.5:-ah_delta_subsystem,dissipation x hull level while repairing (judgment 0.7 for half the fight)
 combat,ah_nano_hull,DISS:0.85:0.5:+ah_delta_subsystem,Delta: half the penalty
@@ -239,7 +239,7 @@ combat,ah_submatter_shield,HARDDISS:1:0.7,full hard flux dissipation while the s
 combat,ah_thermal_conduits,HARDDISS:0.1:0.85,10% hard flux dissipation while the ship system is off
 combat,ah_thermal_conduits,DISS:1.24:0.6,above 20% flux +8% dissipation per 10% flux; 50% flux for 60% of the fight (judgment)
 combat,ah_thermal_conduits,DMG_ENE:1.075:0.6,"+2.5% energy damage per 10% flux above 20%, same judgment"
-combat,ah_vista,TIME:1.095:1,"timeflow +10% rising 1% per 40 s, x hull level: 9.5% average (judgment)"
+combat,ah_vista,TIME:1.065:1,"timeflow +7% rising 1% per 40 s to 15%, x lowest hull level reached: 8.1% average over 90 s x 0.8 hull level (judgment) = 6.5%"
 combat,ah_weapon_control_supercomputer,ROF_BE:1.1:1:-ah_alpha_subsystem,rate of fire +20% x (1 - flux); 50% average flux (judgment)
 combat,ah_weapon_control_supercomputer,DMG_BE:1.1:1:-ah_alpha_subsystem,damage +20% x flux
 combat,ah_weapon_control_supercomputer,ROF_BE:1.125:1:+ah_alpha_subsystem,Alpha: 25%
@@ -544,3 +544,21 @@ system_speed,jdp_banisher,42,Pursuit Drive (jdp_banisher): +125 speed for 6 of 1
 system_speed,jdp_unstableburn,64,Unstable Burn: +200 x level speed for 5.25 of 16.5 s
 system_speed,jdp_combatmasterlidararray,58,Combatmaster Lidar: +125 speed for 8.75 of 18.75 s
 system_speed,GladiatorSociety_burndrive,100,Gladiator Society burn drive: +300 x level speed for 6 of 18 s
+# 0.5.100: needs_system (hullmod id or pattern: never added to hulls with no ship system), needs_shield (hullmod id or pattern: never added to hulls with no FRONT or OMNI shield)
+# 0.5.100: mod updates and RC9 (plans/2026-11-26-update-audit/report.md)
+role,A_S-F_istina,Flanker,"Istina (cruiser, speed 70, 7 small energy slots): its system A_S-F_shortTele is a Phase Teleporter copy (range 900, 0.5 s in, 0.5 s out, cooldown 15). JAORole.assaultSystem matches the exact id phaseteleporter and dashLevel matches 'teleport', and 'a_s-f_shorttele' has neither, so detection gives Line (judgment: Hyperion's job; the vanilla Hyperion is a Flanker through assaultSystem)"
+role,A_S-F_actuary,Support,"Actuary (destroyer, speed 80; built-in A_S-F_fluxSiphon moves up to 600 soft flux a second from the ally with the most soft flux within 1500 onto itself; Bunker Shield system; 2 built-in PD lasers and 2 brambles): numbers make it a Flanker (judgment, as the na_nammu row)"
+role,kyris_blinding_omega,Battle carrier,Blinding-class Omega: the designation 'Drone Ultracarrier' gives Carrier; it is the same hull as the three other Blinding-class ships (Battle carrier by designation) with 26 weapon slots (6 large synergy) and 8 bays (judgment)
+skip_slots,iris_ix,WS ARR,"ET-IX: ColorSelectUtil.setWeapon puts ewar_suite_ix or ewar_suite_blue_ix into the BUILT_IN slot WS ARR on every ship creation (guard only, as the iconoclast_ix row)"
+combat,A_S-F_fluxSiphon,VENT_FLAT:-150:1,Flux Siphon (Actuary): takes up to 600 x (1 - flux level) soft flux a second from an ally; -150 flux a second is a quarter of the cap (judgment). The 80% flux stop is not modelled
+combat,tahlan_ventweaponboost,DMG_BE:2.3:0.083,"Vent Weapon Boost (Asria, Melusia): ballistic and energy damage x2.33 for 5 s after a 6.7 s vent; about 1.5 vents in 90 s = 0.083 (judgment)"
+combat,tahlan_realityglitch,TAKEN_ALL:0:0.07,Reality Glitch: 1.5 s phased out of a 21.5 s cycle after taking damage; 0.07 (judgment: every cycle triggers)
+combat,tahlan_volatiledissipation,VENT_FLAT:60:1,Volatile Dissipation (Rigveda): flux dissipation +200 x hard flux level; 60 at level 0.3 (judgment)
+combat,vice_dweller_boost,TIME:1.15:1,Dweller Boost: time flow x1.15 on every Dweller except the Shrouded Eye (applyEffectsAfterShipCreation)
+combat,ah_fluxcore_overdrive,TAKEN_ARMOR:1.25:0.1,Flux Core Overdrive: armor damage taken +25% while venting; venting 0.1 of a fight (judgment)
+combat,ah_fluxcore_overdrive,TAKEN_HULL:1.25:0.1,Flux Core Overdrive: hull damage taken +25% while venting; venting 0.1 of a fight (judgment)
+combat,ah_nano_hull,TAKEN_HULL:0.86:1:+ah_delta_subsystem,Nano Hull with Delta Subsystem: hull damage taken x(1 - (0.10 + 0.10 x missing hull)); 0.14 at 40% missing hull on average (judgment)
+skip_slots,shrouded_maw,WS 013;WS 014;WS 019;WS 024,"Emergent Threats Dweller Boost writes these slots on every ship creation (pseudoparticle_jet, dwl_maw_scythe_silent, or inimical_emanation and assaying_rift with vice_dwellerDifficulty off); guard only"
+skip_slots,shrouded_tendril,WS 003,Emergent Threats Dweller Boost sets assaying_rift or clears this slot on every ship creation; guard only
+needs_system,ah_overcharge,,"Overcharge (Advanced Modifications): advanceInCombat calls ship.getSystem().isActive() every frame with no null check, so a hull with no ship system (merlon, shuttlepod, logi_apoapsis, logi_stormbreaker) crashes the combat"
+needs_shield,ah_flux_shield_matrix,,"Flux Shield Matrix (Advanced Modifications): with Delta Subsystem on a hull with no shield, advanceInCombat reads Shield.getRadius() with no null check and crashes the combat; without Delta the game refuses it there"

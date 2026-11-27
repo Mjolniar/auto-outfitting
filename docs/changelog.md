@@ -1,5 +1,22 @@
 # Patch notes
 
+## 0.5.100 - 2026-11-27
+
+- Advanced Modifications: Fixed Overcharge being added to ships with no ship system (combat crash).
+- Advanced Modifications: Fixed Flux Shield Matrix being added to ships with no shield (combat crash with Delta Subsystem).
+- Advanced Modifications: Updated 14 hullmods to 1.4. Vista Circuits time flow 6.5%, Infinity Targeting Core double damage 6%, Flux Core Overdrive damage taken while venting, Nano Hull with Delta Subsystem.
+- Advanced Modifications: Combat Analyzer, Delta Shield Generator, Infinity Targeting Core and Prismatic Shield count their s-mod effect as a penalty.
+- Vanilla: Gazer and Gazer Pod count 1000 damage a missile (was 200). The hit against armor is unchanged.
+- Vanilla: Recovery Shuttles follows the RC9 rules (pilots recovered, logistics hullmod).
+- Emergent Threats: IX EWAR suites count one arc every 5 s (were 5 times high). Abyssal Scythe counts one burst per 2 s.
+- Emergent Threats: Slots the mod fills on the Shrouded Maw, Shrouded Tendril and Iris (IX) are left alone.
+- Emergent Threats: Dweller Boost time flow and the Dweller Entropy Projector are counted.
+- A_S-F: Added Spread Flare Launcher and Flux Siphon. Istina counts as a Flanker and Actuary as Support.
+- Secrets of the Frontier: Amaranth Resonance Cage counts its bolts.
+- Tahlan: Vent Weapon Boost, Reality Glitch, Volatile Vents and Volatile Dissipation are counted.
+- Blinding-class Super Battlecarrier: Omega Blinding counts as a Battle carrier.
+- Hullmods: Added 71 rows for hidden built-in and new hullmods from mod updates.
+
 ## 0.5.99 - 2026-11-26
 
 - Weapons: Damage a script deals straight to hull counts past the armor and while the armor is still up. Domain Phase Lab's Black Hole Projector and Song of Time use it.

@@ -1309,7 +1309,7 @@ class JAOOptimizer {
             HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
             if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
             if (JAOCompat.neverAdd(id) || (!stationFit() && JAOCompat.tooSmall(id, current.getHullSize())) || JAOCompat.notOnPhase(id, current.getHullSpec())
-                    || JAOCompat.removedByHull(id, current.getHullSpec())) continue;
+                    || JAOCompat.removedByHull(id, current.getHullSpec()) || JAOCompat.missingNeed(id, current.getHullSpec())) continue;
             if (stationFit() && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) continue;
             if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
             if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
