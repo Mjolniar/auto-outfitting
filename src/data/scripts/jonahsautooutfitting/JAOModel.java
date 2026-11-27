@@ -362,7 +362,24 @@ final class JAOModel {
     static final float OFF_BAND = 0.25f;
 
     /** One weapon (or fighter wing) before ship bonuses. */
-    static final class W {
+    static final class W implements Cloneable {
+        /** 0.5.98: this missile with its guidance off (JaydeePiracy Dumb-fire Conversion), made once; this when unguided. */
+        private W straight;
+
+        W straight() {
+            if (!(guided || guidedPoor)) return this;
+            if (straight == null) {
+                try {
+                    W c = (W) super.clone();
+                    c.guided = false; c.guidedPoor = false; c.ff = true; c.straight = c;
+                    straight = c;
+                } catch (CloneNotSupportedException e) {
+                    return this;
+                }
+            }
+            return straight;
+        }
+
         String id, name;
         int size, cls, dmg = EN;
         boolean beam, soft, pd, pdOnly, pdAlso, strike, guided, guidedPoor, fireWhenInefficient, wing, interceptor, bomber;
@@ -555,6 +572,17 @@ final class JAOModel {
         float misRate = 1f;
         /** Lidar Array while active (0.5.46): net throughput of hardpoint ballistic and energy guns, and of the rest. */
         float lidarHp = 1f, lidarOther = 1f;
+        /** 0.5.98: lidar systems that pick guns by size (JaydeePiracy, NET_NONSMALL): non-beam medium and large guns; the rest get lidarOther. */
+        float lidarBig = 1f;
+        /** 0.5.98: Domain Phase Lab Energy Rangefinder: flat base range on non-PD energy weapons by size, up to efCap. */
+        float efSmall, efMedium, efCap;
+        /**
+         * 0.5.98: jao_rules range_band (Neoteric Ballistic Adapters): non-beam, non-PD ballistic base range up to bandLow
+         * unchanged, up to bandHigh set to bandLow, past bandHigh less bandMinus. bandHigh 0 = none.
+         */
+        float bandLow, bandHigh, bandMinus;
+        /** 0.5.98: missile turn rate -100% or less (JaydeePiracy Dumb-fire Conversion): guided missiles fly straight. */
+        boolean unguided;
         /** Systems (0.5.47): point defense need x this (flak, flares); share of the fight the weapons are off (flux shunts). */
         float pdNeedMult = 1f, noFire;
         /** RAT Chronos (0.5.46): non-missile base range capped at 500/600/700 by size, then every base range x0.8. */
@@ -593,6 +621,8 @@ final class JAOModel {
             s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
             s.armorRegen = armorRegen;
             s.phaseCost = phaseCost; s.eqAdd = eqAdd; s.eqCap = eqCap;
+            s.lidarBig = lidarBig; s.efSmall = efSmall; s.efMedium = efMedium; s.efCap = efCap;
+            s.bandLow = bandLow; s.bandHigh = bandHigh; s.bandMinus = bandMinus; s.unguided = unguided;
             return s;
         }
     }
@@ -794,13 +824,23 @@ final class JAOModel {
 
     // ------------------------------------------------------------------ per weapon
 
-    static float range(W w, Ship s) {
+    static float range(W w, Ship s) { return range(w, s, null); }
+
+    /** f: the mount (null when unknown), for weapon_range selectors on the slot. */
+    static float range(W w, Ship s, Fit f) {
         if (w.wing) return w.range;
         float base = w.range + (s.valkRange != 0f && w.id != null && w.id.startsWith("valk") ? s.valkRange : 0f);
         float addPct = 0f;
         for (Object[] r : s.weaponRange) {
             String target = (String) r[0];
-            if (target.equals(w.id) || w.tags.contains(target)) { base += (Float) r[1]; addPct += (Float) r[2]; }
+            if (target.equals(w.id) || w.tags.contains(target) || (target.indexOf(':') > 0 && selects(target, w, f))) { base += (Float) r[1]; addPct += (Float) r[2]; }
+        }
+        // 0.5.98: Neoteric Ballistic Adapters, a flat change from the weapon's own base range
+        if (s.bandHigh > 0f && w.cls == BAL && !w.beam && !w.pd && !w.pdOnly) base += bandDelta(w.range, s.bandLow, s.bandHigh, s.bandMinus);
+        // 0.5.98: Domain Phase Lab Energy Rangefinder (as the Ballistic Rangefinder: never past the cap)
+        if (s.efCap > 0f && w.cls == ENE && !w.pd) {
+            float add = w.size == 0 ? s.efSmall : w.size == 1 ? s.efMedium : 0f;
+            if (add > 0f) base = Math.max(base, Math.min(base + add, s.efCap));
         }
         if (addPct != 0f) base *= 1f + addPct / 100f;
         if (s.chronos) {
@@ -821,6 +861,52 @@ final class JAOModel {
         float r = (base + base * pct / 100f + flat) * s.rangeMult[w.cls] * (w.beam ? s.beamMult : 1f);
         if (w.cls != MIS && r > s.threshold) r = s.threshold + (r - s.threshold) * s.pastThreshold;
         return r;
+    }
+
+    /** 0.5.98: range_band change to a base range r: none up to low, down to low up to high, minus past high. */
+    static float bandDelta(float r, float low, float high, float minus) {
+        if (r <= low) return 0f;
+        if (r <= high) return low - r;
+        return -minus;
+    }
+
+    static final String[] SIZE_NAMES = {"SMALL", "MEDIUM", "LARGE"}, CLS_NAMES = {"BALLISTIC", "ENERGY", "MISSILE"}, SLOT_NAMES = {"BALLISTIC", "ENERGY", "MISSILE", "HYBRID"};
+
+    /**
+     * 0.5.98: a weapon_range selector, parts joined by +: size:, type: (the weapon), mount:HARDPOINT or TURRET, slot:
+     * (BALLISTIC, ENERGY, MISSILE, HYBRID) and slotsize: (the mount). Mount parts fail when the mount is unknown.
+     */
+    static boolean selects(String sel, W w, Fit f) {
+        for (String part : sel.split("\\+")) {
+            int c = part.indexOf(':');
+            if (c < 0) return false;
+            String k = part.substring(0, c).trim().toLowerCase(java.util.Locale.ROOT), v = part.substring(c + 1).trim().toUpperCase(java.util.Locale.ROOT);
+            switch (k) {
+                case "size": if (w.size < 0 || w.size > 2 || !v.equals(SIZE_NAMES[w.size])) return false; break;
+                case "type": if (w.cls < 0 || w.cls > 2 || !v.equals(CLS_NAMES[w.cls])) return false; break;
+                case "mount": if (f == null || f.hardpoint != v.equals("HARDPOINT")) return false; break;
+                case "slot": if (f == null || f.slotType < 0 || f.slotType > 3 || !v.equals(SLOT_NAMES[f.slotType])) return false; break;
+                case "slotsize": if (f == null || f.slotSize < 0 || f.slotSize > 2 || !v.equals(SIZE_NAMES[f.slotSize])) return false; break;
+                default: return false;
+            }
+        }
+        return true;
+    }
+
+    /** 0.5.98: the fits with their guided missiles flying straight (Ship.unguided). */
+    static List<Fit> straightMissiles(List<Fit> fits) {
+        List<Fit> out = null;
+        for (int i = 0; i < fits.size(); i++) {
+            Fit f = fits.get(i);
+            if (f.w.cls != MIS || f.w.wing || f.w.hullmod) continue;
+            W st = f.w.straight();
+            if (st == f.w) continue;
+            if (out == null) out = new ArrayList<>(fits);
+            Fit g = new Fit(st, f.hardpoint, f.cover, f.front, f.bear);
+            g.slotType = f.slotType; g.slotSize = f.slotSize;
+            out.set(i, g);
+        }
+        return out == null ? fits : out;
     }
 
     static float armorFactor(float hit, float armor) { return armorFactor(hit, armor, MAX_DR); }
@@ -1008,6 +1094,7 @@ final class JAOModel {
             // uses a fight x share; each use saves about one 10 s launcher cycle of a 90 s fight
             case "MIS": if (cls.equals("COOLDOWN")) s.misRate *= 1f + mult * share * 10f / 90f; break;
             case "NET_HARDPOINT": s.lidarHp *= eff; break;
+            case "NET_NONSMALL": s.lidarBig *= eff; break;
             case "PD": if (cls.equals("NEED")) s.pdNeedMult *= eff; break;
             case "NET_OTHER": s.lidarOther *= eff; break;
             // hullmod combat effects (0.5.49, jao_rules combat): damage taken, armor repair
@@ -1031,6 +1118,7 @@ final class JAOModel {
     /** Score with an optional breakdown map (for the debug log). */
     static float evaluate(Ship s, List<Fit> fits, Params p, Map<String, Float> out) {
         if (!s.hullmodWeapons.isEmpty()) fits = withHullmodWeapons(s, fits);
+        if (s.unguided) fits = straightMissiles(fits);
         int n = fits.size();
         Eff[] e = new Eff[n];
         float load = 0f, rminAll = Float.MAX_VALUE, hullmodLoad = 0f;
@@ -1054,12 +1142,14 @@ final class JAOModel {
             // the magazine (0.5.6: a CFT Twin Rocket holds 100 s of fire, and Expanded Missile Racks doubled what the 90-s
             // fight credited it with, so missile racks and deep slow launchers won every ship in the all-weapons run)
             if (w.poolRate > 0f && !w.wing) x.pool = Math.min(x.pool, w.poolRate * dm * rof * (w.cls == MIS ? s.misRate : 1f) * Math.max(10f, p.fightSeconds));
-            x.range = w.hullmod ? w.range : range(w, s);
+            x.range = w.hullmod ? w.range : range(w, s, fits.get(i));
             // weapons off while a system runs (0.5.47: flux shunts)
             if (!w.wing && !w.hullmod && s.noFire > 0f) { x.dps *= 1f - s.noFire; x.flux *= 1f - s.noFire; }
             // Lidar Array while active (0.5.46): hardpoint guns fire faster, turrets and beams pause
-            if (!w.wing && !w.hullmod && w.cls != MIS && (s.lidarHp != 1f || s.lidarOther != 1f)) {
-                float lm = fits.get(i).hardpoint && !w.beam ? s.lidarHp : s.lidarOther;
+            if (!w.wing && !w.hullmod && w.cls != MIS && (s.lidarHp != 1f || s.lidarOther != 1f || s.lidarBig != 1f)) {
+                // 0.5.98: JaydeePiracy's lidars pick non-beam medium and large guns, any mount
+                float lm = s.lidarBig != 1f ? (w.size >= 1 && !w.beam ? s.lidarBig : s.lidarOther)
+                        : fits.get(i).hardpoint && !w.beam ? s.lidarHp : s.lidarOther;
                 x.dps *= lm;
                 x.flux *= lm;
             }

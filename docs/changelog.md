@@ -1,5 +1,14 @@
 # Patch notes
 
+## 0.5.98 - 2026-11-26
+
+- JaydeePiracy: The Arcubus counts the Magnetic Accelerator's +100% range on its large ballistic hardpoints.
+- JaydeePiracy: The Lupara's guided missiles count as unguided. Dumb-fire Conversion takes away their turning.
+- JaydeePiracy: The Advanced, Ancient and Combatmaster lidars boost medium and large guns in any mount. Small guns and beams count as off while they run.
+- JaydeePiracy, Gladiator Society: Pursuit Drive, Unstable Burn, Combatmaster Lidar and the Gladiator burn drive add their average speed to the ship.
+- Rumours of Neoteric Designs: Strider and Glider count Ballistic Adapters (ballistic range up to 500 stays, 500 to 600 becomes 500, over 600 loses 200).
+- Domain Phase Lab: Energy Rangefinder adds its range to small and medium energy weapons (by the largest energy mount, capped at 700, 750 or 800).
+
 ## 0.5.97 - 2026-11-26
 
 - Optimize fleet: Ships whose hull or loadout has the game's no_autofit tag stay as they are and keep their gear (Project Arondight, ED Shipyards and Khe's Tech hulls, the Omega hulls). The Autofit button still works on them.

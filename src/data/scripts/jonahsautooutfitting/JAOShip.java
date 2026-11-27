@@ -44,6 +44,8 @@ final class JAOShip implements JAOSearch.World {
     final AutofitPluginDelegate delegate;
     final int size, budget, maxVents, maxCaps, personality;
     final boolean largeBallistic;
+    /** 0.5.98: the largest energy slot (0 small, 1 medium, 2 large; -1 none), as Domain Phase Lab's Energy Rangefinder reads it. */
+    final int largestEnergy;
     private final Map<String, Float> opCache = new HashMap<>();
     private final Map<String, Boolean> addCache = new HashMap<>();
     private String modsKey = "";
@@ -96,11 +98,14 @@ final class JAOShip implements JAOSearch.World {
         if (player != null) scratch.setFleetCommanderForStats(player, fleet == null ? null : fleet.getFleetData());
         if (fleet != null) JAORefl.setFleetDataForStats(scratch, fleet.getFleetData());
         boolean lb = false;
+        int le = -1;
         for (WeaponSlotAPI s : hull.getAllWeaponSlotsCopy()) {
             WeaponType t = s.getWeaponType();
             if (s.getSlotSize() == WeaponSize.LARGE && (t == WeaponType.BALLISTIC || t == WeaponType.HYBRID || t == WeaponType.COMPOSITE || t == WeaponType.UNIVERSAL)) lb = true;
+            if (t == WeaponType.ENERGY && !s.isDecorative()) le = Math.max(le, s.getSlotSize().ordinal());
         }
         largeBallistic = lb;
+        largestEnergy = le;
         PersonAPI who = personFor(delegate);
         personality = personalityOf(who);
         captain = activeCaptain(who);
@@ -436,6 +441,15 @@ final class JAOShip implements JAOSearch.World {
             s.bfMedium = largeBallistic ? 100f : 0f;
             s.bfCap = largeBallistic ? 900f : 800f;
         }
+        // 0.5.98: Domain Phase Lab Energy Rangefinder (dpl_EnergyRangefinder, by the largest energy slot): large: small
+        // +150, medium +100, cap 800; medium: small +100, cap 750; small: small +100, cap 700
+        if (largestEnergy >= 0 && work.hasHullMod("dpl_energy_rangefinder")) {
+            s.efSmall = largestEnergy == 2 ? 150f : 100f;
+            s.efMedium = largestEnergy == 2 ? 100f : 0f;
+            s.efCap = new float[]{700f, 750f, 800f}[largestEnergy];
+        }
+        // 0.5.98: missile turn rate -100% (JaydeePiracy Dumb-fire Conversion): guided missiles fly straight
+        try { s.unguided = st.getMissileMaxTurnRateBonus().computeEffective(100f) <= 0f; } catch (Throwable ignored) { }
         s.hsa = work.hasHullMod("high_scatter_amp");
         // High Scatter Amplifier's beams deal hard flux on shields (0.5.59, interplay_1116 gap 4)
         if (s.hsa) s.hardBeamsAll = true;
@@ -741,7 +755,7 @@ final class JAOShip implements JAOSearch.World {
         for (String[] r : JAORatings.rules()) {
             boolean has = false;
             switch (r[0]) {
-                case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": case "weapon_range": has = work.hasHullMod(r[1]); break;
+                case "hull_regen": case "shield_taken": case "beams_hard": case "range_mult": case "weapon_range": case "range_band": has = work.hasHullMod(r[1]); break;
                 case "combat": has = work.hasHullMod(r[1]); break;
                 default: continue;
             }
@@ -785,6 +799,13 @@ final class JAOShip implements JAOSearch.World {
                             list.add(new Object[]{kv[0].trim(), pct ? 0f : n, pct ? n : 0f});
                         }
                         s.weaponRange = list;
+                        break;
+                    }
+                    case "range_band": {
+                        // 0.5.98: low;high;minus (Neoteric Ballistic Adapters 500;600;200)
+                        String[] v = r[2].split(";");
+                        if (v.length < 3) break;
+                        s.bandLow = Float.parseFloat(v[0].trim()); s.bandHigh = Float.parseFloat(v[1].trim()); s.bandMinus = Float.parseFloat(v[2].trim());
                         break;
                     }
                     default: break;
@@ -1025,14 +1046,16 @@ final class JAOShip implements JAOSearch.World {
     static boolean modelled(String id) {
         if (MODELLED.contains(id) || JAORatings.hullmodDamage().containsKey(id)) return true;
         for (String[] r : JAORatings.rules()) {
-            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult") || r[0].equals("weapon_range")
+            if ((r[0].equals("hull_regen") || r[0].equals("shield_taken") || r[0].equals("beams_hard") || r[0].equals("range_mult") || r[0].equals("weapon_range") || r[0].equals("range_band")
                     || r[0].equals("combat") || r[0].equals("no_shield")) && r[1].equals(id)) return true;
         }
         return false;
     }
 
     static final java.util.Set<String> MODELLED = new java.util.HashSet<>(java.util.Arrays.asList(
-            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "adaptive_coils", "valk_bryncore", "valk_microbryncore", "valk_valhallacore"));
+            "ballistic_rangefinder", "high_scatter_amp", "missile_autoloader", "phase_anchor", "adaptiveshields", "adaptive_coils", "valk_bryncore", "valk_microbryncore", "valk_valhallacore",
+            // 0.5.98
+            "dpl_energy_rangefinder"));
 
     /** Hull-only hullmods (roles HULL or CR in jao_hullmods.csv, or the vanilla padding mods) and Flux Distributor/Coil. */
     @Override
@@ -1188,8 +1211,18 @@ final class JAOShip implements JAOSearch.World {
             case "burndrive": case "combat_burn": return 55f;
             case "plasmajets": return 34f;
             case "maneuveringjets": return 21f;
-            default: return 0f;
+            default: return ruleSpeed(sys, JAORatings.rules());
         }
+    }
+
+    /** 0.5.98: jao_rules system_speed (system id or pattern -> average speed added over a fight, as above). */
+    static float ruleSpeed(String sys, List<String[]> rules) {
+        if (rules == null) return 0f;
+        for (String[] r : rules) {
+            if (!r[0].equals("system_speed") || !JAORatings.glob(r[1], sys)) continue;
+            try { return Float.parseFloat(r[2]); } catch (NumberFormatException ignored) { }
+        }
+        return 0f;
     }
 
     /**

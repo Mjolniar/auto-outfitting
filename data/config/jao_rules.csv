@@ -291,6 +291,7 @@ role,tania_merite_left,Support,Merite left armor plate: as above (judgment)
 role,tania_merite_right,Support,Merite right armor plate: as above (judgment)
 # 0.5.66: smod_lost (built-in hullmod -> s-mod@s-mods: its script deletes that s-mod once those are s-mods; never built), smod_set (built-in -> s-mods of a set; kept by s-mod changes), warship (hull id or pattern: fitted as a warship despite a civilian hint)
 # 0.5.97: not_phase_cloak (defense system id or pattern flagged isPhaseCloak that never phases: its hulls are not phase ships), never_repair (d-mod id or pattern d-mod repairs never remove), wing_op (wing id or pattern -> OP its rating uses when its listed cost is a gate a hullmod lowers), pd_only_size (hullmod id or pattern -> weapon sizes split by ;: with it on, those sizes are fitted only with the PD hint)
+# 0.5.98: weapon_range targets may be selectors, parts joined by +: size:, type: (the weapon's SMALL/MEDIUM/LARGE, BALLISTIC/ENERGY/MISSILE), mount:HARDPOINT or TURRET, slot: (BALLISTIC, ENERGY, MISSILE, HYBRID), slotsize: (the mount's size). range_band (hullmod -> low;high;minus: non-beam, non-PD ballistic base range up to low unchanged, up to high set to low, past high less minus). system_speed (system id or pattern -> average speed added over a fight)
 smod_lost,tania_ancient_weapon_sys,pointdefenseai@missleracks;expanded_cargo_holds,"Ancient Frame: with Expanded Missile Racks and Expanded Cargo Holds as s-mods, an Integrated Point Defense AI s-mod is swapped for Cargo Holds (story point lost)"
 smod_lost,tania_ancient_weapon_sys,fluxcoil@hiressensors;magazines;turretgyros,"Ancient Frame: with the Solaris set as s-mods, a Flux Coil Adjunct s-mod is swapped for Expanded Magazines (story point lost)"
 smod_set,tania_ancient_weapon_sys,expanded_cargo_holds;missleracks,Ancient Frame: Stealth Mines set
@@ -536,3 +537,10 @@ never_repair,cs_hotwireBypass,,Crab Shack super d-mod (tag cs_superDMod): added 
 never_repair,cs_glitchedSystemCore,,Crab Shack super d-mod (tag cs_superDMod): added by the Exceptional Deconstruction skill and helps the ship
 wing_op,dpl_anomaly_fighter,20,Phase Rupture: 99999 OP listed; 20 OP under Drone Assembly Plant or Rupture Drone Factory (FighterOPCostModifier on the tag dpl_anomaly_drone)
 pd_only_size,dpl_pd_targeting_core,LARGE,Defensive Design (Euphonium, Flute, Invictus (DPL)): any large non-decorative weapon without the PD hint makes all damage the ship deals x0.1 (dpl_PDTargetingCore.DAMAGE_PENALTY)
+# 0.5.98: range by mount, range bands, system speed (plans/2026-11-26-new-mods/report.md)
+weapon_range,jdp_magneticAccelerator,slot:BALLISTIC+slotsize:LARGE+mount:HARDPOINT=100%,Magnetic Accelerator (Arcubus): WeaponRangeModifier +100% range on large ballistic hardpoints (WS 005, WS 013, WS 016)
+range_band,ballistic_support7s,500;600;200,Ballistic Adapters (Strider7s, Glider7s): WeaponBaseRangeModifier on non-beam non-PD ballistic and hybrid weapons: up to 500 unchanged; 500-600 becomes 500; over 600 loses 200
+system_speed,jdp_banisher,42,Pursuit Drive (jdp_banisher): +125 speed for 6 of 18 s
+system_speed,jdp_unstableburn,64,Unstable Burn: +200 x level speed for 5.25 of 16.5 s
+system_speed,jdp_combatmasterlidararray,58,Combatmaster Lidar: +125 speed for 8.75 of 18.75 s
+system_speed,GladiatorSociety_burndrive,100,Gladiator Society burn drive: +300 x level speed for 6 of 18 s
