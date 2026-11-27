@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.5.99 - 2026-11-26
+
+- Weapons: Damage a script deals straight to hull counts past the armor and while the armor is still up. Domain Phase Lab's Black Hole Projector and Song of Time use it.
+- Weapons: A weapon whose script hits armor harder than its listed hit counts that hit strength. Unthemed Weapons' Void Ray (600) and Morph Cannon (1450) use it.
+- Ship systems: Systems that deal damage count as a weapon on their ships. ED Shipyards' Grand Salvo (Beagle, Dobermann) and Nightcross Armory's Broken Wings (Nanz, Voyager) use it.
+
 ## 0.5.98 - 2026-11-26
 
 - JaydeePiracy: The Arcubus counts the Magnetic Accelerator's +100% range on its large ballistic hardpoints.

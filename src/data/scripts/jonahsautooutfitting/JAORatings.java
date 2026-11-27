@@ -312,6 +312,10 @@ public class JAORatings {
             w.extraDmg = dmg(row.optString("extraType", "").trim().toUpperCase(java.util.Locale.ROOT));
             w.extraShields = "TRUE".equalsIgnoreCase(row.optString("extraOnShields"));
         }
+        // 0.5.99: extra damage that lowers hull directly, and hit strength against armor past the listed hit
+        if (w.extraFrac > 0f && "TRUE".equalsIgnoreCase(row.optString("extraIgnoresArmor", "").trim())) w.extraDirect = true;
+        float ah = num(row, "armorHit");
+        if (ah > 0f) w.armorHit = ah;
         // 0.5.19: flux the weapon's script puts on its own ship per shot (Tahlan's Project Taffeta), added to its flux/s
         float self = num(row, "selfFluxPerShot");
         if (self > 0f && !w.beam) w.flux += self * shotsPerSec;

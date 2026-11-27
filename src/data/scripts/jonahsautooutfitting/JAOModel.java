@@ -403,6 +403,10 @@ final class JAOModel {
         float extraFrac, extraHit;
         int extraDmg = EN;
         boolean extraShields;
+        /** 0.5.99: the extra damage lowers hull directly, past the armor (Domain Phase Lab Black Hole, Song of Time). */
+        boolean extraDirect;
+        /** 0.5.99: hit strength against armor when the script raises it past the listed hit (Void Ray, Morph Cannon); 0 = the hit. */
+        float armorHit;
         /** 0..1 rarity score (only used with Prefer rare weapons). */
         float rarity;
         /** MagicLib interference: dissipation lost per other interference weapon on the ship (20/40/80). */
@@ -908,6 +912,9 @@ final class JAOModel {
         }
         return out == null ? fits : out;
     }
+
+    /** 0.5.99: a weapon's hit strength against armor (the armorHit column, else its hit). */
+    static float armorHit(W w) { return w.armorHit > 0f ? w.armorHit : w.hit; }
 
     static float armorFactor(float hit, float armor) { return armorFactor(hit, armor, MAX_DR); }
 
@@ -1626,13 +1633,14 @@ final class JAOModel {
             for (int i = 0; i < n; i++) {
                 W w = fits.get(i).w;
                 float am = ARMOR_MULT[w.dmg];
-                if (mRate[i] > 0f) rate += mRate[i] * am * armorFactor(w.hit * am, pa);
-                if (w.extraFrac > 0f) {
+                if (mRate[i] > 0f) rate += mRate[i] * am * armorFactor(armorHit(w) * am, pa);
+                // 0.5.99: direct hull damage leaves the armor as it is
+                if (w.extraFrac > 0f && !w.extraDirect) {
                     float ae = ARMOR_MULT[w.extraDmg];
                     rate += (mRate[i] + 0.8f * Math.max(0f, effB[i])) * w.extraFrac * ae * armorFactor(w.extraHit * ae, pa);
                 }
                 if (effB[i] <= 0f) continue;
-                rate += 0.8f * effB[i] * am * armorFactor(w.hit * am, pa);
+                rate += 0.8f * effB[i] * am * armorFactor(armorHit(w) * am, pa);
             }
             t2 += rate <= 0.01f ? 600f / steps : chunk / rate;
             a -= chunk;
@@ -1640,15 +1648,21 @@ final class JAOModel {
         t2 = Math.min(600f, t2 * 1.5f);
         // hull, through the leftover armor (HULL_ARMOR of the rating on average: hits spread over cells still armored)
         float hullFloor = t.armor * Math.max(MIN_ARMOR, HULL_ARMOR);
-        float hullRate = arc;
+        float hullRate = arc, direct = 0f;
         for (int i = 0; i < n; i++) {
             W w = fits.get(i).w;
-            if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], hullFloor);
-            if (w.extraFrac > 0f) hullRate += (mRate[i] + Math.max(0f, effB[i])) * w.extraFrac * armorFactor(w.extraHit * ARMOR_MULT[w.extraDmg], hullFloor);
+            if (mRate[i] > 0f) hullRate += mRate[i] * armorFactor(armorHit(w) * ARMOR_MULT[w.dmg], hullFloor);
+            if (w.extraFrac > 0f) {
+                float x = (mRate[i] + Math.max(0f, effB[i])) * w.extraFrac;
+                if (w.extraDirect) { hullRate += x; direct += x; }
+                else hullRate += x * armorFactor(w.extraHit * ARMOR_MULT[w.extraDmg], hullFloor);
+            }
             if (effB[i] <= 0f) continue;
-            hullRate += effB[i] * armorFactor(w.hit * ARMOR_MULT[w.dmg], hullFloor);
+            hullRate += effB[i] * armorFactor(armorHit(w) * ARMOR_MULT[w.dmg], hullFloor);
         }
-        float t3 = hullRate <= 0.01f ? 600f : Math.min(600f, t.hull / hullRate);
+        // 0.5.99: direct hull damage already landed while the armor was going
+        float hullLeft = Math.max(0f, t.hull - direct * t2);
+        float t3 = hullRate <= 0.01f ? 600f : Math.min(600f, hullLeft / hullRate);
         // Target Analysis: more damage to this target's size, so each phase goes faster
         float sd = ship == null ? 1f : Math.max(0.1f, ship.sizeDmg[ts]);
         if (sd != 1f) { t1 /= sd; t2 /= sd; t3 /= sd; }

@@ -615,9 +615,11 @@ final class JAOShip implements JAOSearch.World {
     /** Damage-dealing hullmods on the work variant (jao_hullmod_damage.csv), for this hull size and s-mod state. */
     private List<JAOModel.HullmodWeapon> hullmodWeapons() {
         List<JAOModel.HullmodWeapon> out = null;
+        // 0.5.99: rows keyed by the hull's ship system or defense id are systems that deal damage (ED Grand Salvo)
+        String sys = hull.getShipSystemId(), def = hull.getShipDefenseId();
         for (Map.Entry<String, JSONObject> e : JAORatings.hullmodDamage().entrySet()) {
             String id = e.getKey();
-            if (!work.hasHullMod(id)) continue;
+            if (!work.hasHullMod(id) && !id.equals(sys) && !id.equals(def)) continue;
             boolean smod = work.getSMods().contains(id) || work.getSModdedBuiltIns().contains(id);
             JAOModel.HullmodWeapon h = JAORatings.hullmodWeapon(id, e.getValue(), size, smod);
             if (h == null) continue;
