@@ -407,7 +407,7 @@ final class JAOFleetPlan {
             }
             // what the ship's hullmod scripts do to it when the game refreshes it: wings they place in empty bays join the
             // plan and their OP comes out of flux (JAOCompat); judged that way against the old plan too
-            JAOCompat.Probe probe = JAOCompat.settle(v, capsFirst(v));
+            JAOCompat.Probe probe = JAOCompat.settle(v, capsFirst(v), s.member.getId());
             if (old != null) {
                 float vNew = score(v, others, s.member), vOld = score(old, others, s.member);
                 if (vNew <= vOld * (1f + KEEP) && available(oldUsed, d.used)) {
@@ -491,7 +491,7 @@ final class JAOFleetPlan {
             int newSmods = Math.max(0, v.getSMods().size() - variantOf.apply(s.member).getSMods().size());
             s.newSmods = newSmods;
             storyPoints -= newSmods;
-            JAOCompat.Probe probe = JAOCompat.settle(v, true);
+            JAOCompat.Probe probe = JAOCompat.settle(v, true, s.member.getId());
             s.plan = v;
             s.used.clear();
             s.used.addAll(d.used);

@@ -49,6 +49,14 @@ final class JAOShip implements JAOSearch.World {
     private final Map<String, Float> opCache = new HashMap<>();
     private final Map<String, Boolean> addCache = new HashMap<>();
     private String modsKey = "";
+    /** 0.5.101: the hullmod set whose clean stats the scratch member holds (op()); null after anything else refreshed or changed them. */
+    private String statsKey;
+
+    /** Refreshes the scratch member's stats from the work variant; op() can no longer reuse them (ship() changes them after). */
+    private void refresh() {
+        statsKey = null;
+        scratch.setVariant(work, false, true);
+    }
     /** ESR augments (0.5.52): what the ship holds now and what the model fits it with (null: no ESR). */
     private Set<String> esrNow, esrWant;
     private boolean esrRead;
@@ -188,7 +196,7 @@ final class JAOShip implements JAOSearch.World {
         try {
             smods = new java.util.LinkedHashSet<>(asSmods);
             setMods(mods);
-            scratch.setVariant(work, false, true);
+            refresh();
             return JAOUtility.read(scratch.getStats());
         } catch (Throwable t) {
             return new float[4];
@@ -321,7 +329,7 @@ final class JAOShip implements JAOSearch.World {
     public JAOModel.Ship ship(Set<String> mods) {
         JAOCoop.checkpoint();
         setMods(mods);
-        scratch.setVariant(work, false, true);
+        refresh();
         MutableShipStatsAPI st = scratch.getStats();
         esrStats(st);
         JAOModel.Ship s = new JAOModel.Ship();
@@ -672,6 +680,8 @@ final class JAOShip implements JAOSearch.World {
         try {
             s.pdRange = st.getNonBeamPDWeaponRangeBonus().getFlatBonus();
             s.pdBeamRange = st.getBeamPDWeaponRangeBonus().getFlatBonus();
+            s.pdPct = st.getNonBeamPDWeaponRangeBonus().getPercentMod();
+            s.pdMult = st.getNonBeamPDWeaponRangeBonus().getMult();
         } catch (Throwable ignored) { }
         try { s.missileHp = mult(st.getMissileHealthBonus().computeEffective(1f)); } catch (Throwable ignored) { }
         try {
@@ -742,6 +752,10 @@ final class JAOShip implements JAOSearch.World {
             if (JAOEsr.present()) {
                 FleetMemberAPI real = null;
                 try { real = delegate.getFleetMember(); } catch (Throwable ignored) { }
+                // 0.5.101: a module shares its ship's delegate; ESR's hullmod sits on the ship only, so modules get none
+                String realHull = null;
+                try { realHull = real == null ? null : real.getHullSpec().getHullId(); } catch (Throwable ignored) { }
+                if (realHull != null && !realHull.equals(hull.getHullId())) return;
                 esrNow = JAOEsr.installed(real);
                 Set<String> plan = delegate instanceof JAOFleetPlan.PlanDelegate ? ((JAOFleetPlan.PlanDelegate) delegate).augments : null;
                 esrWant = plan != null ? plan : esrNow;
@@ -832,19 +846,51 @@ final class JAOShip implements JAOSearch.World {
         return false;
     }
 
-    /** Conditions of a combat row, split by &: +hullmod, -hullmod, FRIGATE/DESTROYER/CRUISER/CAPITAL, SHIELDHULL, NOSHIELDHULL. */
+    /**
+     * Conditions of a combat row, split by &: +hullmod, -hullmod, FRIGATE/DESTROYER/CRUISER/CAPITAL, SHIELDHULL,
+     * NOSHIELDHULL; 0.5.101: HULL=id|id (base or own hull id, * globs), NOTHULL=id|id, SMOD=hullmod (an s-mod or an
+     * s-modded built-in), NOSMOD=hullmod.
+     */
     boolean conditionsMet(String conds) {
+        return conditionsMet(conds, hull.getHullId(), hull.getBaseHullId(), hull.getHullSize().name(),
+                hull.getShieldType() == ShieldType.FRONT || hull.getShieldType() == ShieldType.OMNI, work);
+    }
+
+    static boolean conditionsMet(String conds, String hullId, String baseHullId, String sizeName, boolean shieldHull, ShipVariantAPI v) {
         for (String c : conds.split("&")) {
             c = c.trim();
             if (c.isEmpty()) continue;
-            boolean shieldHull = hull.getShieldType() == ShieldType.FRONT || hull.getShieldType() == ShieldType.OMNI;
-            if (c.startsWith("+")) { if (!work.hasHullMod(c.substring(1))) return false; }
-            else if (c.startsWith("-")) { if (work.hasHullMod(c.substring(1))) return false; }
+            if (c.startsWith("HULL=")) { if (!hullIs(c.substring(5), hullId, baseHullId)) return false; }
+            else if (c.startsWith("NOTHULL=")) { if (hullIs(c.substring(8), hullId, baseHullId)) return false; }
+            else if (c.startsWith("SMOD=")) { if (!smodded(v, c.substring(5).trim())) return false; }
+            else if (c.startsWith("NOSMOD=")) { if (smodded(v, c.substring(7).trim())) return false; }
+            else if (c.startsWith("+")) { if (!v.hasHullMod(c.substring(1))) return false; }
+            else if (c.startsWith("-")) { if (v.hasHullMod(c.substring(1))) return false; }
             else if (c.equals("SHIELDHULL")) { if (!shieldHull) return false; }
             else if (c.equals("NOSHIELDHULL")) { if (shieldHull) return false; }
-            else if (!hull.getHullSize().name().startsWith(c)) return false;
+            else if (!sizeName.startsWith(c)) return false;
         }
         return true;
+    }
+
+    /** 0.5.101: one of the |-separated hull ids (globs) is the hull's own or base id. */
+    static boolean hullIs(String alts, String hullId, String baseHullId) {
+        for (String a : alts.split("\\|")) {
+            a = a.trim();
+            if (a.isEmpty()) continue;
+            if (JAORatings.glob(a, hullId) || JAORatings.glob(a, baseHullId)) return true;
+        }
+        return false;
+    }
+
+    /** 0.5.101: the hullmod is an s-mod on the variant or an s-modded built-in. */
+    static boolean smodded(ShipVariantAPI v, String id) {
+        if (v == null || id.isEmpty()) return false;
+        try {
+            return v.getSMods().contains(id) || v.getSModdedBuiltIns().contains(id);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /**
@@ -992,9 +1038,11 @@ final class JAOShip implements JAOSearch.World {
         // stats-for-OP never have them, which left Valkyrian mounts empty and the savings in vents
         MutableShipStatsAPI opStats;
         try {
-            scratch.setVariant(work, false, true);
+            // 0.5.101: stats depend on the hullmods only; refresh once per set, not per weapon id
+            if (!modsKey.equals(statsKey)) { scratch.setVariant(work, false, true); statsKey = modsKey; }
             opStats = scratch.getStats();
         } catch (Throwable t) {
+            statsKey = null;
             opStats = work.getStatsForOpCosts();
         }
         float op;
@@ -1090,11 +1138,52 @@ final class JAOShip implements JAOSearch.World {
         return ok;
     }
 
+    /** 0.5.101: the hullmod's own isApplicableToShip with these others on (JAOSearch.modsHold), cached like canAdd. */
+    @Override
+    public boolean applies(String mod, Set<String> others) {
+        String key = key(others) + "|applies|" + mod;
+        Boolean v = addCache.get(key);
+        if (v != null) return v;
+        boolean ok = true;
+        HullModSpecAPI spec = Global.getSettings().getHullModSpec(mod);
+        if (spec != null && spec.getEffect() != null) {
+            setMods(others);
+            ShipAPI ship = delegate.getShip();
+            if (ship == null) {
+                if (checkShip == null) checkShip = new JAOCheckShip(work, scratch, delegate.getFleetMember());
+                ship = checkShip;
+            }
+            ShipVariantAPI orig = ship.getVariant();
+            try {
+                ship.setVariantForHullmodCheckOnly(work);
+                ok = spec.getEffect().isApplicableToShip(ship);
+            } catch (Throwable t) {
+                ok = false;
+            } finally {
+                ship.setVariantForHullmodCheckOnly(orig);
+            }
+        }
+        addCache.put(key, ok);
+        return ok;
+    }
+
+    /** 0.5.101: set only inside canAddTagged. */
+    private boolean autofitTagOk;
+
+    /**
+     * 0.5.101: canAdd that lets through the game's do_not_apply_hullmod_during_autofit tag, not cached. The Fragment Swarm
+     * trial adds the swarm on purpose; the tag kept it out since 0.5.89, so the trial never ran.
+     */
+    boolean canAddTagged(String mod, Set<String> mods) {
+        autofitTagOk = true;
+        try { return check(mod, mods); } finally { autofitTagOk = false; }
+    }
+
     private boolean check(String mod, Set<String> mods) {
         HullModSpecAPI spec = Global.getSettings().getHullModSpec(mod);
         if (spec == null) return false;
         // the game's own autofit never adds these (Fragment Swarm: it needs an item, and only fragment weapons use it; 0.5.38)
-        if (spec.hasTag("do_not_apply_hullmod_during_autofit")) return false;
+        if (spec.hasTag("do_not_apply_hullmod_during_autofit") && !autofitTagOk) return false;
         // Shrouded hullmods (0.5.40): only with "Use Shrouded hullmods" on; Luddic factions turn hostile on seeing one
         if (spec.hasTag("shrouded") && !JAOSettings.shroudedHullmods) return false;
         if (!paidOrFree(mod)) return false;
@@ -1158,9 +1247,40 @@ final class JAOShip implements JAOSearch.World {
         }
         if (!JAOSettings.allowDrawbacks && !(JAOSettings.shroudedHullmods && spec.hasTag("shrouded"))) {
             String why = drawback(mod, mods);
-            if (why != null) { drawbacks.putIfAbsent(mod, why); return false; }
-        }
+            if (why != null) {
+                if (!BROKEN.equals(why)) drawbacks.putIfAbsent(mod, why);
+                return false;
+            }
+        } else if (!statsOk(mod, mods)) return false;
         return true;
+    }
+
+    /** 0.5.101: drawback() when the hullmod throws in its stat effect: it is never added (the fit would fail on it). */
+    static final String BROKEN = "throws in its stat effect";
+
+    /**
+     * 0.5.101: the stat pass with the candidate added runs (another mod's hullmod can throw there, for example on a
+     * missing fleet; the search would fail on the first fit holding it). The work variant goes back to mods.
+     */
+    private boolean statsOk(String mod, Set<String> mods) {
+        try {
+            Set<String> with = new java.util.LinkedHashSet<>(mods);
+            with.add(mod);
+            setMods(with);
+            refresh();
+            return true;
+        } catch (Throwable t) {
+            brokenOnce(mod, t);
+            return false;
+        } finally {
+            try { setMods(mods); } catch (Throwable ignored) { }
+        }
+    }
+
+    private static final Set<String> BROKEN_LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    static void brokenOnce(String mod, Throwable t) {
+        if (BROKEN_LOGGED.add(mod)) Global.getLogger(JAOShip.class).warn("Auto Outfitting: hullmod " + mod + " throws in its stat effect; not added", t);
     }
 
     /** Hullmods turned down for a drawback (with "Allow hullmods with drawbacks" off), with the stat that got worse. */
@@ -1286,21 +1406,24 @@ final class JAOShip implements JAOSearch.World {
         for (String[] r : JAORatings.rules()) if (r[0].equals("drawback") && r[1].equals(mod)) return r[2].isEmpty() ? "combat drawback" : r[2];
         try {
             setMods(mods);
-            scratch.setVariant(work, false, true);
+            refresh();
             float[] before = snapshot();
             Set<String> with = new java.util.LinkedHashSet<>(mods);
             with.add(mod);
             setMods(with);
-            scratch.setVariant(work, false, true);
+            refresh();
             float[] after = snapshot();
             setMods(mods);
-            scratch.setVariant(work, false, true);
+            refresh();
             for (int i = 0; i < before.length; i++) {
                 if (PRICED.contains(STAT_NAMES[i]) || (station && STATION_FREE.contains(STAT_NAMES[i]))) continue;
                 if (after[i] < before[i] - Math.max(0.005f * Math.abs(before[i]), 1e-4f)) return STAT_NAMES[i];
             }
         } catch (Throwable t) {
-            return null;
+            // 0.5.101: a hullmod that throws here makes every fit holding it fail; refuse it
+            brokenOnce(mod, t);
+            try { setMods(mods); } catch (Throwable ignored) { }
+            return BROKEN;
         }
         return null;
     }

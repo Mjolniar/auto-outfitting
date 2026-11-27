@@ -43,8 +43,10 @@ final class JAODebug {
             List<String> gone = new ArrayList<>();
             int n = strip(v, gone);
             if (n == 0) continue;
-            m.setVariant(v, false, true);
-            m.updateStats();
+            // 0.5.101: counted once the variant is on the ship, so a throwing hullmod script can't lose the refund
+            try { m.setVariant(v, false, true); } catch (Throwable t) { Global.getLogger(JAODebug.class).warn("Auto Outfitting: debug refund: refresh failed on " + m.getShipName(), t); }
+            if (m.getVariant() != v) continue;
+            try { m.updateStats(); } catch (Throwable t) { Global.getLogger(JAODebug.class).warn("Auto Outfitting: debug refund: stats update failed on " + m.getShipName(), t); }
             removed += n;
             ships++;
             lines.add((m.getShipName() == null ? m.getHullSpec().getHullName() : m.getShipName()) + " " + gone);

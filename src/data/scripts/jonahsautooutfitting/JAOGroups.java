@@ -79,7 +79,7 @@ final class JAOGroups {
             g++;
             split++;
         }
-        if (split > 0) Global.getLogger(JAOGroups.class).info("Auto Outfitting: " + v.getHullVariantId() + ": " + split + " broadside group(s) split left/right");
+        if (split > 0 && JAOSettings.debug) Global.getLogger(JAOGroups.class).info("Auto Outfitting: " + v.getHullVariantId() + ": " + split + " broadside group(s) split left/right");
     }
 
     static void linkMissileVolleys(ShipVariantAPI v) {
@@ -106,6 +106,6 @@ final class JAOGroups {
             group.setType(WeaponGroupType.LINKED);
             linked++;
         }
-        if (linked > 0) Global.getLogger(JAOGroups.class).info("Auto Outfitting: " + v.getHullVariantId() + ": " + linked + " missile group(s) linked for volleys");
+        if (linked > 0 && JAOSettings.debug) Global.getLogger(JAOGroups.class).info("Auto Outfitting: " + v.getHullVariantId() + ": " + linked + " missile group(s) linked for volleys");
     }
 }

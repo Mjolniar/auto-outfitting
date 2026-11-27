@@ -259,6 +259,8 @@ final class JAOModel {
                     float hit, int type, boolean pd) {
             float wd = finite ? perShot * Math.max(1, ammo) / cycle * reliability
                     : (sustDps + 0.5f * empDps) * ENGAGE * (range < 150f ? MELEE : 1f);
+            // 0.5.101: a weapon with no finite rate (refire 0) adds nothing; Infinity made the wing's hit NaN
+            if (!Float.isFinite(wd) || !Float.isFinite(hit) || wd < 0f) return;
             dps += wd;
             hitSum += wd * hit;
             armorDps += wd * ARMOR_MULT[type] * hit / (hit + 500f);
@@ -546,6 +548,11 @@ final class JAOModel {
         float fighterDmg = 1f;
         /** Flat range added to point-defense weapons, projectile and beam (Point Defense elite +200). */
         float pdRange, pdBeamRange;
+        /**
+         * 0.5.101: percent and multiplier on non-beam point-defense range (Advanced Targeting Core -40%, Targeting
+         * Supercomputer -190%, A_S-F Targeting Adjunct -15%). The game adds the percent to the weapon type's percent.
+         */
+        float pdPct, pdMult = 1f;
         /** Missile hit points (Missile Specialization +25%). */
         float missileHp = 1f;
         /**
@@ -619,7 +626,7 @@ final class JAOModel {
             s.ammoBal = ammoBal; s.ammoEn = ammoEn; s.regenBal = regenBal; s.regenEn = regenEn; s.empTaken = empTaken; s.ventRate = ventRate;
             s.projSpeedMult = projSpeedMult; s.regenMis = regenMis; s.overloadMult = overloadMult; s.weaponHealth = weaponHealth; s.aimBonus = aimBonus;
             s.fluxPerWeaponOp = fluxPerWeaponOp; s.capPerWeaponOp = capPerWeaponOp; s.sizeDmg = sizeDmg.clone(); s.fighterDmg = fighterDmg;
-            s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
+            s.pdRange = pdRange; s.pdBeamRange = pdBeamRange; s.pdPct = pdPct; s.pdMult = pdMult; s.missileHp = missileHp; s.ewm = ewm; s.ewmNear = ewmNear; s.ewmFar = ewmFar;
             s.hardDiss = hardDiss; s.maxDr = maxDr; s.crLoss = crLoss;
             s.fragRegen = fragRegen; s.fragSize = fragSize; s.hullmodWeapons = hullmodWeapons; s.armorEffMult = armorEffMult;
             s.hullRegen = hullRegen; s.hullRegenCap = hullRegenCap; s.hardBeamsAll = hardBeamsAll; s.hardBeamIds = hardBeamIds; s.misRate = misRate; s.lidarHp = lidarHp; s.lidarOther = lidarOther; s.pdNeedMult = pdNeedMult; s.noFire = noFire; s.chronos = chronos; s.weaponRange = weaponRange;
@@ -860,9 +867,12 @@ final class JAOModel {
         if (w.beam && s.hsa && base > 200f) base = 200f + 0.5f * (base - 200f);
         float pct = s.rangePct[w.cls] + (w.beam ? s.beamPct : 0f);
         float flat = s.rangeFlat[w.cls] + (w.beam ? s.beamFlat : 0f);
-        // Point Defense elite: point-defense weapons reach 200 further
-        if (w.pd || w.pdOnly) flat += w.beam ? s.pdBeamRange : s.pdRange;
-        float r = (base + base * pct / 100f + flat) * s.rangeMult[w.cls] * (w.beam ? s.beamMult : 1f);
+        // Point Defense elite: point-defense weapons reach 200 further (the game skips PD missiles)
+        if ((w.pd || w.pdOnly) && w.cls != MIS) flat += w.beam ? s.pdBeamRange : s.pdRange;
+        // 0.5.101: the non-beam PD percent adds to the type percent; its multiplier applies to the whole range
+        float pdM = 1f;
+        if (w.pd && !w.beam && w.cls != MIS) { pct += s.pdPct; pdM = s.pdMult; }
+        float r = Math.max(0f, (base + base * pct / 100f + flat) * s.rangeMult[w.cls] * (w.beam ? s.beamMult : 1f) * pdM);
         if (w.cls != MIS && r > s.threshold) r = s.threshold + (r - s.threshold) * s.pastThreshold;
         return r;
     }

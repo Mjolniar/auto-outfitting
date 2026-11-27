@@ -425,11 +425,15 @@ final class JAOCompat {
      * Runs the plan's hullmod stat effects on a copy (a scratch fleet member, like JAOShip's) and reports what they
      * changed. Never touches the plan or the ship. Captain-dependent effects are left out (the scratch member has none).
      */
-    static Probe probe(ShipVariantAPI plan) {
+    static Probe probe(ShipVariantAPI plan) { return probe(plan, null); }
+
+    /** 0.5.101: memberId = the real ship's id, so hullmods keyed on it (Starship Legends, IndEvo) read that ship and add no save entries. */
+    static Probe probe(ShipVariantAPI plan, String memberId) {
         Probe p = new Probe();
         try {
             ShipVariantAPI copy = plan.clone();
             FleetMemberAPI m = Global.getFactory().createFleetMember(FleetMemberType.SHIP, copy);
+            if (memberId != null) { try { m.setId(memberId); } catch (Throwable ignored) { } }
             PersonAPI player = Global.getSector() == null ? null : Global.getSector().getPlayerPerson();
             CampaignFleetAPI fleet = Global.getSector() == null ? null : Global.getSector().getPlayerFleet();
             if (player != null) m.setFleetCommanderForStats(player, fleet == null ? null : fleet.getFleetData());
@@ -456,8 +460,10 @@ final class JAOCompat {
      * stock) and the OP they take comes off capacitors, then vents (vents first on carriers, phase, support and missile
      * ships, which keep the buffer). Returns the bays the scripts fill.
      */
-    static Probe settle(ShipVariantAPI plan, boolean capsFirst) {
-        Probe p = probe(plan);
+    static Probe settle(ShipVariantAPI plan, boolean capsFirst) { return settle(plan, capsFirst, null); }
+
+    static Probe settle(ShipVariantAPI plan, boolean capsFirst, String memberId) {
+        Probe p = probe(plan, memberId);
         for (Map.Entry<Integer, String> e : p.wings.entrySet()) plan.setWingId(e.getKey(), e.getValue());
         if (p.over > 0) {
             int over = p.over, v = plan.getNumFluxVents(), c = plan.getNumFluxCapacitors();

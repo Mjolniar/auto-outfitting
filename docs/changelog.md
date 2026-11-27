@@ -1,5 +1,32 @@
 # Patch notes
 
+## 0.5.101 - 2026-11-27
+
+- Ship roles: Teleporter and displacer systems from mods count like the vanilla Phase Teleporter and Displacer (A_S-F Light Phase Teleporter, IX and Vice teleporters, mod skimmers).
+- Point defense: PD range penalties in percent are counted (Advanced Targeting Core, Targeting Supercomputer, A_S-F Targeting Adjunct).
+- Fragment Swarm: Fixed the swarm never being fitted together with fragment weapons.
+- Hullmods: Hullmods that throw an error in their stat effect are skipped. The fit no longer fails on them.
+- Hullmods: A hullmod that another fitted hullmod needs is no longer taken off or traded away.
+- Autofit: Fixed modules being fitted as whole ships, with their bought weapons unpaid, when an Optimal fit failed with "Optimal fit for every goal" ticked.
+- S-mods: Module s-mods are judged on the module as fitted.
+- S-mods: The preview counts module s-mods from the story points left after the ship's own.
+- S-mods: Waiting for the best hullmods only waits for hullmods the hull can take.
+- Optimize fleet: D-mod repairs take Domain-grade Parts from storage only with "Use storage here" on and storage access.
+- Optimize fleet: Fixed a d-mod repair on a ship with a stock variant changing that variant for every ship of the design.
+- Optimize fleet: Hullmod items are taken and returned for a ship even when a later step fails on it. A failed in-space refit charge no longer puts the ship back on its old loadout.
+- Optimize fleet: Plan checks use the ship's own id. Starship Legends and IndEvo get no new save entries per plan.
+- Optimize fleet: Extra Systems augments without AO data stay on their ships. Modules no longer count their ship's augments.
+- Civilian ships: Built-in weapons on logistics fits get weapon groups.
+- Search: Fixed weapons and wings being added to a ship already over its OP limit.
+- Search: Weapon pruning on busy slots counts slot-based range and reload effects.
+- Wings: A fighter weapon with no finite fire rate no longer breaks its wing's score.
+- Rules: Combat rows can name hulls (HULL=, NOTHULL=) or apply only as an s-mod (SMOD=, NOSMOD=).
+- Khe's Tech: Buttercup Time Reactor counts its s-mod effect (time and damage taken x1/3).
+- Emergent Threats: Dweller Boost time flow skips the Shrouded Eye.
+- Debug refund: Story points are refunded for every ship whose s-mods came off, also when a ship's refresh fails.
+- Performance: Weapon OP is priced from one stat refresh per hullmod set (was one per weapon).
+- Log: Module lines with nothing chosen are not written. Weapon group lines need the debug log.
+
 ## 0.5.100 - 2026-11-27
 
 - Advanced Modifications: Fixed Overcharge being added to ships with no ship system (combat crash).

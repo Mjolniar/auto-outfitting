@@ -43,6 +43,20 @@ final class JAOSearch {
         void setSMods(Set<String> smods);
         /** OP of the weapons and wings that stay on the ship (not built in), for Ordnance Expertise. */
         default float fixedWeaponOp() { return 0f; }
+        /** 0.5.101: mod's isApplicableToShip with these others on (a hullmod can need another one). */
+        default boolean applies(String mod, Set<String> others) { return true; }
+    }
+
+    /** 0.5.101: every chosen hullmod still applies next to the others (checked when one comes off or is traded). */
+    boolean modsHold() {
+        if (mods.size() < 2) return true;
+        for (String y : mods) {
+            if (keepMods.contains(y)) continue;
+            Set<String> others = new LinkedHashSet<>(mods);
+            others.remove(y);
+            if (!world.applies(y, others)) return false;
+        }
+        return true;
     }
 
     static final class Cand {
@@ -566,7 +580,8 @@ final class JAOSearch {
             float v = objective() * bonus(c);
             s.pick = null;
             give(c);
-            if (v > best * 1.0005f || (best <= 0f && v > best)) { best = v; bestC = c; }
+            // 0.5.101: gain() (best * 1.0005 let every candidate past -1, the score of a start already over the OP limit)
+            if (v > gain(best, 0.0005f)) { best = v; bestC = c; }
         }
         if (bestC != null) { take(bestC); s.pick = bestC; }
         return bestC != old;
@@ -717,6 +732,7 @@ final class JAOSearch {
             for (String in : modCands) {
                 if (in.equals(out) || mods.contains(in) || world.filler(in) || !world.canAdd(in, mods)) continue;
                 mods.add(in);
+                if (!modsHold()) { mods.remove(in); continue; }
                 float v = objective();
                 mods.remove(in);
                 if (v > bestV) { bestV = v; bestOut = out; bestIn = in; }
@@ -810,7 +826,7 @@ final class JAOSearch {
             if (keepMods.contains(m)) continue;
             float base = objective();
             mods.remove(m);
-            if (objective() > gain(base, 0.001f)) { any = true; continue; }
+            if (modsHold() && objective() > gain(base, 0.001f)) { any = true; continue; }
             mods.add(m);
         }
         return any;
@@ -867,7 +883,11 @@ final class JAOSearch {
     }
 
     private float objectiveOneWeapon(Slot s, Cand c) {
-        List<JAOModel.Fit> f = Collections.singletonList(new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear));
+        JAOModel.Fit one = new JAOModel.Fit(c.w, s.hardpoint, s.cover, s.front, s.bear);
+        // 0.5.101: the slot's type and size, as fits() sets them (slot-keyed range and reload effects)
+        one.slotType = s.slotType;
+        one.slotSize = s.size;
+        List<JAOModel.Fit> f = Collections.singletonList(one);
         JAOModel.Ship sh = ship();
         if (sh.fluxPerWeaponOp > 0f || sh.capPerWeaponOp > 0f) sh = JAOModel.ordnance(sh, world.op(c, mods));
         return JAOModel.score(sh, f, params);

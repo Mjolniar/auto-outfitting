@@ -458,14 +458,14 @@ final class JAOFleetApply {
         if (repairOn) {
             try {
                 double left = fleet.creditsLeft == Double.MAX_VALUE ? creditLimit : Math.min(creditLimit, fleet.creditsLeft);
-                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, market), left, JAODmods.restoreHere(market), null,
+                repairs = JAODmods.plan(fleet.ships, JAODmods.partsHave(cargo, storage != null ? market : null), left, JAODmods.restoreHere(market), null,
                         (s, v) -> fleet.scoreVariant(s.member, v));
                 for (JAODmods.Repair r : repairs) {
                     if (r.how == JAODmods.WITH_PARTS) repairParts += r.parts; else repairCredits += r.credits;
                 }
                 List<String> lines = new ArrayList<>();
                 for (JAODmods.Repair r : repairs) lines.add(r.ship.name + ": " + r.describe());
-                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: d-mod repairs planned (" + JAODmods.partsHave(cargo, market) + " parts here, "
+                Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: d-mod repairs planned (" + JAODmods.partsHave(cargo, storage != null ? market : null) + " parts here, "
                         + Math.round(left) + " credits left, restoration " + (JAODmods.restoreHere(market) ? "open" : "closed") + ", picked ships " + picks().size() + "): "
                         + (lines.isEmpty() ? "none" : String.join("; ", lines)));
             } catch (Throwable t) {
@@ -605,6 +605,8 @@ final class JAOFleetApply {
         List<FleetMemberAPI> done = new ArrayList<>();
         for (JAOFleetPlan.ShipPlan s : todo) {
             try {
+                // 0.5.101: listed first, so the hullmod item bookkeeping below also runs when a later step throws
+                done.add(s.member);
                 ShipVariantAPI v = live(s.member, true);
                 missing += fit(v, s.plan, used, s.scripted);
                 for (String slot : new ArrayList<>(v.getStationModules().keySet())) {
@@ -652,13 +654,18 @@ final class JAOFleetApply {
                     float cr0 = s.member.getRepairTracker().getCR();
                     ShipVariantAPI now = s.member.getVariant();
                     s.member.setVariant(old, false, false);
-                    s.member.setVariant(now, true, true);
+                    try {
+                        s.member.setVariant(now, true, true);
+                    } catch (Throwable t) {
+                        // 0.5.101: never leave the ship on its old variant (its old gear is already in cargo)
+                        s.member.setVariant(now, false, true);
+                        throw t;
+                    }
                     float lost = cr0 - s.member.getRepairTracker().getCR();
                     if (lost > 0.0005f) { crCharged++; crTaken = Math.max(crTaken, lost); }
                     Global.getLogger(JAOFleetApply.class).info("Auto Outfitting: Optimize fleet: " + s.name + " lost "
                             + Math.round(lost * 100f) + "% CR to the in-space refit");
                 }
-                done.add(s.member);
                 ships++;
                 // 0.5.60: its hullmod items are taken now, so the next ship's check sees what's left (the refit screen's
                 // ship is reported after the screen saves it, below)
@@ -686,15 +693,17 @@ final class JAOFleetApply {
             try {
                 FleetMemberAPI m = r.ship.member;
                 boolean onScreen = shown(m);
-                ShipVariantAPI v = live(m, false);
+                // 0.5.101: a ship off the screen gets its own copy first (it can still hold the shared stock variant)
+                ShipVariantAPI v = live(m, !onScreen);
                 if (v == null) continue;
                 List<String> d = new ArrayList<>(r.dmods);
                 d.retainAll(JAOOptimizer.removableDmods(v));
                 if (d.isEmpty()) continue;
                 if (r.how == JAODmods.WITH_PARTS) {
                     int need = d.size() * JAODmods.partsPerDmod(v.getHullSpec());
-                    if (JAODmods.partsHave(cargo, market) < need) continue;
-                    JAODmods.takeParts(cargo, market, need);
+                    // 0.5.101: storage only when it is a source (Use storage here on, access)
+                    if (JAODmods.partsHave(cargo, storage != null ? market : null) < need) continue;
+                    JAODmods.takeParts(cargo, storage != null ? market : null, need);
                     JAODmods.repair(v, d);
                     if (!onScreen) m.setVariant(v, false, true);
                     com.fs.starfarer.api.campaign.listeners.ListenerUtil.reportDModsRepaired(m, v, need);

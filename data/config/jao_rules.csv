@@ -463,7 +463,7 @@ never_remove,dummyanchor7s,,"Neoteric (hidden, guard only): Mayawati phase ancho
 never_remove,resonance7s,,"Neoteric (hidden, guard only): Mayawati clone resonance"
 never_remove,Cheat_Maya7s,,"Neoteric (hidden, guard only): Mayawati cheat core; removes itself when the variant has d-mods"
 never_remove,cheat_tempestas7s,,"Neoteric (hidden, guard only): Tempestas cheat core; removes itself when the variant has d-mods"
-never_smod,kheslowtimereactor,,Khe: the s-mod sets ship time x1/3 and damage taken x1/3; a combat row has no s-mod condition
+never_smod,kheslowtimereactor,,Khe: the s-mod sets ship time x1/3 and damage taken x1/3 (scored by SMOD= rows since 0.5.101)
 removed_by,aswitcher_elipsion,safetyoverrides,Neoteric: the Elipsion modes remove Safety Overrides (MagicIncompatibleHullmods)
 removed_by,ballistic_support7s,ballistic_rangefinder,"Neoteric: Ballistic Adapters (Strider7s, Glider7s) remove Ballistic Rangefinder"
 wing_mult,necro_scavenger7s,1.2,Neoteric: extra craft up to 2x-3x wing size for 35 s once a destroyer or larger hulk is on the map (judgment)
@@ -475,8 +475,10 @@ role,khe_catslaught,Anchor,Khe: designation 'Hybrid Phase-Battleship' makes JAOR
 role,khe_facet,Brawler,"Khe: designation 'Phase-Warped Facet' returns Phase; no cloak, shield removed, speed 60 with Phase-Quantum Plating (judgment)"
 role,khe_vanguard,Brawler,Khe: speed 135 halved to 67 by Phase-Quantum Plating; the burn drive is a ram (judgment)
 combat,kheventhack,DISS:2:1,Khe Passive Venting Hack: dissipation x2 x non-zero vent mods set in advanceInCombat
-combat,kheslowtimereactor,TIME:0.667:1,"Khe Buttercup: ship time x2/3 (dissipation, speed and rate of fire)"
-combat,kheslowtimereactor,TAKEN_ALL:0.667:1,"Khe Buttercup: hull, armor and shield damage taken x the time mult (2/3)"
+combat,kheslowtimereactor,TIME:0.667:1:NOSMOD=kheslowtimereactor,"Khe Buttercup: ship time x2/3 (dissipation, speed and rate of fire)"
+combat,kheslowtimereactor,TAKEN_ALL:0.667:1:NOSMOD=kheslowtimereactor,"Khe Buttercup: hull, armor and shield damage taken x the time mult (2/3)"
+combat,kheslowtimereactor,TIME:0.333:1:SMOD=kheslowtimereactor,"Khe Buttercup s-mod: ship time x1/3 (0.5.101)"
+combat,kheslowtimereactor,TAKEN_ALL:0.333:1:SMOD=kheslowtimereactor,"Khe Buttercup s-mod: damage taken x1/3 (0.5.101)"
 combat,khemeteordrivesubsystem,NOFIRE:0.17:0.5,Khe Meteor: weapons off for the 4 s drive plus about 4 s of forced overload in a 47 s cycle (cooldown x2); AI uses it about half the cycles (judgment)
 combat,khemeteordrivesubsystem,TAKEN_ALL:0:0.06,Khe Meteor: invulnerable for 6 s of 47 (IN and ACTIVE) x 0.5 use
 combat,khephasedrivesubsystem,NOFIRE:0.17:0.5,Khe Phasediver: same cycle as Meteor
@@ -554,7 +556,7 @@ combat,A_S-F_fluxSiphon,VENT_FLAT:-150:1,Flux Siphon (Actuary): takes up to 600 
 combat,tahlan_ventweaponboost,DMG_BE:2.3:0.083,"Vent Weapon Boost (Asria, Melusia): ballistic and energy damage x2.33 for 5 s after a 6.7 s vent; about 1.5 vents in 90 s = 0.083 (judgment)"
 combat,tahlan_realityglitch,TAKEN_ALL:0:0.07,Reality Glitch: 1.5 s phased out of a 21.5 s cycle after taking damage; 0.07 (judgment: every cycle triggers)
 combat,tahlan_volatiledissipation,VENT_FLAT:60:1,Volatile Dissipation (Rigveda): flux dissipation +200 x hard flux level; 60 at level 0.3 (judgment)
-combat,vice_dweller_boost,TIME:1.15:1,Dweller Boost: time flow x1.15 on every Dweller except the Shrouded Eye (applyEffectsAfterShipCreation)
+combat,vice_dweller_boost,TIME:1.15:1:NOTHULL=shrouded_eye,Dweller Boost: time flow x1.15 on every Dweller except the Shrouded Eye (applyEffectsAfterShipCreation)
 combat,ah_fluxcore_overdrive,TAKEN_ARMOR:1.25:0.1,Flux Core Overdrive: armor damage taken +25% while venting; venting 0.1 of a fight (judgment)
 combat,ah_fluxcore_overdrive,TAKEN_HULL:1.25:0.1,Flux Core Overdrive: hull damage taken +25% while venting; venting 0.1 of a fight (judgment)
 combat,ah_nano_hull,TAKEN_HULL:0.86:1:+ah_delta_subsystem,Nano Hull with Delta Subsystem: hull damage taken x(1 - (0.10 + 0.10 x missing hull)); 0.14 at 40% missing hull on average (judgment)

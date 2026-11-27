@@ -90,8 +90,11 @@ final class JAOAugments {
             if (n <= 0 && has.isEmpty()) continue;
             ships.add(m);
             now.add(has);
-            fixed.add(destroys ? new LinkedHashSet<>(has) : new LinkedHashSet<>());
-            if (!destroys) for (String id : has) pool.merge(id, 1, Integer::sum);
+            // 0.5.101: an augment AO has no numbers for (a later ESR) stays where it is
+            Set<String> stays = destroys ? new LinkedHashSet<>(has) : new LinkedHashSet<>();
+            for (String id : has) if (!java.util.Arrays.asList(JAOEsr.IDS).contains(id)) stays.add(id);
+            fixed.add(stays);
+            if (!destroys) for (String id : has) if (java.util.Arrays.asList(JAOEsr.IDS).contains(id)) pool.merge(id, 1, Integer::sum);
         }
         for (String id : JAOEsr.IDS) {
             int c = JAOEsr.count(cargo, id) + JAOEsr.count(storage, id);

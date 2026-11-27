@@ -75,8 +75,36 @@ public enum JAORole {
         if (system == null) return false;
         String s = system.toLowerCase(Locale.ROOT);
         return s.equals("plasmajets") || s.equals("microburn") || s.equals("displacer") || s.equals("phaseteleporter")
-                || s.equals("temporalshell") || s.contains("quickboost") || s.contains("punisherjets");
+                || s.equals("temporalshell") || s.contains("quickboost") || s.contains("punisherjets") || blinkSystem(system);
     }
+
+    /** 0.5.101: system id -> teleporter or displacer read from its spec, cached (the planner thread reads it too). */
+    private static final java.util.Map<String, Boolean> BLINK = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 0.5.101: a TELEPORTER or DISPLACER system under any id (A_S-F Light Phase Teleporter, IX and Vice teleporters,
+     * mod skimmers): the spec renders a copy during the jump and the AI hints give it burst movement. Energy Conversion
+     * (a DISPLACER with no movement) is left out by the movement check. False when the game can't be read.
+     */
+    static boolean blinkSystem(String system) {
+        if (system == null || system.isEmpty()) return false;
+        Boolean known = BLINK.get(system);
+        if (known != null) return known;
+        boolean blink = false;
+        if (com.fs.starfarer.api.Global.getSettings() == null) return false;
+        try {
+            com.fs.starfarer.api.combat.ShipSystemSpecAPI spec = com.fs.starfarer.api.Global.getSettings().getShipSystemSpec(system);
+            blink = spec != null && spec.isRenderCopyDuringTeleport() && spec.getAIHints2() != null
+                    && spec.getAIHints2().getBurstMovementPotential() >= BLINK_MIN_BURST;
+        } catch (Throwable t) {
+            return false;
+        }
+        BLINK.put(system, blink);
+        return blink;
+    }
+
+    /** Burst movement at which a jump system counts (the shortest mod displacers list 100; vanilla Displacer 300). */
+    static final float BLINK_MIN_BURST = 100f;
 
     /**
      * How far the ship system moves the ship out of trouble (0.5.59): 2 for skimmers and teleporters (Phase Skimmer,
@@ -86,7 +114,8 @@ public enum JAORole {
     static int dashLevel(String system) {
         if (system == null || system.isEmpty()) return 0;
         String s = system.toLowerCase(Locale.ROOT);
-        if (s.contains("displacer") || s.contains("teleport") || s.contains("skimmer") || s.contains("blink") || s.contains("warp")) return 2;
+        if (s.contains("displacer") || s.contains("teleport") || s.contains("skimmer") || s.contains("blink") || s.contains("warp")
+                || blinkSystem(system)) return 2;
         // the AI fires Plasma Burn only to close in, never to break off (roles_1116: Shrike, Fury, Odyssey, Brilliant)
         if (s.startsWith("microburn")) return 0;
         if (s.contains("burn") || s.contains("jets") || s.contains("boost") || s.contains("dash") || s.contains("orion")

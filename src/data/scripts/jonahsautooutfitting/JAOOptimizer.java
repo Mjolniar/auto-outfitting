@@ -249,6 +249,10 @@ class JAOOptimizer {
                 if (mayWait) {
                     every = new ArrayList<>(JAOSMods.everything());
                     every.removeAll(smodsRemoved);
+                    // 0.5.101: only hullmods this hull may take (rules, settings, built-ins): no waiting for one it never gets
+                    final List<String> availNow = available;
+                    final Set<String> keepNow = new LinkedHashSet<>(keepMods);
+                    every.removeIf(id -> !availNow.contains(id) && !allowedHere(id, keepNow));
                 }
                 JAOSMods.Plan plan = sm.plan(available, every);
                 smodPlan = plan;
@@ -737,7 +741,10 @@ class JAOOptimizer {
      */
     private void moduleSmods(boolean real, int shipNew) {
         moduleNewSmods = 0;
-        int sp = storyPoints < 0 ? -1 : storyPoints - shipNew;
+        // 0.5.101: a preview spends nothing, so its modules count from the live story points less the ship's planned s-mods
+        int live = -1;
+        if (!real && storyPoints < 0) try { live = Global.getSector().getPlayerStats().getStoryPoints(); } catch (Throwable ignored) { }
+        int sp = storyPoints >= 0 ? storyPoints - shipNew : live < 0 ? -1 : Math.max(0, live - shipNew);
         for (JAOOptimizer mo : moduleFits) {
             if (mo.deferredSmods == null) continue;
             mo.storyPoints = sp;
@@ -762,9 +769,20 @@ class JAOOptimizer {
         List<String> available = smodCandidates(modCands, keepMods, hull);
         int limit = smodLimit(new int[4]);
         if (limit <= 0 || available.isEmpty()) return 0;
+        // 0.5.101: judged on the module as fitted (this runs after its fit): its weapons and hullmods kept, the OP left
+        // to vents and capacitors, no ordinary hullmods added (a ship's modules get none). Before, the fitted weapons
+        // counted as free on top of the whole pre-fit budget.
+        int vents = current.getNumFluxVents(), caps = current.getNumFluxCapacitors();
+        current.setNumFluxVents(0);
+        current.setNumFluxCapacitors(0);
+        int asIs = hull.getOrdnancePoints(plugin.stats()) - current.computeOPCost(plugin.stats());
+        current.setNumFluxVents(vents);
+        current.setNumFluxCapacitors(caps);
+        Set<String> keepNow = new LinkedHashSet<>(current.getNonBuiltInHullmods());
+        JAOShip fitted = new JAOShip(current, delegate, plugin.stats(), asIs, plugin.getMaxVents(hull.getHullSize()), plugin.getMaxCaps(hull.getHullSize()));
         List<String> dmods = removableDmods(current);
-        JAOShip smodWorld = dmods.isEmpty() ? world : restored(dmods, budget, hull);
-        JAOSMods sm = new JAOSMods(smodWorld, p, slotsOf, stock, modCands, keepMods, limit);
+        JAOShip smodWorld = dmods.isEmpty() ? fitted : restored(dmods, asIs, hull);
+        JAOSMods sm = new JAOSMods(smodWorld, p, slotsOf, stock, new ArrayList<>(), keepNow, limit);
         sm.minGain = JAOSettings.smodMinGain * sizeWeight(delegate.getFleetMember(), hull) * moduleShare(moduleCount);
         JAOSMods.Plan plan = sm.plan(available, available);
         Set<String> smods = new LinkedHashSet<>(plan.mods);
@@ -1301,28 +1319,33 @@ class JAOOptimizer {
     /** Known hullmods worth trying: combat value per jao_hullmods.csv, or unknown (measured); minus rules and settings. */
     private List<String> hullmodCandidates(Set<String> keep) {
         Set<String> out = new TreeSet<>();
-        Map<String, JSONObject> table = JAORatings.hullmods();
-        for (String id : delegate.getAvailableHullmods()) {
-            // 0.5.60: the ship's own s-mods aren't candidates (getNonBuiltInHullmods leaves them out of keep; adding one
-            // changed nothing but booked its OP)
-            if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id) || current.getPermaMods().contains(id)) continue;
-            HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
-            if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) continue;
-            if (JAOCompat.neverAdd(id) || (!stationFit() && JAOCompat.tooSmall(id, current.getHullSize())) || JAOCompat.notOnPhase(id, current.getHullSpec())
-                    || JAOCompat.removedByHull(id, current.getHullSpec()) || JAOCompat.missingNeed(id, current.getHullSpec())) continue;
-            if (stationFit() && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) continue;
-            if (spec.hasUITag("Logistics") && !JAOSettings.logistics) continue;
-            if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
-                    || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) continue;
-            JSONObject row = table.get(id);
-            if (row != null) {
-                if (!"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE"))) continue;
-                String how = row.optString("how", "stats");
-                if ("listener".equals(how) && !JAOShip.modelled(id)) continue;
-            }
-            out.add(id);
-        }
+        for (String id : delegate.getAvailableHullmods()) if (allowedHere(id, keep)) out.add(id);
         return new ArrayList<>(out);
+    }
+
+    /**
+     * Every per-hull check of hullmodCandidates, known or not (0.5.101: the s-mod wait list uses them too; it held slots
+     * for hullmods the rules keep off this hull).
+     */
+    boolean allowedHere(String id, Set<String> keep) {
+        // 0.5.60: the ship's own s-mods aren't candidates (getNonBuiltInHullmods leaves them out of keep; adding one
+        // changed nothing but booked its OP)
+        if (keep.contains(id) || current.getHullSpec().getBuiltInMods().contains(id) || current.getPermaMods().contains(id)) return false;
+        HullModSpecAPI spec = Global.getSettings().getHullModSpec(id);
+        if (spec == null || spec.isHidden() || spec.isHiddenEverywhere() || spec.hasTag("dmod")) return false;
+        if (JAOCompat.neverAdd(id) || (!stationFit() && JAOCompat.tooSmall(id, current.getHullSize())) || JAOCompat.notOnPhase(id, current.getHullSpec())
+                || JAOCompat.removedByHull(id, current.getHullSpec()) || JAOCompat.missingNeed(id, current.getHullSpec())) return false;
+        if (stationFit() && !stationHullmod(id, spec.hasUITag("Logistics"), spec.hasUITag("Engines"))) return false;
+        if (spec.hasUITag("Logistics") && !JAOSettings.logistics) return false;
+        if (id.equals(HullMods.SAFETYOVERRIDES) && (JAOSettings.safetyOverrides == 0
+                || (JAOSettings.safetyOverrides == 1 && current.getHullSize().ordinal() > HullSize.DESTROYER.ordinal()))) return false;
+        JSONObject row = JAORatings.hullmods().get(id);
+        if (row != null) {
+            if (!"TRUE".equalsIgnoreCase(row.optString("combat", "TRUE"))) return false;
+            String how = row.optString("how", "stats");
+            if ("listener".equals(how) && !JAOShip.modelled(id)) return false;
+        }
+        return true;
     }
 
     // ------------------------------------------------------------------ civilian ships
@@ -1527,6 +1550,9 @@ class JAOOptimizer {
         current.setNumFluxVents(flux[0]);
         current.setNumFluxCapacitors(flux[1]);
         current.getWeaponGroups().clear();
+        // 0.5.101: built-in weapons get their groups back (run() turned auto-assign off)
+        current.setMayAutoAssignWeapons(true);
+        current.autoGenerateWeaponGroups();
         current.setSource(VariantSource.REFIT);
         boolean docked = false;
         for (String id : available) { HullModSpecAPI s = Global.getSettings().getHullModSpec(id); if (s != null && s.hasUITag("Logistics")) { docked = true; break; } }
@@ -1793,7 +1819,7 @@ class JAOOptimizer {
             WeaponSpecAPI spec = w.getSpec();
             if (spec != null && w.getQuantity() > 0 && spec.hasTag("fragment") && !skipped(spec.getWeaponId())) { anyFragment = true; break; }
         }
-        if (!anyFragment || !world.canAdd(SWARM, keepAll)) return null;
+        if (!anyFragment || !world.canAddTagged(SWARM, keepAll)) return null;
         float without = base.objective(true);
         current.addMod(SWARM);
         boolean keep = false;
@@ -1849,8 +1875,14 @@ class JAOOptimizer {
     }
 
     private void log(JAOSearch s, JAOShip world, JAOModel.Params p, JAOStyle st, long ms) {
-        Map<String, Float> b = new LinkedHashMap<>();
         int[] vc = s.fluxBest();
+        // 0.5.101: a module with no open slot, no hullmod, vent or capacitor chosen has nothing to show (armor plates)
+        if (module && s.mods.isEmpty() && vc[0] == 0 && vc[1] == 0) {
+            boolean open = false;
+            for (JAOSearch.Slot slot : s.slots) if (slot.fixed == null) { open = true; break; }
+            if (!open) return;
+        }
+        Map<String, Float> b = new LinkedHashMap<>();
         JAOModel.evaluate(JAOModel.withFlux(s.fitShip(), vc[0], vc[1]), s.fits(), p, b);
         StringBuilder sb = new StringBuilder("Auto Outfitting: ").append(current.getHullSpec().getHullId())
                 .append(module ? " (module)" : "").append(' ').append(p.role != null ? p.role.label + "/" : "").append(st.label).append(" in ").append(ms).append(" ms, ")
