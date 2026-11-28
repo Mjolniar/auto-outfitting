@@ -101,6 +101,25 @@ final class JAOSMods {
     static final int BEAM = 3;
 
     /**
+     * 0.5.102: past the first pick, only candidates that improved the ship as the first pick are screened again, at most
+     * this many, best first (each later level screened every candidate, and "Wait for the best hullmods" screens every
+     * hullmod in the game: 13-20 s on a capital). Not final: the offline checks compare against an unlimited screen.
+     */
+    static int screenKeep = 40;
+    /** 0.5.102: the caches below (off only in the offline checks, for the speed comparison). */
+    static boolean cacheOn = true;
+
+    /**
+     * 0.5.102: results shared by the greedy runs of one plan (the hullmods the player has, every hullmod, then the
+     * rest after held slots): the fit around each s-mod set, its score and each candidate's screen. The search is
+     * deterministic, so a cached value is the value a new run would give.
+     */
+    private final Map<String, JAOSearch> baseFits = new HashMap<>();
+    private final Map<String, Float> fulls = new HashMap<>(), screens = new HashMap<>();
+    /** Screens and full searches run (offline checks). */
+    int screensRun, fullsRun;
+
+    /**
      * Best s-mod set from candidates by a small beam search (the 3 best sets of each size are extended), because the
      * best single pick isn't always part of the best pair. Every added s-mod must add jao_smodMinGain.
      */
@@ -113,16 +132,17 @@ final class JAOSMods {
         scores.put("", start);
         Set<String> best = new LinkedHashSet<>();
         float bestScore = start;
+        List<String> pool = candidates;
         for (int k = 0; k < max && !beam.isEmpty(); k++) {
             Map<String, Set<String>> next = new LinkedHashMap<>();
             Map<String, Float> nextScore = new LinkedHashMap<>();
+            List<String> firstOrder = null;
             for (Set<String> chosen : beam) {
                 float base = scores.get(key(chosen));
-                JAOSearch baseFit = search(chosen);
-                baseFit.run();
+                JAOSearch baseFit = baseFit(chosen);
                 // cheap screen: keep the weapons, re-choose hullmods, vents and capacitors around each candidate
                 Map<String, Float> screen = new LinkedHashMap<>();
-                for (String m : candidates) {
+                for (String m : pool) {
                     world.setSMods(chosen);
                     // 0.5.102: applicability without the ordinary form's drawbacks; the s-mod form is judged next
                     if (chosen.contains(m) || !world.canAddSMod(m, without(baseFit.mods, m))) continue;
@@ -131,10 +151,15 @@ final class JAOSMods {
                     Set<String> s = new LinkedHashSet<>(chosen);
                     s.add(m);
                     if (next.containsKey(key(s))) continue;
-                    screen.put(m, screened(baseFit, s));
+                    screen.put(m, screenedCached(baseFit, chosen, s, m));
                 }
                 List<String> top = new ArrayList<>(screen.keySet());
                 top.sort(Comparator.comparing((String m) -> -screen.get(m)).thenComparing(m -> m));
+                // 0.5.102: the first pick's candidates that improve the ship at all, best first
+                if (k == 0) {
+                    firstOrder = new ArrayList<>();
+                    for (String m : top) if (screen.get(m) > JAOSearch.gain(base, 0.0005f)) firstOrder.add(m);
+                }
                 for (String m : top.subList(0, Math.min(BEAM, top.size()))) {
                     Set<String> s = new LinkedHashSet<>(chosen);
                     s.add(m);
@@ -144,6 +169,8 @@ final class JAOSMods {
                     nextScore.put(key(s), v);
                 }
             }
+            // 0.5.102: later levels screen only hullmods that helped as the first pick (at most screenKeep, best first)
+            if (firstOrder != null && screenKeep < Integer.MAX_VALUE) pool = new ArrayList<>(firstOrder.subList(0, Math.min(screenKeep, firstOrder.size())));
             List<String> keys = new ArrayList<>(next.keySet());
             keys.sort(Comparator.comparing((String k2) -> -nextScore.get(k2)).thenComparing(k2 -> k2));
             beam = new ArrayList<>();
@@ -181,9 +208,40 @@ final class JAOSMods {
     }
 
     private float full(Set<String> s) {
+        String k = key(s);
+        Float v = cacheOn ? fulls.get(k) : null;
+        if (v != null) return v;
         JAOSearch js = search(s);
         js.run();
-        return js.objective();
+        fullsRun++;
+        float o = js.objective();
+        fulls.put(k, o);
+        // the next level's screens start from this fit
+        baseFits.putIfAbsent(k, js);
+        return o;
+    }
+
+    /** 0.5.102: the fit around these s-mods, run once per plan (screens read its weapons and hullmods). */
+    private JAOSearch baseFit(Set<String> chosen) {
+        String k = key(chosen);
+        JAOSearch b = cacheOn ? baseFits.get(k) : null;
+        if (b != null) { world.setSMods(chosen); return b; }
+        b = search(chosen);
+        b.run();
+        fullsRun++;
+        baseFits.put(k, b);
+        fulls.putIfAbsent(k, b.objective());
+        return b;
+    }
+
+    private float screenedCached(JAOSearch baseFit, Set<String> chosen, Set<String> s, String m) {
+        String k = key(chosen) + "+" + m;
+        Float v = cacheOn ? screens.get(k) : null;
+        if (v != null) return v;
+        float o = screened(baseFit, s);
+        screensRun++;
+        screens.put(k, o);
+        return o;
     }
 
     /** The base fit's weapons, with hullmods and flux re-chosen for these s-mods. */

@@ -1,5 +1,10 @@
 # Patch notes
 
+## 0.5.103 - 2026-11-27
+
+- S-mods: S-mod planning is faster. Each s-mod set's fit is searched once per ship and reused by every pass, including "Wait for the best hullmods".
+- S-mods: The second and third picks only try hullmods that improved the ship as the first pick, at most 40.
+
 ## 0.5.102 - 2026-11-27
 
 - S-mods: Hullmods with a drawback are never built in, with "Allow hullmods with drawbacks" on or off. This covers stat drawbacks, combat-only drawbacks, s-mod penalties and Shrouded hullmods.
